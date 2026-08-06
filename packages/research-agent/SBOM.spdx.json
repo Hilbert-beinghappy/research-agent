@@ -1,0 +1,713 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "pi-research-agent-0.1.0",
+  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-0.1.0-6e3765e4346c9180bb916496ed8579fe6d890a40b82d9030fcb9b101027c5701",
+  "creationInfo": {
+    "created": "2026-08-06T00:00:00.000Z",
+    "creators": [
+      "Tool: pi-research-agent generate-release-metadata"
+    ]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825",
+      "name": "@citation-js/core",
+      "versionInfo": "0.8.2",
+      "downloadLocation": "https://registry.npmjs.org/@citation-js/core/-/core-0.8.2.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40citation-js%2Fcore@0.8.2"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-poAcV+QQOsoZ8TGqR0B76D/G2DrnMnVeAROIpNsgavm1wECTupj3a4WqbiGje2KzuZLQ496e2ZD1pl9twzyM4g=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--citation-js-date-0.5.1-e6c73a87dc4b",
+      "name": "@citation-js/date",
+      "versionInfo": "0.5.1",
+      "downloadLocation": "https://registry.npmjs.org/@citation-js/date/-/date-0.5.1.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40citation-js%2Fdate@0.5.1"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-1iDKAZ4ie48PVhovsOXQ+C6o55dWJloXqtznnnKy6CltJBQLIuLLuUqa8zlIvma0ZigjVjgDUhnVaNU1MErtZw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--citation-js-name-0.4.2-3342aaf58e62",
+      "name": "@citation-js/name",
+      "versionInfo": "0.4.2",
+      "downloadLocation": "https://registry.npmjs.org/@citation-js/name/-/name-0.4.2.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40citation-js%2Fname@0.4.2"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-brSPsjs2fOVzSnARLKu0qncn6suWjHVQtrqSUrnqyaRH95r/Ad4wPF5EsoWr+Dx8HzkCGb/ogmoAzfCsqlTwTQ=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--citation-js-plugin-bibtex-0.8.2-66c5ff6e7ae9",
+      "name": "@citation-js/plugin-bibtex",
+      "versionInfo": "0.8.2",
+      "downloadLocation": "https://registry.npmjs.org/@citation-js/plugin-bibtex/-/plugin-bibtex-0.8.2.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40citation-js%2Fplugin-bibtex@0.8.2"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-H9NXF5jTXxIvpc/87I9Lz79QZ02q5O+WKSSNetK5RiDkxeCo6USt44uOTeHkuFEkVWUpb9ol0T8GSwXdGl+/bw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--citation-js-plugin-ris-0.8.2-724b182b1c7a",
+      "name": "@citation-js/plugin-ris",
+      "versionInfo": "0.8.2",
+      "downloadLocation": "https://registry.npmjs.org/@citation-js/plugin-ris/-/plugin-ris-0.8.2.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40citation-js%2Fplugin-ris@0.8.2"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-y10o2CAElniVN613/9KYeLGHyWy0ZUlSYKcNruWP6BmQlDjRhR3n/xDbiiWJrAXosw9Z0yF1Xicw/aRzxS1Ywg=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "name": "@napi-rs/canvas",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-xglYA6q3XO5P3BNJYxVZ1IV7DLVjp1Py6nwag88YntrS+3vKHyYcMqXVS4ZztJmwz2uGvz1FWhI/4LgbR5uQDA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-android-arm64-0.1.100-16d541e6f744",
+      "name": "@napi-rs/canvas-android-arm64",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-android-arm64/-/canvas-android-arm64-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-android-arm64@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-hjhCKhntPv9+t4ckHymdx0phYNcVW+GKQR6Lzw2zE+pOVjOplSmtx9nNNknTjbEDLcuLZqA1y8ufKg1XfgftzQ=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-darwin-arm64-0.1.100-098bc8c2d705",
+      "name": "@napi-rs/canvas-darwin-arm64",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-darwin-arm64@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-2PcswRaC7Ly645DGt88///zuFDhJxJYdKAs1uU3mfk1atYkXufgcgLfBpk6Tm12nCQBaNt1wpybuPZ4qOhTo8A=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-darwin-x64-0.1.100-c8a3263c5fb5",
+      "name": "@napi-rs/canvas-darwin-x64",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-darwin-x64/-/canvas-darwin-x64-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-darwin-x64@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-ePNZtj7pNIva/siZMg+HmbeozkIjqUIYdoymH8HaA3qK7LfzFN4WMBM8G6HQ9ZC+H3+Dnn5pqtiXpgLykaPOhw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm-gnueabihf-0.1.100-7de4c52f8148",
+      "name": "@napi-rs/canvas-linux-arm-gnueabihf",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm-gnueabihf/-/canvas-linux-arm-gnueabihf-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm-gnueabihf@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-d5cDB48oWFGU8/XPhUOFAlySgb/VAu7D+s8fi55K1Pcfg8aPplHWqMgibhVLU8ky7Pyg/fuiVLz4Nf3JrSTuUA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm64-gnu-0.1.100-9155cd3c63a5",
+      "name": "@napi-rs/canvas-linux-arm64-gnu",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-gnu/-/canvas-linux-arm64-gnu-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm64-gnu@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-rDxgxRu69RvDlX/bh9o22DxLsGr8EqsNgotL9+RwQE1S0b0cqeatqsw6aW45mukm0B42DIAaAacKaYQ8cqS1nw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm64-musl-0.1.100-6412d64a7287",
+      "name": "@napi-rs/canvas-linux-arm64-musl",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-musl/-/canvas-linux-arm64-musl-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm64-musl@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-K3mDW66N+xT2/V439u1alFANiBUjdEx2gLiNYnCmUsva5jZMxWTjafBYwTzYK+EMFMHrUoabuU+T1BIP5CgbYQ=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-riscv64-gnu-0.1.100-301992953849",
+      "name": "@napi-rs/canvas-linux-riscv64-gnu",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-riscv64-gnu/-/canvas-linux-riscv64-gnu-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-riscv64-gnu@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-mooqUBTIsccZpnoQC4NgrC1v6C1vof39etLNMnBwCY+p0gajWJvAHLGQ6g/gGyS5YrpDW+GefSN4+Cvcr08UWw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-x64-gnu-0.1.100-1fa09121f21c",
+      "name": "@napi-rs/canvas-linux-x64-gnu",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-gnu/-/canvas-linux-x64-gnu-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-x64-gnu@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-1eCvkDCazm7FFhsT7DfGOdSaHgZVK3bt/dSBl5EWHOWmnz+I7j8tPseJqqD81NF+MH21jKUK4wQSDjN0mdhnTg=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-x64-musl-0.1.100-084f1a42100a",
+      "name": "@napi-rs/canvas-linux-x64-musl",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-x64-musl@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-20arT6lnI19S68qNlii73TSEDbECNgzMz2EpldC1V3mZFuRkeujXkcebRk0LRJe9SEUAooYiLokfMViY8IX7yA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-win32-arm64-msvc-0.1.100-cb99054c22fb",
+      "name": "@napi-rs/canvas-win32-arm64-msvc",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-win32-arm64-msvc/-/canvas-win32-arm64-msvc-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-win32-arm64-msvc@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-DZFFT1wIAg37LJw37yhMRFfjATd3vTQzjZ1Yki8u2vhO6Hi5VE6BVaGQ1aaDu7xb4iMErz+9EOwjpS7xcxFeBw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-win32-x64-msvc-0.1.100-764c6ca90367",
+      "name": "@napi-rs/canvas-win32-x64-msvc",
+      "versionInfo": "0.1.100",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.100.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-win32-x64-msvc@0.1.100"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-MyT1j3mHC2+Lu4pBi9mKyMJhtP6U7k7EldY7sj/uS5gJA65gTXt8MefJQXLJo5d/vZbuWmfxzkEUNc/urV3pHA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-data-uri-to-buffer-4.0.1-dc1d01820660",
+      "name": "data-uri-to-buffer",
+      "versionInfo": "4.0.1",
+      "downloadLocation": "https://registry.npmjs.org/data-uri-to-buffer/-/data-uri-to-buffer-4.0.1.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/data-uri-to-buffer@4.0.1"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-fetch-blob-3.2.0-a340ba31b70f",
+      "name": "fetch-blob",
+      "versionInfo": "3.2.0",
+      "downloadLocation": "https://registry.npmjs.org/fetch-blob/-/fetch-blob-3.2.0.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/fetch-blob@3.2.0"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-formdata-polyfill-4.0.10-9f5f58c811ab",
+      "name": "formdata-polyfill",
+      "versionInfo": "4.0.10",
+      "downloadLocation": "https://registry.npmjs.org/formdata-polyfill/-/formdata-polyfill-4.0.10.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/formdata-polyfill@4.0.10"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-moo-0.5.3-eaa236711f1e",
+      "name": "moo",
+      "versionInfo": "0.5.3",
+      "downloadLocation": "https://registry.npmjs.org/moo/-/moo-0.5.3.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/moo@0.5.3"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-m2fmM2dDm7GZQsY7KK2cme8agi+AAljILjQnof7p1ZMDe6dQ4bdnSMx0cPppudoeNv5hEFQirN6u+O4fDE0IWA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-node-domexception-1.0.0-152b9eaf1d8e",
+      "name": "node-domexception",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "https://registry.npmjs.org/node-domexception/-/node-domexception-1.0.0.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/node-domexception@1.0.0"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691",
+      "name": "node-fetch",
+      "versionInfo": "3.3.2",
+      "downloadLocation": "https://registry.npmjs.org/node-fetch/-/node-fetch-3.3.2.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/node-fetch@3.3.2"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pdfjs-dist-5.7.284-8d94bac999b2",
+      "name": "pdfjs-dist",
+      "versionInfo": "5.7.284",
+      "downloadLocation": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.7.284.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/pdfjs-dist@5.7.284"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-h4EdYQczmGhbOlqc3PPZwxevn7ApdWPbovAuWXOB/DjIyigSnwfy2oze7c6mRcSr9XgLp3eN3EeL4DyySTPMFw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-pi-research-agent-0.1.0-49958eeae670",
+      "name": "pi-research-agent",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/pi-research-agent@0.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-sync-fetch-0.6.0-ddbc283d177a",
+      "name": "sync-fetch",
+      "versionInfo": "0.6.0",
+      "downloadLocation": "https://registry.npmjs.org/sync-fetch/-/sync-fetch-0.6.0.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/sync-fetch@0.6.0"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-IELLEvzHuCfc1uTsshPK58ViSdNqXxlml1U+fmwJIKLYKOr/rAtBrorE2RYm5IHaMpDNlmC0fr1LAvdXvyheEQ=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-timeout-signal-2.0.0-f721037424c3",
+      "name": "timeout-signal",
+      "versionInfo": "2.0.0",
+      "downloadLocation": "https://registry.npmjs.org/timeout-signal/-/timeout-signal-2.0.0.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/timeout-signal@2.0.0"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-YBGpG4bWsHoPvofT6y/5iqulfXIiIErl5B0LdtHT1mGXDFTAhhRrbUpTvBgYbovr+3cKblya2WAOcpoy90XguA=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-web-streams-polyfill-3.3.3-bfcda15ff3af",
+      "name": "web-streams-polyfill",
+      "versionInfo": "3.3.3",
+      "downloadLocation": "https://registry.npmjs.org/web-streams-polyfill/-/web-streams-polyfill-3.3.3.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/web-streams-polyfill@3.3.3"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="
+    },
+    {
+      "SPDXID": "SPDXRef-Package-whatwg-mimetype-4.0.0-a5a0d607763e",
+      "name": "whatwg-mimetype",
+      "versionInfo": "4.0.0",
+      "downloadLocation": "https://registry.npmjs.org/whatwg-mimetype/-/whatwg-mimetype-4.0.0.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/whatwg-mimetype@4.0.0"
+        }
+      ],
+      "packageComment": "npm integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg=="
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-pi-research-agent-0.1.0-49958eeae670"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-date-0.5.1-e6c73a87dc4b"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-name-0.4.2-3342aaf58e62"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-sync-fetch-0.6.0-ddbc283d177a"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-plugin-bibtex-0.8.2-66c5ff6e7ae9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-date-0.5.1-e6c73a87dc4b"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-plugin-bibtex-0.8.2-66c5ff6e7ae9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-name-0.4.2-3342aaf58e62"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-plugin-bibtex-0.8.2-66c5ff6e7ae9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-moo-0.5.3-eaa236711f1e"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-plugin-ris-0.8.2-724b182b1c7a",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-date-0.5.1-e6c73a87dc4b"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--citation-js-plugin-ris-0.8.2-724b182b1c7a",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-name-0.4.2-3342aaf58e62"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-android-arm64-0.1.100-16d541e6f744"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-darwin-arm64-0.1.100-098bc8c2d705"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-darwin-x64-0.1.100-c8a3263c5fb5"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm-gnueabihf-0.1.100-7de4c52f8148"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm64-gnu-0.1.100-9155cd3c63a5"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm64-musl-0.1.100-6412d64a7287"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-riscv64-gnu-0.1.100-301992953849"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-x64-gnu-0.1.100-1fa09121f21c"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-x64-musl-0.1.100-084f1a42100a"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-win32-arm64-msvc-0.1.100-cb99054c22fb"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-win32-x64-msvc-0.1.100-764c6ca90367"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-fetch-blob-3.2.0-a340ba31b70f",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-node-domexception-1.0.0-152b9eaf1d8e"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-fetch-blob-3.2.0-a340ba31b70f",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-web-streams-polyfill-3.3.3-bfcda15ff3af"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-formdata-polyfill-4.0.10-9f5f58c811ab",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-fetch-blob-3.2.0-a340ba31b70f"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-data-uri-to-buffer-4.0.1-dc1d01820660"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-fetch-blob-3.2.0-a340ba31b70f"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-formdata-polyfill-4.0.10-9f5f58c811ab"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pdfjs-dist-5.7.284-8d94bac999b2",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-sync-fetch-0.6.0-ddbc283d177a",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-sync-fetch-0.6.0-ddbc283d177a",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-timeout-signal-2.0.0-f721037424c3"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-sync-fetch-0.6.0-ddbc283d177a",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-whatwg-mimetype-4.0.0-a5a0d607763e"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-0.1.0-49958eeae670",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-0.1.0-49958eeae670",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-plugin-bibtex-0.8.2-66c5ff6e7ae9"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-0.1.0-49958eeae670",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--citation-js-plugin-ris-0.8.2-724b182b1c7a"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-0.1.0-49958eeae670",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pdfjs-dist-5.7.284-8d94bac999b2"
+    }
+  ]
+}

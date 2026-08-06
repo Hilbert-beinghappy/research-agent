@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "count": 3,
+    "per_page": 2,
+    "next_cursor": "cursor-page-2",
+    "cost_usd": 0.001
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W1001",
+      "doi": "https://doi.org/10.5555/governance.1",
+      "title": "Algorithmic Governance in Public Organizations",
+      "publication_year": 2023,
+      "publication_date": "2023-05-02",
+      "type": "article",
+      "language": "en",
+      "cited_by_count": 12,
+      "is_retracted": false,
+      "relevance_score": 31.5,
+      "authorships": [
+        {
+          "author_position": "first",
+          "author": {
+            "id": "https://openalex.org/A1001",
+            "display_name": "Lin Chen",
+            "orcid": "https://orcid.org/0000-0000-0000-0001"
+          }
+        }
+      ],
+      "ids": {
+        "openalex": "https://openalex.org/W1001",
+        "doi": "https://doi.org/10.5555/governance.1",
+        "pmid": null,
+        "pmcid": null
+      },
+      "primary_location": {
+        "landing_page_url": "https://example.test/governance.1",
+        "pdf_url": null,
+        "license": null,
+        "source": {
+          "display_name": "Journal of Synthetic Public Administration",
+          "issn_l": "0000-0001"
+        }
+      },
+      "open_access": {
+        "is_oa": false,
+        "oa_status": "closed"
+      },
+      "primary_topic": {
+        "id": "https://openalex.org/T1001",
+        "display_name": "Public Administration",
+        "score": 0.92
+      }
+    },
+    {
+      "id": "https://openalex.org/W1002",
+      "doi": "https://doi.org/10.5555/governance.2",
+      "title": "Public Trust and Automated Decisions",
+      "publication_year": 2022,
+      "publication_date": "2022-01-01",
+      "type": "article",
+      "language": "en",
+      "cited_by_count": 8,
+      "is_retracted": true,
+      "relevance_score": 21.25,
+      "authorships": [],
+      "ids": {
+        "openalex": "https://openalex.org/W1002",
+        "doi": "https://doi.org/10.5555/governance.2",
+        "pmid": "https://pubmed.ncbi.nlm.nih.gov/1002",
+        "pmcid": null
+      },
+      "primary_location": null,
+      "open_access": {
+        "is_oa": true,
+        "oa_status": "gold"
+      },
+      "primary_topic": null
+    }
+  ],
+  "group_by": []
+}

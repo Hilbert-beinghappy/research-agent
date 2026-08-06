@@ -1,0 +1,43 @@
+{
+  "doi": "10.5555/governance.1",
+  "is_oa": true,
+  "oa_status": "hybrid",
+  "best_oa_location": {
+    "url": "https://publisher.example/articles/governance-1",
+    "url_for_landing_page": "https://publisher.example/articles/governance-1",
+    "url_for_pdf": "https://publisher.example/articles/governance-1.pdf",
+    "host_type": "publisher",
+    "version": "publishedVersion",
+    "is_best": true,
+    "license": "cc-by",
+    "oa_date": "2024-02-01",
+    "repository_institution": null,
+    "evidence": "open location fixture"
+  },
+  "oa_locations": [
+    {
+      "url": "https://publisher.example/articles/governance-1",
+      "url_for_landing_page": "https://publisher.example/articles/governance-1",
+      "url_for_pdf": "https://publisher.example/articles/governance-1.pdf",
+      "host_type": "publisher",
+      "version": "publishedVersion",
+      "is_best": true,
+      "license": "cc-by",
+      "oa_date": "2024-02-01",
+      "repository_institution": null,
+      "evidence": "open location fixture"
+    },
+    {
+      "url": "https://repository.example/items/governance-1",
+      "url_for_landing_page": "https://repository.example/items/governance-1",
+      "url_for_pdf": "https://repository.example/items/governance-1.pdf",
+      "host_type": "repository",
+      "version": "acceptedVersion",
+      "is_best": false,
+      "license": null,
+      "oa_date": "2024-03-01",
+      "repository_institution": "Example University",
+      "evidence": "repository copy fixture"
+    }
+  ]
+}

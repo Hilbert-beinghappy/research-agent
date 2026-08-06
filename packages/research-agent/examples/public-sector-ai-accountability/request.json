@@ -1,0 +1,22 @@
+{
+  "exampleVersion": "0.1.0",
+  "title": "Public-sector AI accountability",
+  "domain": "public-administration",
+  "proposedResearchQuestion": "Which public-sector AI accountability mechanisms have evidence of improving institutional legitimacy, and in which settings?",
+  "searchToolInput": {
+    "queryPlanId": "example-public-ai-accountability-v0.1",
+    "queries": [
+      {
+        "queryId": "q1",
+        "text": "public sector artificial intelligence accountability institutional legitimacy",
+        "adapterIds": ["crossref"],
+        "filters": { "fromYear": 2015, "toYear": null, "types": ["journal-article"] },
+        "maxResults": 20
+      }
+    ],
+    "budget": { "maxUsd": 0, "maxRequests": 5, "hardStop": true },
+    "refresh": "use-cache"
+  },
+  "requiredArtifacts": ["evidence-matrix", "review", "json", "ris", "bibtex"],
+  "requiredBoundaries": ["mechanism heterogeneity", "publication status", "insufficient evidence"]
+}

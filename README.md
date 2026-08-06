@@ -1,3 +1,5 @@
+> This repository develops [Pi Research Agent](packages/research-agent), a local-first research workflow package built on the Pi agent harness. Pi stays close to upstream; research capabilities live in the separate package.
+
 <p align="center">
   <a href="https://pi.dev">
     <img alt="pi logo" src="https://pi.dev/logo-auto.svg" width="128">
@@ -31,6 +33,7 @@ To learn more about Pi:
 | **[@earendil-works/pi-agent-core](packages/agent)** | Agent runtime with tool calling and state management |
 | **[@earendil-works/pi-coding-agent](packages/coding-agent)** | Interactive coding agent CLI |
 | **[@earendil-works/pi-tui](packages/tui)** | Terminal UI library with differential rendering |
+| **[pi-research-agent](packages/research-agent)** | Evidence-based research workflows for management and public administration |
 
 For Slack/chat automation and workflows see [earendil-works/pi-chat](https://github.com/earendil-works/pi-chat).
 

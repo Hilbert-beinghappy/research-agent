@@ -1,0 +1,22 @@
+{
+  "exampleVersion": "0.1.0",
+  "title": "Algorithmic transparency and public trust",
+  "domain": "public-administration",
+  "proposedResearchQuestion": "Under what administrative conditions is algorithmic transparency associated with public trust?",
+  "searchToolInput": {
+    "queryPlanId": "example-algorithm-transparency-v0.1",
+    "queries": [
+      {
+        "queryId": "q1",
+        "text": "algorithmic transparency public trust public administration",
+        "adapterIds": ["crossref"],
+        "filters": { "fromYear": 2015, "toYear": null, "types": ["journal-article"] },
+        "maxResults": 20
+      }
+    ],
+    "budget": { "maxUsd": 0, "maxRequests": 5, "hardStop": true },
+    "refresh": "use-cache"
+  },
+  "requiredArtifacts": ["evidence-matrix", "review", "json", "ris", "bibtex"],
+  "requiredBoundaries": ["countervailing evidence", "abstract-only limits", "citation verification"]
+}

@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "count": 3,
+    "per_page": 2,
+    "next_cursor": null,
+    "cost_usd": 0.001
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W1003",
+      "doi": null,
+      "title": "Administrative Legitimacy Without a DOI",
+      "publication_year": 2021,
+      "publication_date": "2021-11-01",
+      "type": "book-chapter",
+      "language": "en",
+      "cited_by_count": 3,
+      "is_retracted": false,
+      "authorships": [],
+      "ids": {
+        "openalex": "https://openalex.org/W1003",
+        "doi": null,
+        "pmid": null,
+        "pmcid": null
+      },
+      "primary_location": null,
+      "open_access": null,
+      "primary_topic": null
+    }
+  ],
+  "group_by": []
+}

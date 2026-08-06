@@ -1,0 +1,74 @@
+name: Research Agent
+
+on:
+  push:
+    paths:
+      - ".github/workflows/research-agent.yml"
+      - "packages/research-agent/**"
+      - "package-lock.json"
+  pull_request:
+    paths:
+      - ".github/workflows/research-agent.yml"
+      - "packages/research-agent/**"
+      - "package-lock.json"
+  workflow_dispatch:
+
+concurrency:
+  group: research-agent-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  v0-1-core:
+    name: v0.1 core (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Hydrate Pi model data
+        run: npm run hydrate:model-data
+
+      - name: Check package
+        run: npm run check -w packages/research-agent
+
+      - name: Run unit and integration tests
+        run: |
+          npm run test:unit -w packages/research-agent
+          npm run test:integration -w packages/research-agent
+
+      - name: Repeat Scenario A and quality gate three times
+        run: |
+          npm run test:e2e -w packages/research-agent -- scenario-a
+          npm run eval -w packages/research-agent -- v0.1
+          npm run test:e2e -w packages/research-agent -- scenario-a
+          npm run eval -w packages/research-agent -- v0.1
+          npm run test:e2e -w packages/research-agent -- scenario-a
+          npm run eval -w packages/research-agent -- v0.1
+
+      - name: Benchmark v0.1
+        run: node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark.json
+
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: research-agent-benchmark-${{ matrix.os }}
+          path: research-agent-benchmark.json
+
+      - name: Qualify release package
+        run: |
+          npm run scan:release -w packages/research-agent
+          npm run test:clean-install -w packages/research-agent
+          npm run test:compat -w packages/research-agent

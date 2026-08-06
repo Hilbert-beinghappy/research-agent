@@ -30,5 +30,5 @@
 		}
 	},
 	"include": ["packages/*/src/**/*", "packages/*/test/**/*", "packages/storage/*/src/**/*", "packages/storage/*/test/**/*", "packages/coding-agent/examples/**/*"],
-	"exclude": ["**/dist/**", "packages/coding-agent/examples/extensions/gondolin/**"]
+	"exclude": ["**/dist/**", "**/._*", "packages/coding-agent/examples/extensions/gondolin/**"]
 }

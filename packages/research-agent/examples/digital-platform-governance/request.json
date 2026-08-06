@@ -1,0 +1,22 @@
+{
+  "exampleVersion": "0.1.0",
+  "title": "Digital platform governance",
+  "domain": "management",
+  "proposedResearchQuestion": "How do digital-platform governance arrangements affect public accountability across institutional settings?",
+  "searchToolInput": {
+    "queryPlanId": "example-platform-governance-v0.1",
+    "queries": [
+      {
+        "queryId": "q1",
+        "text": "digital platform governance public accountability institutional capacity",
+        "adapterIds": ["crossref"],
+        "filters": { "fromYear": 2010, "toYear": null, "types": ["journal-article"] },
+        "maxResults": 20
+      }
+    ],
+    "budget": { "maxUsd": 0, "maxRequests": 5, "hardStop": true },
+    "refresh": "use-cache"
+  },
+  "requiredArtifacts": ["evidence-matrix", "review", "json", "ris", "bibtex"],
+  "requiredBoundaries": ["institutional context", "capacity differences", "conflicting outcomes"]
+}

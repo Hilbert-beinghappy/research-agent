@@ -1,0 +1,26 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message-version": "1.0.0",
+  "message": {
+    "total-results": 2,
+    "next-cursor": "cursor-partial-next",
+    "items": [
+      {
+        "DOI": "10.5555/governance.valid",
+        "title": ["A Valid Synthetic Record"],
+        "issued": {
+          "date-parts": [[2020]]
+        },
+        "type": "journal-article"
+      },
+      {
+        "title": ["A Synthetic Record Missing Its DOI"],
+        "issued": {
+          "date-parts": [[2020]]
+        },
+        "type": "journal-article"
+      }
+    ]
+  }
+}

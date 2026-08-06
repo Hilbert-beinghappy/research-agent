@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "count": 2,
+    "per_page": 2,
+    "next_cursor": null,
+    "cost_usd": 0.001
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W1004",
+      "doi": "https://doi.org/10.5555/governance.valid",
+      "title": "A Valid Synthetic OpenAlex Work",
+      "publication_year": 2020,
+      "publication_date": "2020-01-01",
+      "type": "article",
+      "language": "en",
+      "cited_by_count": 1,
+      "is_retracted": false,
+      "authorships": [],
+      "ids": {},
+      "primary_location": null,
+      "open_access": null,
+      "primary_topic": null
+    },
+    {
+      "id": "https://openalex.org/W1005",
+      "doi": null,
+      "title": "A Synthetic Work Missing Retraction State"
+    }
+  ],
+  "group_by": []
+}

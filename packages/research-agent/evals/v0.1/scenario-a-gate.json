@@ -1,0 +1,25 @@
+{
+	"schemaVersion": "0.1.0",
+	"scenario": "scenario-a",
+	"requiredTopicCount": 3,
+	"requiredAnomalies": {
+		"abstract_only": "abstract",
+		"paywall": "paywall_blocked",
+		"multiple_versions": "possible_duplicate",
+		"metadata_conflict": "conflict",
+		"scanned_pdf": "ocr_required",
+		"parse_failure": "parse_failed",
+		"publication_warning": "retracted",
+		"conflicting_conclusions": "mixed",
+		"insufficient_evidence": "unsupported",
+		"interruption_recovery": "consistent"
+	},
+	"requiredArtifacts": [
+		"artifacts/evidence-matrix.md",
+		"artifacts/review.md",
+		"artifacts/exports/sources.json",
+		"artifacts/exports/export.ris",
+		"artifacts/exports/export.bib"
+	],
+	"requiredEvidenceLevels": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"]
+}

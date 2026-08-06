@@ -1,0 +1,61 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message-version": "1.0.0",
+  "message": {
+    "total-results": 3,
+    "next-cursor": "cursor-page-2",
+    "items": [
+      {
+        "DOI": "10.5555/governance.1",
+        "title": ["Algorithmic Governance in Public Organizations"],
+        "author": [
+          {
+            "given": "Lin",
+            "family": "Chen",
+            "ORCID": "https://orcid.org/0000-0000-0000-0001"
+          }
+        ],
+        "issued": {
+          "date-parts": [[2023, 5, 2]]
+        },
+        "container-title": ["Journal of Synthetic Public Administration"],
+        "publisher": "Fixture Press",
+        "type": "journal-article",
+        "language": "en",
+        "URL": "https://doi.org/10.5555/governance.1",
+        "ISSN": ["0000-0001"],
+        "score": 31.5
+      },
+      {
+        "DOI": "10.5555/governance.2.correction",
+        "title": ["Correction: Public Trust and Automated Decisions"],
+        "author": [
+          {
+            "given": "Ming",
+            "family": "Zhao"
+          }
+        ],
+        "issued": {
+          "date-parts": [[2022]]
+        },
+        "container-title": ["Management Evidence Review"],
+        "publisher": "Fixture Press",
+        "type": "journal-article",
+        "URL": "https://doi.org/10.5555/governance.2",
+        "update-to": [
+          {
+            "updated": {
+              "date-parts": [[2024, 1, 12]]
+            },
+            "DOI": "10.5555/governance.2",
+            "type": "correction",
+            "label": "Correction",
+            "source": "publisher"
+          }
+        ],
+        "score": 21.25
+      }
+    ]
+  }
+}

@@ -1,0 +1,127 @@
+{
+	"schemaVersion": "0.1.0",
+	"replayId": "scenario-a-v0.1",
+	"scriptedToolSet": [
+		"research_search_sources",
+		"research_import_sources",
+		"research_documents",
+		"research_query_corpus",
+		"research_commit_evidence",
+		"research_verify_citations",
+		"research_artifacts"
+	],
+	"evidenceCases": [
+		{
+			"caseId": "located-support-title",
+			"evidenceLevel": "fulltext_located",
+			"relation": "supports",
+			"query": "positive result for",
+			"evidenceStatement": "The study reports a positive result for the focal governance intervention.",
+			"paraphrase": "A located passage reports a positive result in one observed setting."
+		},
+		{
+			"caseId": "located-support-capacity",
+			"evidenceLevel": "fulltext_located",
+			"relation": "supports",
+			"query": "high-capacity agency",
+			"evidenceStatement": "The high-capacity agency reported a positive post-implementation outcome.",
+			"paraphrase": "The observed high-capacity agency had a positive outcome after implementation."
+		},
+		{
+			"caseId": "located-support-measure",
+			"evidenceLevel": "fulltext_located",
+			"relation": "supports",
+			"query": "outcome measure improved",
+			"evidenceStatement": "The observed outcome measure improved during the study period.",
+			"paraphrase": "The study records improvement in its outcome measure."
+		},
+		{
+			"caseId": "located-refute-title",
+			"evidenceLevel": "fulltext_located",
+			"relation": "refutes",
+			"query": "countervailing result for",
+			"evidenceStatement": "The study also reports a countervailing result for the focal governance intervention.",
+			"paraphrase": "A located passage reports a countervailing result in the comparison setting."
+		},
+		{
+			"caseId": "located-refute-capacity",
+			"evidenceLevel": "fulltext_located",
+			"relation": "refutes",
+			"query": "low-capacity agency",
+			"evidenceStatement": "The low-capacity agency did not report a positive post-implementation outcome.",
+			"paraphrase": "The comparison agency did not show the positive outcome."
+		},
+		{
+			"caseId": "located-refute-measure",
+			"evidenceLevel": "fulltext_located",
+			"relation": "refutes",
+			"query": "outcome measure declined",
+			"evidenceStatement": "The observed outcome measure declined in the comparison setting.",
+			"paraphrase": "The comparison setting records a decline in the same outcome measure."
+		},
+		{
+			"caseId": "abstract-association",
+			"evidenceLevel": "abstract",
+			"relation": "supports",
+			"query": null,
+			"evidenceStatement": "Only abstract-level evidence is available for the reported association.",
+			"paraphrase": "The abstract reports an association, but its full text is unavailable."
+		},
+		{
+			"caseId": "abstract-level-limit",
+			"evidenceLevel": "abstract",
+			"relation": "qualifies",
+			"query": null,
+			"evidenceStatement": "The source can support only an abstract-level descriptive statement.",
+			"paraphrase": "The material level limits the claim to an abstract report."
+		},
+		{
+			"caseId": "abstract-method-limit",
+			"evidenceLevel": "abstract",
+			"relation": "qualifies",
+			"query": null,
+			"evidenceStatement": "Unavailable full text prevents verification of methods and institutional context.",
+			"paraphrase": "Methods and context cannot be checked from the abstract alone."
+		},
+		{
+			"caseId": "abstract-causal-limit",
+			"evidenceLevel": "abstract",
+			"relation": "context_only",
+			"query": null,
+			"evidenceStatement": "The abstract cannot establish a universal causal conclusion.",
+			"paraphrase": "Abstract-only material does not justify the requested universal causal claim."
+		}
+	],
+	"topics": [
+		{
+			"slug": "algorithm-transparency-public-trust",
+			"title": "算法透明度与公众信任",
+			"query": "algorithmic transparency public trust",
+			"doiPrefix": "10.5555/scenario.transparency",
+			"sourceTitle": "Algorithmic Transparency and Public Trust",
+			"mixedClaim": "Algorithmic transparency increases public trust in administrative settings.",
+			"unsupportedClaim": "Algorithmic transparency always increases public trust in every administrative setting.",
+			"abstractClaim": "Abstract-level reports associate transparency with public trust."
+		},
+		{
+			"slug": "public-sector-ai-accountability",
+			"title": "公共部门 AI 问责",
+			"query": "public sector AI accountability",
+			"doiPrefix": "10.5555/scenario.accountability",
+			"sourceTitle": "Public-Sector AI Accountability",
+			"mixedClaim": "Public-sector AI accountability mechanisms improve institutional legitimacy.",
+			"unsupportedClaim": "Every public-sector AI accountability mechanism produces legitimate decisions.",
+			"abstractClaim": "Abstract-level reports associate AI accountability with institutional legitimacy."
+		},
+		{
+			"slug": "digital-platform-governance",
+			"title": "数字平台治理",
+			"query": "digital platform governance",
+			"doiPrefix": "10.5555/scenario.platform",
+			"sourceTitle": "Digital Platform Governance",
+			"mixedClaim": "Digital platform governance improves public accountability.",
+			"unsupportedClaim": "Digital platform governance always resolves every accountability problem.",
+			"abstractClaim": "Abstract-level reports associate platform governance with public accountability."
+		}
+	]
+}

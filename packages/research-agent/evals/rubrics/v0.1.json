@@ -1,0 +1,100 @@
+{
+	"schemaVersion": "0.1.0",
+	"adjudicationMethod": "predefined_gold",
+	"evidenceCard": {
+		"sampleSize": 30,
+		"criteria": [
+			{
+				"id": "evidenceLevel",
+				"maxScore": 2,
+				"description": "Material level matches the available source and never upgrades metadata or an abstract to located full text."
+			},
+			{
+				"id": "locator",
+				"maxScore": 2,
+				"description": "Located full text has a reproducible page, block, range, anchor, and exact excerpt; lower levels have no false locator."
+			},
+			{
+				"id": "rights",
+				"maxScore": 2,
+				"description": "Stored excerpt and export behavior follow the recorded rights boundary."
+			},
+			{
+				"id": "supportRelation",
+				"maxScore": 2,
+				"description": "Support, refutation, qualification, or context-only relation is faithful to the cited material."
+			}
+		],
+		"thresholds": {
+			"allCriteriaAtMax": true,
+			"abstractAsFulltextViolationsMax": 0,
+			"invalidationPropagationRateMin": 1
+		}
+	},
+	"literatureReview": {
+		"sampleSize": 3,
+		"items": [
+			{ "id": 1, "key": "scope", "maxScore": 2, "description": "Research question and scope are explicit." },
+			{
+				"id": 2,
+				"key": "searchTransparency",
+				"maxScore": 2,
+				"description": "Sources, query, date, and inclusion or exclusion rules are visible."
+			},
+			{
+				"id": 3,
+				"key": "dedupAndVersions",
+				"maxScore": 2,
+				"description": "Deduplication and version relationships are represented correctly."
+			},
+			{
+				"id": 4,
+				"key": "evidenceFidelity",
+				"maxScore": 2,
+				"description": "Core statements agree with EvidenceCards."
+			},
+			{
+				"id": 5,
+				"key": "materialLevel",
+				"maxScore": 2,
+				"description": "Metadata, abstract, full text, and located evidence use correct wording."
+			},
+			{
+				"id": 6,
+				"key": "conflictAndHeterogeneity",
+				"maxScore": 2,
+				"description": "Conflicts, counterexamples, and heterogeneity remain visible."
+			},
+			{
+				"id": 7,
+				"key": "evidenceDerivedGap",
+				"maxScore": 2,
+				"description": "The research gap follows from the evidence matrix."
+			},
+			{
+				"id": 8,
+				"key": "citationVerification",
+				"maxScore": 2,
+				"description": "Bibliographic and publication statuses are represented faithfully."
+			},
+			{
+				"id": 9,
+				"key": "limitations",
+				"maxScore": 2,
+				"description": "Unavailable full text and other limitations are explicit."
+			},
+			{
+				"id": 10,
+				"key": "nextAction",
+				"maxScore": 2,
+				"description": "The next action stays inside the current evidence boundary."
+			}
+		],
+		"thresholds": {
+			"minimumTotal": 17,
+			"hardItemIds": [4, 5, 8],
+			"hardItemMinimum": 2,
+			"fabricatedEvidenceP0": true
+		}
+	}
+}

@@ -1,0 +1,29 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message-version": "1.0.0",
+  "message": {
+    "total-results": 3,
+    "next-cursor": "cursor-after-last-page",
+    "items": [
+      {
+        "DOI": "10.5555/governance.3",
+        "title": ["Transparency and Administrative Legitimacy"],
+        "author": [
+          {
+            "given": "Asha",
+            "family": "Singh"
+          }
+        ],
+        "issued": {
+          "date-parts": [[2021, 11]]
+        },
+        "container-title": ["Synthetic Governance Quarterly"],
+        "publisher": "Fixture Press",
+        "type": "journal-article",
+        "URL": "https://doi.org/10.5555/governance.3",
+        "score": 18
+      }
+    ]
+  }
+}

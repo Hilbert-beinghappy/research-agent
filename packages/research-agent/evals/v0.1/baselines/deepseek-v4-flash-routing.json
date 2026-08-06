@@ -1,0 +1,96 @@
+{
+	"schemaVersion": "0.1.0",
+	"evalId": "deepseek-v4-flash-routing",
+	"status": "passed",
+	"executedAt": "2026-08-06T15:08:44.839Z",
+	"validatedAt": "2026-08-06T15:09:31.477Z",
+	"provider": "configured-anthropic-compatible-gateway",
+	"model": "deepseek-v4-flash",
+	"thinkingLevel": "low",
+	"modelInvocationCount": 1,
+	"validationMode": "saved-output-replay",
+	"validatorAdjustment": "Treat contradictory_evidence as a conflicting-conclusion warning.",
+	"input": {
+		"commit": "e0b8039e017b38c68dd856d6e30a4d3c8b3f9659",
+		"promptSha256": "ed5e8fa6a33b85e725216c39a089ce63fb92fec98496b2cc7bd8c230de4d14ab",
+		"gateSha256": "052276bd147d9007458a20b7c9fa92dd6f68c8ea28f52260597add88bc276b84",
+		"fixtureSha256": "47626896b9352c845968f2fbc3347b5996b1e054751c395086ca81dc94c0ffa1",
+		"skillSha256": {
+			"projectIntake": "f95ca3ba1099d50192d16b908b5a596447eb97085505483d032c2722b2b4c8bc",
+			"literatureReview": "b42cb08d35afad5d887c2d58ce7d98e60529cfaa703cf6f40ee9e897e25894b7",
+			"literatureEvidence": "fadd11bba7432895b94fbc9a44181730fc2e7cc09fef82eca8aea59d64ff6ed7"
+		}
+	},
+	"execution": {
+		"durationMs": 8931,
+		"apiDurationMs": 8880,
+		"turns": 1,
+		"costUsd": 0.02949,
+		"usage": {
+			"inputTokens": 523,
+			"outputTokens": 1075,
+			"cacheCreationInputTokens": 0,
+			"cacheReadInputTokens": 0
+		}
+	},
+	"result": {
+		"taskClass": "literature_review",
+		"toolSequence": [
+			"research_search_sources",
+			"research_import_sources",
+			"research_documents",
+			"research_query_corpus",
+			"research_commit_evidence",
+			"research_verify_citations",
+			"research_artifacts"
+		],
+		"claimDecision": "unsupported",
+		"submissionDecision": "blocked",
+		"evidenceRules": {
+			"abstractIsFullText": false,
+			"paywallBypass": false,
+			"ocrRequiredIsLocatedEvidence": false,
+			"unverifiedCitationCanFinalize": false
+		},
+		"requiredWarnings": [
+			"unsupported_claim",
+			"universal_causal_overreach",
+			"contradictory_evidence",
+			"retracted_source",
+			"corrected_source",
+			"duplicate_sources",
+			"unresolved_doi_conflict",
+			"abstract_only",
+			"paywalled_source",
+			"corrupt_pdf",
+			"ocr_required",
+			"unverified_citations",
+			"incomplete_review"
+		],
+		"nextAction": "Gather balanced evidence on algorithmic transparency and public trust across the located and pending sources; do not mark the review complete or submit until the claim is supported and citations are verified."
+	},
+	"resultSha256": "e5713e701217e8d20c9ba41d98d46d22b2f2616bc99c5f0f79f1b730ecdcb53d",
+	"warningCoverage": {
+		"abstractOnly": true,
+		"paywall": true,
+		"multipleVersions": true,
+		"metadataConflict": true,
+		"scannedPdf": true,
+		"parseFailure": true,
+		"retractedSource": true,
+		"correctedSource": true,
+		"conflictingConclusions": true,
+		"insufficientEvidence": true
+	},
+	"checks": {
+		"exactModel": true,
+		"taskClass": true,
+		"toolAllowlist": true,
+		"toolOrder": true,
+		"requiredToolRouting": true,
+		"claimNotOverstated": true,
+		"submissionBlocked": true,
+		"evidenceBoundaries": true,
+		"warningsCoverAnomalies": true
+	}
+}

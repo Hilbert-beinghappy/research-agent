@@ -1,0 +1,332 @@
+{
+  "candidates": [
+    {
+      "candidateId": "doi-crossref",
+      "adapterId": "crossref",
+      "metadata": {
+        "DOI": "https://doi.org/10.5555/Transparency.1",
+        "title": "Algorithmic Transparency and Public Trust",
+        "authors": [{ "given": "Ming", "family": "Li" }],
+        "issuedDate": "2024-03-01",
+        "type": "journal-article",
+        "containerTitle": "Journal of Synthetic Governance"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "doi-openalex",
+      "adapterId": "openalex",
+      "metadata": {
+        "doi": "10.5555/transparency.1",
+        "title": "Algorithmic Transparency—and Public Trust",
+        "authors": [{ "name": "Ming Li" }],
+        "publicationYear": 2024,
+        "type": "article",
+        "containerTitle": "Journal of Synthetic Governance"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "weak-ris",
+      "adapterId": "local-ris",
+      "metadata": {
+        "title": "Algorithmic Transparency and Public Trust",
+        "author": [{ "given": "Ming", "family": "Li" }],
+        "issued": { "date-parts": [[2024]] },
+        "type": "article-journal"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "doi-title-conflict",
+      "adapterId": "crossref-recorded",
+      "metadata": {
+        "doi": "10.5555/transparency.1",
+        "title": "AI Procurement Accountability",
+        "authors": [{ "given": "Ming", "family": "Li" }],
+        "issuedDate": "2024",
+        "type": "journal-article"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "doi-wrong",
+      "adapterId": "import",
+      "metadata": {
+        "doi": "10.5555/wrong.1",
+        "title": "Algorithmic Transparency and Public Trust",
+        "author": [{ "given": "Ming", "family": "Li" }],
+        "issued": { "date-parts": [[2024]] },
+        "type": "article-journal"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "doi-correction",
+      "adapterId": "crossref",
+      "metadata": {
+        "doi": "10.5555/transparency.correction",
+        "title": "Algorithmic Transparency and Public Trust",
+        "authors": [{ "given": "Ming", "family": "Li" }],
+        "issuedDate": "2024",
+        "type": "journal-article",
+        "publicationStatus": "corrected"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "year-different",
+      "adapterId": "local-bibtex",
+      "metadata": {
+        "title": "Algorithmic Transparency and Public Trust",
+        "author": [{ "given": "Ming", "family": "Li" }],
+        "issued": { "date-parts": [[2023]] }
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "author-different",
+      "adapterId": "local-csl",
+      "metadata": {
+        "title": "Algorithmic Transparency and Public Trust",
+        "author": [{ "given": "Lin", "family": "Chen" }],
+        "issued": { "date-parts": [[2024]] }
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "arxiv-v1",
+      "adapterId": "local-csl",
+      "metadata": {
+        "arxiv": "arXiv:2401.01234v1",
+        "title": "Auditable Algorithms",
+        "author": [{ "family": "Wang", "given": "Yu" }],
+        "issued": { "date-parts": [[2024]] },
+        "type": "preprint"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "arxiv-v3",
+      "adapterId": "local-bibtex",
+      "metadata": {
+        "arXiv": "https://arxiv.org/abs/2401.01234v3",
+        "title": "Auditable Algorithms",
+        "authors": [{ "name": "Yu Wang" }],
+        "publicationYear": 2024,
+        "type": "posted-content"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "arxiv-doi-a",
+      "adapterId": "source-a",
+      "metadata": {
+        "doi": "10.5555/preprint.a",
+        "arxiv": "2402.00001v1",
+        "title": "Public AI Audits",
+        "authors": [{ "family": "Zhao", "given": "Lin" }],
+        "issuedDate": "2024",
+        "type": "preprint"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "arxiv-doi-b",
+      "adapterId": "source-b",
+      "metadata": {
+        "doi": "10.5555/article.b",
+        "arxiv": "2402.00001v2",
+        "title": "Public AI Audits",
+        "authors": [{ "family": "Zhao", "given": "Lin" }],
+        "issuedDate": "2024",
+        "type": "journal-article"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "isbn-book-a",
+      "adapterId": "local-ris",
+      "metadata": {
+        "ISBN": "978-0-306-40615-7",
+        "title": "Synthetic Public Management",
+        "author": [{ "family": "Smith", "given": "Alex" }],
+        "issued": { "date-parts": [[2021]] },
+        "type": "book"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "isbn-book-b",
+      "adapterId": "local-bibtex",
+      "metadata": {
+        "isbn": "9780306406157",
+        "title": "Synthetic Public Management",
+        "authors": [{ "name": "Alex Smith" }],
+        "publicationYear": 2021,
+        "type": "book"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "isbn-chapter-a",
+      "adapterId": "local-csl",
+      "metadata": {
+        "ISBN": "978-1-86197-271-2",
+        "title": "Accountability in Procurement",
+        "author": [{ "family": "Jones", "given": "Sam" }],
+        "issued": { "date-parts": [[2020]] },
+        "type": "chapter"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "isbn-chapter-b",
+      "adapterId": "local-csl",
+      "metadata": {
+        "ISBN": "9781861972712",
+        "title": "Accountability in Public Finance",
+        "author": [{ "family": "Brown", "given": "Kai" }],
+        "issued": { "date-parts": [[2020]] },
+        "type": "book-chapter"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "chinese-weak-a",
+      "adapterId": "local-ris",
+      "metadata": {
+        "title": "算法治理：透明度与公众信任",
+        "author": [{ "family": "张", "given": "伟" }],
+        "issued": { "date-parts": [[2025]] }
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "chinese-weak-b",
+      "adapterId": "local-csl",
+      "metadata": {
+        "title": "算法治理 透明度与公众信任",
+        "authors": [{ "family": "张", "given": "伟" }],
+        "issuedDate": "2025"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "pdf-copy-a",
+      "adapterId": "local-pdf",
+      "metadata": null,
+      "contentHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "requiresBibliographicMatch": true
+    },
+    {
+      "candidateId": "pdf-copy-b",
+      "adapterId": "local-pdf",
+      "metadata": null,
+      "contentHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "requiresBibliographicMatch": true
+    },
+    {
+      "candidateId": "invalid-doi-a",
+      "adapterId": "import",
+      "metadata": {
+        "DOI": "not-a-doi",
+        "title": "Invalid Identifier Study",
+        "author": [{ "family": "Wu", "given": "Lei" }],
+        "issued": { "date-parts": [[2020]] }
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "invalid-doi-b",
+      "adapterId": "import",
+      "metadata": {
+        "title": "Invalid Identifier Study",
+        "authors": [{ "given": "Lei", "family": "Wu" }],
+        "issuedDate": "2020"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "bridge-a",
+      "adapterId": "source-a",
+      "metadata": {
+        "doi": "10.5555/bridge.a",
+        "isbn": "9780306406157",
+        "title": "Bridge Metadata",
+        "author": [{ "family": "Taylor" }],
+        "year": "2022",
+        "type": "book"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "bridge-mid",
+      "adapterId": "source-mid",
+      "metadata": {
+        "isbn": "9780306406157",
+        "title": "Bridge Metadata",
+        "author": [{ "family": "Taylor" }],
+        "year": "2022",
+        "type": "book"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    },
+    {
+      "candidateId": "bridge-c",
+      "adapterId": "source-c",
+      "metadata": {
+        "doi": "10.5555/bridge.c",
+        "isbn": "9780306406157",
+        "title": "Bridge Metadata",
+        "author": [{ "family": "Taylor" }],
+        "year": "2022",
+        "type": "book"
+      },
+      "contentHash": null,
+      "requiresBibliographicMatch": false
+    }
+  ],
+  "pairs": [
+    { "left": "doi-crossref", "right": "doi-openalex", "sameSource": true, "expectedStatus": "automatic_merge" },
+    { "left": "doi-crossref", "right": "weak-ris", "sameSource": true, "expectedStatus": "possible_duplicate" },
+    { "left": "doi-crossref", "right": "doi-title-conflict", "sameSource": true, "expectedStatus": "possible_duplicate" },
+    { "left": "doi-crossref", "right": "doi-wrong", "sameSource": true, "expectedStatus": "possible_duplicate" },
+    { "left": "doi-crossref", "right": "doi-correction", "sameSource": false, "expectedStatus": "possible_duplicate" },
+    { "left": "doi-crossref", "right": "year-different", "sameSource": false, "expectedStatus": "distinct" },
+    { "left": "doi-crossref", "right": "author-different", "sameSource": false, "expectedStatus": "distinct" },
+    { "left": "arxiv-v1", "right": "arxiv-v3", "sameSource": true, "expectedStatus": "automatic_merge" },
+    { "left": "arxiv-doi-a", "right": "arxiv-doi-b", "sameSource": true, "expectedStatus": "possible_duplicate" },
+    { "left": "isbn-book-a", "right": "isbn-book-b", "sameSource": true, "expectedStatus": "automatic_merge" },
+    { "left": "isbn-chapter-a", "right": "isbn-chapter-b", "sameSource": false, "expectedStatus": "possible_duplicate" },
+    { "left": "chinese-weak-a", "right": "chinese-weak-b", "sameSource": true, "expectedStatus": "possible_duplicate" },
+    { "left": "pdf-copy-a", "right": "pdf-copy-b", "sameSource": true, "expectedStatus": "automatic_merge" },
+    { "left": "invalid-doi-a", "right": "invalid-doi-b", "sameSource": true, "expectedStatus": "possible_duplicate" },
+    { "left": "bridge-a", "right": "bridge-mid", "sameSource": true, "expectedStatus": "automatic_merge" },
+    { "left": "bridge-c", "right": "bridge-mid", "sameSource": true, "expectedStatus": "automatic_merge" },
+    { "left": "bridge-a", "right": "bridge-c", "sameSource": false, "expectedStatus": "possible_duplicate" },
+    { "left": "arxiv-v1", "right": "isbn-book-a", "sameSource": false, "expectedStatus": "distinct" }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+	"schemaVersion": "0.1.0",
+	"evalId": "scenario-a-quality-v0.1",
+	"status": "passed",
+	"evaluatedAt": "2026-08-06",
+	"adjudicationMethod": "predefined_gold",
+	"baseCommit": "02c23cbc9821ab08c8b9553a8a7001f963b8aa0a",
+	"input": {
+		"fixtureSha256": "00bd09174031f48e926a6461be3323e7cc084b642fe26f123d41cdb19a69edd8",
+		"rubricSha256": "2a210c168dd8687a244fe1c3e9ddce6c74153461044f46fb29a4ec20560b5041",
+		"reviewSha256": {
+			"algorithm-transparency-public-trust": "5bed115a052b0603f59c7e9f7963fc81ca2c6daca2f006fe1524059255fbb4bd",
+			"public-sector-ai-accountability": "97c585c49de30f18cd1c09ee512e25e0835663e9f1b24ce5e35c2313b824f8d0",
+			"digital-platform-governance": "3c0c04d7d933398d7e09428f11d54e9bf0e7d55655bddf7ba45769a59f1a620b"
+		},
+		"modelBaselineSha256": "c672ed9ce0d6500aeb7799fde4ea9799cc8084f92db89a2ff8599b63cd7d8e12"
+	},
+	"modelEvaluation": {
+		"model": "deepseek-v4-flash",
+		"thinkingLevel": "low",
+		"promptSha256": "ed5e8fa6a33b85e725216c39a089ce63fb92fec98496b2cc7bd8c230de4d14ab",
+		"resultSha256": "e5713e701217e8d20c9ba41d98d46d22b2f2616bc99c5f0f79f1b730ecdcb53d"
+	},
+	"evidence": {
+		"abstractAsFulltextViolations": 0,
+		"invalidationPropagationRate": 1,
+		"metricRefs": {
+			"abstractAsFulltext": "test/e2e/scenario-a.test.ts",
+			"invalidationPropagation": "test/integration/evidence-cards.test.ts"
+		},
+		"adjudications": [
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "located-support-title", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-title", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "located-support-capacity", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-capacity", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "located-support-measure", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-measure", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "located-refute-title", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-title", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "located-refute-capacity", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-capacity", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "located-refute-measure", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-measure", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "abstract-association", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-association", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "abstract-level-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-level-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "abstract-method-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-method-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "algorithm-transparency-public-trust", "caseId": "abstract-causal-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/algorithm-transparency-public-trust", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-causal-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "located-support-title", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-title", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "located-support-capacity", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-capacity", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "located-support-measure", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-measure", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "located-refute-title", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-title", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "located-refute-capacity", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-capacity", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "located-refute-measure", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-measure", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "abstract-association", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-association", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "abstract-level-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-level-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "abstract-method-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-method-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "public-sector-ai-accountability", "caseId": "abstract-causal-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/public-sector-ai-accountability", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-causal-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "located-support-title", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-title", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "located-support-capacity", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-capacity", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "located-support-measure", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-support-measure", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "located-refute-title", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-title", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "located-refute-capacity", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-capacity", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "located-refute-measure", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/located-refute-measure", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "abstract-association", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-association", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "abstract-level-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-level-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "abstract-method-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-method-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" },
+			{ "topicSlug": "digital-platform-governance", "caseId": "abstract-causal-limit", "topicRef": "test/fixtures/projects/scenario-a/topics.json#topics/digital-platform-governance", "caseRef": "test/fixtures/projects/scenario-a/topics.json#evidenceCases/abstract-causal-limit", "scores": { "evidenceLevel": 2, "locator": 2, "rights": 2, "supportRelation": 2 }, "verdict": "pass" }
+		]
+	},
+	"reviews": [
+		{
+			"topicSlug": "algorithm-transparency-public-trust",
+			"fixturePath": "evals/v0.1/reviews/algorithm-transparency-public-trust.md",
+			"scores": { "1": 2, "2": 2, "3": 2, "4": 2, "5": 2, "6": 2, "7": 2, "8": 2, "9": 2, "10": 2 },
+			"total": 20,
+			"p0Violations": []
+		},
+		{
+			"topicSlug": "public-sector-ai-accountability",
+			"fixturePath": "evals/v0.1/reviews/public-sector-ai-accountability.md",
+			"scores": { "1": 2, "2": 2, "3": 2, "4": 2, "5": 2, "6": 2, "7": 2, "8": 2, "9": 2, "10": 2 },
+			"total": 20,
+			"p0Violations": []
+		},
+		{
+			"topicSlug": "digital-platform-governance",
+			"fixturePath": "evals/v0.1/reviews/digital-platform-governance.md",
+			"scores": { "1": 2, "2": 2, "3": 2, "4": 2, "5": 2, "6": 2, "7": 2, "8": 2, "9": 2, "10": 2 },
+			"total": 20,
+			"p0Violations": []
+		}
+	]
+}

@@ -1,0 +1,43 @@
+{
+  "doi": "10.5555/partial.1",
+  "is_oa": true,
+  "oa_status": "green",
+  "best_oa_location": {
+    "url": "https://repository.example/items/partial-1",
+    "url_for_landing_page": "https://repository.example/items/partial-1",
+    "url_for_pdf": null,
+    "host_type": "repository",
+    "version": "acceptedVersion",
+    "is_best": true,
+    "license": null,
+    "oa_date": "2023-01-15",
+    "repository_institution": "Example Archive",
+    "evidence": "repository copy fixture"
+  },
+  "oa_locations": [
+    {
+      "url": "https://repository.example/items/partial-1",
+      "url_for_landing_page": "https://repository.example/items/partial-1",
+      "url_for_pdf": null,
+      "host_type": "repository",
+      "version": "acceptedVersion",
+      "is_best": true,
+      "license": null,
+      "oa_date": "2023-01-15",
+      "repository_institution": "Example Archive",
+      "evidence": "repository copy fixture"
+    },
+    {
+      "url": "ftp://invalid.example/partial-1.pdf",
+      "url_for_landing_page": null,
+      "url_for_pdf": null,
+      "host_type": "repository",
+      "version": "acceptedVersion",
+      "is_best": false,
+      "license": "cc-by",
+      "oa_date": null,
+      "repository_institution": null,
+      "evidence": "malformed location fixture"
+    }
+  ]
+}

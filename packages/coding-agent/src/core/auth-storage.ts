@@ -3,11 +3,11 @@
  * Provider auth orchestration belongs to ModelRuntime and pi-ai Models.
  */
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AuthOperationOptions, Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
-import { setTimeout as sleep } from "timers/promises";
 import { getAgentDir } from "../config.ts";
 import { raceWithAbortSignal } from "../utils/abort.ts";
 import { normalizePath } from "../utils/paths.ts";

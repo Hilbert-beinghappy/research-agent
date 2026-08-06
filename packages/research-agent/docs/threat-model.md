@@ -1,0 +1,46 @@
+# Threat model v0.1
+
+## Assets
+
+- Canonical project records, manifest revisions, input/output hashes, transaction ledger, and recovery state.
+- Local papers, excerpts, bibliographic imports, provider responses, research questions, and model-authored drafts.
+- Provider credentials, approval decisions, action budgets, publication-status checks, and provenance.
+
+## Trust boundaries
+
+1. **Pi host and user account:** trusted to read and modify accessible files. Pi Extensions have full host-process authority.
+2. **Research Package kernel:** trusted built-in code validates schemas, paths, revisions, hashes, policy and transactions.
+3. **Model and Skills:** untrusted decision inputs. They can request only registered Tools while governed mode is active; their text is not canonical state.
+4. **Built-in Adapters and external services:** Adapter code is trusted in process; provider data and availability are untrusted. Network side effects go through the HTTP broker.
+5. **Imported files:** untrusted bytes. Format, size, path and PDF parser outcomes are validated before evidence use.
+
+Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are not an OS sandbox. A malicious Extension, Adapter, dependency, host user, or compromised Pi process can bypass them.
+
+## Enforced controls
+
+| Threat | v0.1 control | Residual risk |
+|---|---|---|
+| Model writes canonical files directly | Governed mode removes write/edit/bash tools; canonical mutations use transactions and expected revisions. | Other host code can still write files. |
+| Path escape or overwrite | Portable relative-path validation, symlink checks, protected paths, action fingerprints, confirmation for overwrite/delete. | Host-level changes outside Pi are not prevented. |
+| Partial or mixed project state | Staged multi-file transactions, manifest-last commit, hashes, pending recovery, explicit validate/recover. | Disk or filesystem failure can still require manual recovery. |
+| Secret leakage | Project stores credential aliases only; broker rejects raw credential headers/query fields and records redacted intent. Release tarball scans common secret and personal-path patterns. | Environment, model prompts, or provider bodies can contain sensitive data if the user supplies them. |
+| Unapproved network or spend | Policy evaluation, destination/action scope, explicit budgets, approval ledger, request/cost accounting and hard stop. | External pricing and provider behavior can drift after the snapshot date. |
+| Paywall or license bypass | Unpaywall/local authorized inputs only; access and license states are separate; unknown rights do not become export permission. | Users remain responsible for lawful access and downstream use. |
+| Evidence fabrication or promotion | Evidence-level enum, locator invariants, exact excerpt match, source/parser hashes, citation state and artifact gates. | Model interpretation can still be wrong; human review remains required. |
+| Malicious/corrupt PDF | Signature/content/size checks, isolated parser result states, no automatic OCR upload. | PDF.js remains a complex dependency; process-level sandboxing is not provided. |
+| Dependency or proprietary asset leakage | Exact direct pins, lock-derived SPDX SBOM/notices, allowed Skill list, package-content scan. | A newly disclosed dependency vulnerability requires a new review/release. |
+
+## Privacy defaults
+
+Low-risk local reads, deterministic analysis, and new project outputs can run automatically. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress also disables governed model Tools for the linked project.
+
+Project exports can contain titles, authors, excerpts, research notes, and filenames. Review them before sharing. v0.1 has no secret vault, participant-data de-identification service, telemetry, background monitor, automated email, or automated submission.
+
+## Security non-goals
+
+- Protecting against a malicious local user, root/administrator, compromised OS, compromised Pi host, or malicious in-process extension.
+- Running unknown third-party Adapters safely.
+- Circumventing authentication, robots controls, CAPTCHAs, paywalls, or provider terms.
+- Certifying academic correctness, legal compliance, privacy compliance, or publication readiness without human review.
+
+Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and host-mediated staging. That protocol is not claimed by v0.1.

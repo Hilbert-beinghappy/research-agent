@@ -1,0 +1,627 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent result v0.1",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "ok",
+        "status",
+        "value",
+        "errors",
+        "meta"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "status": {
+          "type": "string",
+          "const": "SUCCESS"
+        },
+        "value": {
+          "$defs": {
+            "JsonValue": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "JsonValue"
+                  }
+                },
+                {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "$ref": "JsonValue"
+                    }
+                  }
+                }
+              ],
+              "$id": "JsonValue"
+            }
+          },
+          "$ref": "JsonValue"
+        },
+        "errors": {
+          "type": "array",
+          "additionalItems": false,
+          "items": [],
+          "minItems": 0
+        },
+        "meta": {
+          "type": "object",
+          "required": [
+            "operationId",
+            "taskId",
+            "warnings"
+          ],
+          "properties": {
+            "operationId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "taskId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "ok",
+        "status",
+        "value",
+        "errors",
+        "meta"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "status": {
+          "type": "string",
+          "const": "PARTIAL_SUCCESS"
+        },
+        "value": {
+          "$defs": {
+            "JsonValue": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "JsonValue"
+                  }
+                },
+                {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "$ref": "JsonValue"
+                    }
+                  }
+                }
+              ],
+              "$id": "JsonValue"
+            }
+          },
+          "$ref": "JsonValue"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "category",
+              "message",
+              "retryable",
+              "source",
+              "operationId",
+              "taskId",
+              "details",
+              "occurredAt",
+              "causeCode"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "validation"
+                  },
+                  {
+                    "type": "string",
+                    "const": "permission"
+                  },
+                  {
+                    "type": "string",
+                    "const": "external_service"
+                  },
+                  {
+                    "type": "string",
+                    "const": "network"
+                  },
+                  {
+                    "type": "string",
+                    "const": "rate_limit"
+                  },
+                  {
+                    "type": "string",
+                    "const": "budget"
+                  },
+                  {
+                    "type": "string",
+                    "const": "data_conflict"
+                  },
+                  {
+                    "type": "string",
+                    "const": "not_found"
+                  },
+                  {
+                    "type": "string",
+                    "const": "parse"
+                  },
+                  {
+                    "type": "string",
+                    "const": "runtime"
+                  },
+                  {
+                    "type": "string",
+                    "const": "integrity"
+                  },
+                  {
+                    "type": "string",
+                    "const": "migration"
+                  },
+                  {
+                    "type": "string",
+                    "const": "cancelled"
+                  },
+                  {
+                    "type": "string",
+                    "const": "internal"
+                  }
+                ]
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "operationId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "taskId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "$defs": {
+                  "JsonValue": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "JsonValue"
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "patternProperties": {
+                          "^.*$": {
+                            "$ref": "JsonValue"
+                          }
+                        }
+                      }
+                    ],
+                    "$id": "JsonValue"
+                  }
+                },
+                "$ref": "JsonValue"
+              },
+              "occurredAt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "causeCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "meta": {
+          "type": "object",
+          "required": [
+            "operationId",
+            "taskId",
+            "warnings"
+          ],
+          "properties": {
+            "operationId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "taskId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "ok",
+        "status",
+        "value",
+        "errors",
+        "meta"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": false
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "RETRYABLE_FAILURE"
+            },
+            {
+              "type": "string",
+              "const": "PERMANENT_FAILURE"
+            },
+            {
+              "type": "string",
+              "const": "PERMISSION_BLOCKED"
+            },
+            {
+              "type": "string",
+              "const": "EXTERNAL_SERVICE_FAILURE"
+            },
+            {
+              "type": "string",
+              "const": "DATA_CONFLICT"
+            }
+          ]
+        },
+        "value": {
+          "type": "null"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "category",
+              "message",
+              "retryable",
+              "source",
+              "operationId",
+              "taskId",
+              "details",
+              "occurredAt",
+              "causeCode"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "validation"
+                  },
+                  {
+                    "type": "string",
+                    "const": "permission"
+                  },
+                  {
+                    "type": "string",
+                    "const": "external_service"
+                  },
+                  {
+                    "type": "string",
+                    "const": "network"
+                  },
+                  {
+                    "type": "string",
+                    "const": "rate_limit"
+                  },
+                  {
+                    "type": "string",
+                    "const": "budget"
+                  },
+                  {
+                    "type": "string",
+                    "const": "data_conflict"
+                  },
+                  {
+                    "type": "string",
+                    "const": "not_found"
+                  },
+                  {
+                    "type": "string",
+                    "const": "parse"
+                  },
+                  {
+                    "type": "string",
+                    "const": "runtime"
+                  },
+                  {
+                    "type": "string",
+                    "const": "integrity"
+                  },
+                  {
+                    "type": "string",
+                    "const": "migration"
+                  },
+                  {
+                    "type": "string",
+                    "const": "cancelled"
+                  },
+                  {
+                    "type": "string",
+                    "const": "internal"
+                  }
+                ]
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "operationId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "taskId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "$defs": {
+                  "JsonValue": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "JsonValue"
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "patternProperties": {
+                          "^.*$": {
+                            "$ref": "JsonValue"
+                          }
+                        }
+                      }
+                    ],
+                    "$id": "JsonValue"
+                  }
+                },
+                "$ref": "JsonValue"
+              },
+              "occurredAt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "causeCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "meta": {
+          "type": "object",
+          "required": [
+            "operationId",
+            "taskId",
+            "warnings"
+          ],
+          "properties": {
+            "operationId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "taskId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  ]
+}

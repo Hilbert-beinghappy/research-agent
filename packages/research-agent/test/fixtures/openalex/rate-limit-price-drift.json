@@ -1,0 +1,18 @@
+{
+  "api_key": "masked-fixture",
+  "rate_limit": {
+    "daily_budget_usd": 1,
+    "daily_used_usd": 0.04,
+    "daily_remaining_usd": 0.96,
+    "prepaid_remaining_usd": 0,
+    "resets_at": "2026-08-07T00:00:00.000Z",
+    "endpoint_costs_usd": {
+      "singleton": 0,
+      "list": 0.0001,
+      "search": 0.002,
+      "semantic": 0.01,
+      "content": 0.01,
+      "text": 0.01
+    }
+  }
+}

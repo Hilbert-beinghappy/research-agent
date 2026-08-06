@@ -1,0 +1,67 @@
+{
+  "benchmark": "pi-research-agent-v0.1",
+  "generatedAt": "2026-08-06T16:01:52.840Z",
+  "sourceRevision": "6dc2b59ee6929b97af504a9eec26435306b4bc10",
+  "schemaVersion": "0.1.0",
+  "platform": {
+    "os": "darwin",
+    "architecture": "arm64",
+    "release": "25.5.0",
+    "cpu": "Apple M4",
+    "logicalCpuCount": 10,
+    "memoryBytes": 17179869184,
+    "storage": "OS-managed temporary directory; medium not detected",
+    "node": "v24.14.0",
+    "python": "Python 3.9.6",
+    "r": "R version 4.5.3 (2026-03-11) -- \"Reassured Reassurer\""
+  },
+  "fixture": {
+    "sourceRecordCount": 1000,
+    "sourceRecordBytes": 1121000,
+    "rawPayloadBytes": 0,
+    "parsedTextBytes": 0,
+    "artifactOutputBytes": 30265,
+    "dedupCandidateCount": 1000,
+    "offlineLiteratureCount": 20
+  },
+  "results": {
+    "projectOpenAndStatus": {
+      "samples": 20,
+      "p95Ms": 0.649,
+      "thresholdMs": 1000,
+      "passed": true
+    },
+    "deterministicDeduplication": {
+      "samples": 20,
+      "p95Ms": 28.593,
+      "thresholdMs": 3000,
+      "passed": true
+    },
+    "offline20LiteratureFlow": {
+      "samples": 5,
+      "p95Ms": 3.707,
+      "thresholdMs": 30000,
+      "passed": true
+    }
+  },
+  "resources": {
+    "cpuUserMs": 812.74,
+    "cpuSystemMs": 253.626,
+    "maxRssKiB": 207376,
+    "diskGrowthBytes": 1151265
+  },
+  "usage": {
+    "modelCalls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheHits": 0,
+    "modelCostUsd": 0,
+    "apiRequests": 0,
+    "http429": 0,
+    "http5xx": 0,
+    "retries": 0,
+    "apiCostUsd": 0,
+    "recoveryAvoidedWork": 0
+  },
+  "status": "passed"
+}
