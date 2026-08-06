@@ -1,0 +1,27 @@
+{
+  "version": "0.4.0",
+  "status": "passed",
+  "sourceTest": "test/unit/writing.test.ts",
+  "cases": [
+    { "caseId": "invented-citation", "scenario": "invented_citation", "expectedGate": "citation_key_closure", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "multiple-invented-citations", "scenario": "multiple_invented_citations", "expectedGate": "citation_key_closure", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "declared-citation-missing", "scenario": "declared_citation_missing", "expectedGate": "declared_citations", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "core-evidence-missing", "scenario": "core_evidence_missing", "expectedGate": "core_claim_evidence", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "core-citation-missing", "scenario": "core_citation_missing", "expectedGate": "core_claim_evidence", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "abstract-evidence", "scenario": "abstract_evidence", "expectedGate": "core_claim_evidence", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "unsupported-claim", "scenario": "unsupported_claim", "expectedGate": "core_claim_evidence", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "unverified-source", "scenario": "unverified_source", "expectedGate": "citation_verification", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "quantitative-without-run", "scenario": "quantitative_without_run", "expectedGate": "method_results", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "qualitative-without-theme", "scenario": "qualitative_without_theme", "expectedGate": "method_results", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "mixed-without-methods", "scenario": "mixed_without_methods", "expectedGate": "method_results", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "causal-without-run", "scenario": "causal_without_run", "expectedGate": "causal_claim_boundary", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "missing-disclosure", "scenario": "missing_disclosure", "expectedGate": "ai_disclosure", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "missing-approval", "scenario": "missing_approval", "expectedGate": "publish_approval", "expectedStatus": "warning", "falseSuccess": false },
+    { "caseId": "deterministic-p0", "scenario": "deterministic_p0", "expectedGate": "open_p0_review_findings", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "model-p0", "scenario": "model_p0", "expectedGate": "open_p0_review_findings", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "tampered-anchor", "scenario": "tampered_anchor", "expectedGate": "claim_occurrence_integrity", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "section-drift", "scenario": "section_drift", "expectedGate": "claim_occurrence_integrity", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "retracted-source", "scenario": "retracted_source", "expectedGate": "source_metadata", "expectedStatus": "failed", "falseSuccess": false },
+    { "caseId": "unresolved-metadata", "scenario": "unresolved_metadata", "expectedGate": "source_metadata", "expectedStatus": "failed", "falseSuccess": false }
+  ]
+}

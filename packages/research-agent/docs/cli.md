@@ -2,21 +2,21 @@
 
 ## Pi commands
 
-| Command | Actual v0.3 behavior | State change |
+| Command | Actual v0.4 behavior | State change |
 |---|---|---|
 | `/research-version` | Show the loaded package version. | None |
 | `/research-init [title]` | Initialize the current empty directory, create the bootstrap task and operation, and link the Pi Session. | Adds a project; no overwrite |
 | `/research-open [path]` | Validate and link an existing current-schema project. | Session link only |
-| `/research-migrate [path]` | Prepare and commit the v0.2-to-v0.3 manifest migration after confirmation. `/research-migrate rollback <id>` restores the snapshot only when no v0.3 manifest write occurred. | Confirmed migration or unchanged rollback |
-| `/research-status` | Return stage, revision, record counts, task/operation/full-text/evidence/citation/design/analysis status, and recorded budget totals. | None |
-| `/research-resume` | Return incomplete or blocked tasks and operations plus design, analysis, codebook, and theme records awaiting confirmation. | None |
+| `/research-migrate [path]` | Prepare and commit the v0.3-to-v0.4 manifest migration after confirmation. `/research-migrate rollback <id>` restores the snapshot only when no v0.4 manifest write occurred. | Confirmed migration or unchanged rollback |
+| `/research-status` | Return stage, revision, record counts, task/operation/full-text/evidence/citation/design/analysis/writing status, and recorded budget totals. | None |
+| `/research-resume` | Return incomplete or blocked work plus pending design/method records, open P0 findings, and the current manuscript revision. | None |
 | `/research-validate` | Validate schemas, hashes, references, portable paths, and pending transactions. | None |
 | `/research-recover [commit|rollback] [transaction-id]` | Commit or roll back one pending transaction after interactive confirmation. | Confirmed recovery only |
 | `/research-policy` | Show policy. `/research-policy set {"sensitivity":"internal"}` proposes a validated patch and records the decision. | Policy changes require confirmation |
 
 All commands except the version notification return a canonical `ResearchResult` as JSON. In non-interactive mode, actions requiring confirmation return `PERMISSION_BLOCKED`; they do not infer consent.
 
-There is no `/research-export` command in v0.3. Deterministic export is the `research_artifacts` Tool so that source references, operation state, output hashes, and gates remain in one path.
+There is no `/research-export` command in v0.4. Deterministic export is the `research_artifacts` Tool so that source references, operation state, output hashes, and gates remain in one path.
 
 ## Skills and prompts
 
@@ -28,6 +28,9 @@ There is no `/research-export` command in v0.3. Deterministic export is the `res
 | `/skill:research-design` | Turn canonical evidence or an explicit gap into versioned questions, concepts, relations, decisions, and protocols that require user confirmation. |
 | `/skill:quantitative-research` | Import a CSV, inspect its dictionary, confirm a Python/R/Stata specification, and audit immutable inputs, logs, output hashes, and failures. |
 | `/skill:qualitative-research` | Import de-identified text, preserve stable locators, separate model suggestions from human coding, retain negative cases, and render an audit trail. |
+| `/skill:academic-writing` | Create sectioned immutable manuscript revisions with ClaimOccurrence, bibliography, method, disclosure, and gate links. |
+| `/skill:academic-review` | Apply deterministic and judgment rubrics without treating model roles as independent evidence. |
+| `/skill:academic-revision` | Record user dispositions, create a new immutable revision, inspect diffs/rollback, and rerun the submission gate. |
 | `/scope-review` | Expand the topic/scope review prompt. |
 | `/integrity-review` | Expand the evidence and citation integrity prompt. |
 
@@ -47,6 +50,8 @@ Skills orchestrate model judgment. They do not parse PDFs, decide dedup matches,
 | `research_design` | Create a question, concept, relation, critical decision, or protocol; or confirm/reject an exact record revision. | Versioned design record, explicit confirmation state, Operation provenance, or a method/dependency/revision failure. |
 | `research_analysis` | Import UTF-8 CSV, create/decide a frozen specification, detect Python/R/Stata, or run an approved local script. | Dataset/variable/specification records, terminal Task and AnalysisRun, command/cwd/runtime, logs, output hashes, raw-integrity checks, or explicit failure. |
 | `research_qualitative` | Import UTF-8 text, segment, version/decide a codebook or theme, record a model suggestion or human coding decision, or render an audit. | Stable segment locators, immutable suggestions, human decisions/supersession, themes/negative cases, and Markdown/JSON audit output. |
+| `research_manuscript` | Create/diff immutable revisions, confirm disclosure, or evaluate a submission candidate. | Manuscript/Section/ClaimOccurrence/Disclosure/SubmissionGate records and deterministic blockers. |
+| `research_review` | Record deterministic or model findings, capture the user's disposition, or change the active revision pointer. | Deduplicated ReviewFinding and immutable RevisionDecision records with provenance. |
 
 Tool parameter schemas are registered with Pi from `src/extension/tools.ts`. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
 
@@ -66,4 +71,10 @@ Turn the confirmed review and gaps into one quantitative and one qualitative des
 Import my authorized CSV, show the inferred dictionary, freeze an associational Python or R specification, and do not run it until I confirm the exact command and inputs.
 /skill:qualitative-research
 Import my de-identified text, segment it once, propose a codebook, and keep every model suggestion separate until I explicitly accept, edit, or reject each coding decision.
+/skill:academic-writing
+Draft one immutable manuscript revision from confirmed project records. Map every core claim to located evidence and its citation, and do not invent missing support.
+/skill:academic-review
+Run deterministic integrity findings first, then apply the relevant method and evidence rubrics. Label all model findings as AI review.
+/skill:academic-revision
+Record my disposition for each finding, create a new revision, show the diff, confirm the disclosure, and stop before submission unless the gate passes and I approve it.
 ```

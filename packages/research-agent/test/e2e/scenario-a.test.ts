@@ -38,7 +38,11 @@ import { listPendingProjectTransactions, prepareProjectTransaction } from "../..
 import { validateProject } from "../../src/project/validate.ts";
 
 const V0_2_TOOL_NAMES = RESEARCH_TOOL_NAMES.filter(
-	(name) => name !== "research_analysis" && name !== "research_qualitative",
+	(name) =>
+		name !== "research_analysis" &&
+		name !== "research_qualitative" &&
+		name !== "research_manuscript" &&
+		name !== "research_review",
 );
 const V0_1_TOOL_NAMES = V0_2_TOOL_NAMES.filter((name) => name !== "research_design");
 

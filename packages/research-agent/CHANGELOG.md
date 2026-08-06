@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-06
+
+### Added
+
+- Immutable Manuscript, Section, ClaimOccurrence, ReviewFinding, RevisionDecision, Disclosure, and SubmissionGate records with a recoverable v0.3-to-v0.4 manifest migration.
+- `research_manuscript` and `research_review` aggregate Tools plus bounded academic writing, review, and revision Skills.
+- Deterministic manuscript Markdown export, claim/evidence/citation/method/P0/disclosure/approval gates, revision diff and rollback audit, two synthetic manuscript examples, public review rubrics, and disclosure template.
+- Twenty failure injections, a 50,000-word integrity benchmark, and a sanitized `deepseek-v4-flash` writing-boundary evaluation.
+
+### Changed
+
+- New projects and generated schemas use v0.4 while v0.1–v0.3 records and committed schemas remain readable.
+- Package, Extension, and Artifact generator versions advance to 0.4.0.
+
+### Known limitations
+
+- v0.4 records submission-candidate readiness but never submits externally or claims human peer review.
+- Deterministic gates prove declared provenance and invariants, not factual truth, narrative quality, or journal acceptance.
+- Zotero/Obsidian, DOCX/PDF/XLSX/PPTX delivery adapters, monitoring, and cross-project catalogs remain v0.5 work.
+
 ## [0.3.0] - 2026-08-06
 
 ### Added

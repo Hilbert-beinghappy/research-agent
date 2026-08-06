@@ -2,8 +2,9 @@
 
 import { type Static, type TSchema, type TUnsafe, Type } from "typebox";
 
-export const RESEARCH_SCHEMA_VERSION = "0.3.0" as const;
-export const RESEARCH_LEGACY_SCHEMA_VERSION = "0.2.0" as const;
+export const RESEARCH_SCHEMA_VERSION = "0.4.0" as const;
+export const RESEARCH_LEGACY_SCHEMA_VERSION = "0.3.0" as const;
+export const RESEARCH_V0_2_SCHEMA_VERSION = "0.2.0" as const;
 export const RESEARCH_V0_1_SCHEMA_VERSION = "0.1.0" as const;
 
 const PersistedObject = <const Properties extends Parameters<typeof Type.Object>[0]>(properties: Properties) =>
@@ -38,6 +39,13 @@ export type CodebookVersionId = string;
 export type ModelSuggestionId = string;
 export type CodingDecisionId = string;
 export type ThemeSynthesisId = string;
+export type ManuscriptId = string;
+export type SectionId = string;
+export type ClaimOccurrenceId = string;
+export type ReviewFindingId = string;
+export type RevisionDecisionId = string;
+export type DisclosureId = string;
+export type SubmissionGateReportId = string;
 export type TaskId = string;
 export type AnalysisRunId = string;
 export type ArtifactId = string;
@@ -62,10 +70,16 @@ const JsonValueRecursiveSchema = Type.Cyclic(
 export const JsonValueSchema = Type.Unsafe<JsonValue>(JsonValueRecursiveSchema);
 const ExistingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_1_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_2_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DesignRecordSchemaVersionSchema = Type.Union([
+	Type.Literal(RESEARCH_V0_2_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_SCHEMA_VERSION),
+]);
+const DataRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
@@ -96,6 +110,13 @@ export const RecordKindSchema = Type.Union([
 	Type.Literal("model_suggestion"),
 	Type.Literal("coding_decision"),
 	Type.Literal("theme_synthesis"),
+	Type.Literal("manuscript"),
+	Type.Literal("section"),
+	Type.Literal("claim_occurrence"),
+	Type.Literal("review_finding"),
+	Type.Literal("revision_decision"),
+	Type.Literal("disclosure"),
+	Type.Literal("submission_gate_report"),
 	Type.Literal("task"),
 	Type.Literal("analysis_run"),
 	Type.Literal("artifact"),
@@ -920,7 +941,7 @@ export type ProtocolRecord = Static<typeof ProtocolRecordSchema>;
 
 export const DatasetRecordSchema = PersistedObject({
 	kind: Type.Literal("dataset"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	datasetId: NonEmptyStringSchema,
 	title: NonEmptyStringSchema,
 	format: Type.Literal("csv"),
@@ -938,7 +959,7 @@ export type DatasetRecord = Static<typeof DatasetRecordSchema>;
 
 export const VariableRecordSchema = PersistedObject({
 	kind: Type.Literal("variable"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	variableId: NonEmptyStringSchema,
 	datasetId: NonEmptyStringSchema,
 	name: NonEmptyStringSchema,
@@ -971,7 +992,7 @@ export type VariableRecord = Static<typeof VariableRecordSchema>;
 
 export const AnalysisSpecificationSchema = PersistedObject({
 	kind: Type.Literal("analysis_specification"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	analysisSpecificationId: NonEmptyStringSchema,
 	title: NonEmptyStringSchema,
 	protocolId: Nullable(NonEmptyStringSchema),
@@ -1000,7 +1021,7 @@ export type AnalysisSpecification = Static<typeof AnalysisSpecificationSchema>;
 
 export const QualitativeMaterialSchema = PersistedObject({
 	kind: Type.Literal("qualitative_material"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	qualitativeMaterialId: NonEmptyStringSchema,
 	title: NonEmptyStringSchema,
 	format: Type.Literal("text"),
@@ -1017,7 +1038,7 @@ export type QualitativeMaterial = Static<typeof QualitativeMaterialSchema>;
 
 export const QualitativeSegmentSchema = PersistedObject({
 	kind: Type.Literal("qualitative_segment"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	qualitativeSegmentId: NonEmptyStringSchema,
 	qualitativeMaterialId: NonEmptyStringSchema,
 	ordinal: NonNegativeIntegerSchema,
@@ -1042,7 +1063,7 @@ export type CodebookCode = Static<typeof CodebookCodeSchema>;
 
 export const CodebookVersionSchema = PersistedObject({
 	kind: Type.Literal("codebook_version"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	codebookVersionId: NonEmptyStringSchema,
 	codebookSeriesId: NonEmptyStringSchema,
 	version: Type.Integer({ minimum: 1 }),
@@ -1057,7 +1078,7 @@ export type CodebookVersion = Static<typeof CodebookVersionSchema>;
 
 export const ModelSuggestionSchema = PersistedObject({
 	kind: Type.Literal("model_suggestion"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	modelSuggestionId: NonEmptyStringSchema,
 	qualitativeSegmentId: NonEmptyStringSchema,
 	codebookVersionId: NonEmptyStringSchema,
@@ -1078,7 +1099,7 @@ export type ModelSuggestion = Static<typeof ModelSuggestionSchema>;
 
 export const CodingDecisionSchema = PersistedObject({
 	kind: Type.Literal("coding_decision"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	codingDecisionId: NonEmptyStringSchema,
 	qualitativeSegmentId: NonEmptyStringSchema,
 	codebookVersionId: NonEmptyStringSchema,
@@ -1105,7 +1126,7 @@ export type Theme = Static<typeof ThemeSchema>;
 
 export const ThemeSynthesisSchema = PersistedObject({
 	kind: Type.Literal("theme_synthesis"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	themeSynthesisId: NonEmptyStringSchema,
 	codebookVersionId: NonEmptyStringSchema,
 	title: NonEmptyStringSchema,
@@ -1117,6 +1138,184 @@ export const ThemeSynthesisSchema = PersistedObject({
 	audit: RecordAuditSchema,
 });
 export type ThemeSynthesis = Static<typeof ThemeSynthesisSchema>;
+
+export const ManuscriptPaperTypeSchema = Type.Union([
+	Type.Literal("quantitative"),
+	Type.Literal("qualitative"),
+	Type.Literal("mixed_methods"),
+	Type.Literal("literature_review"),
+	Type.Literal("conceptual"),
+]);
+export type ManuscriptPaperType = Static<typeof ManuscriptPaperTypeSchema>;
+
+export const BibliographyEntrySchema = PersistedObject({
+	citationKey: NonEmptyStringSchema,
+	sourceId: NonEmptyStringSchema,
+});
+export type BibliographyEntry = Static<typeof BibliographyEntrySchema>;
+
+export const ManuscriptRecordSchema = PersistedObject({
+	kind: Type.Literal("manuscript"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	manuscriptId: NonEmptyStringSchema,
+	manuscriptSeriesId: NonEmptyStringSchema,
+	version: Type.Integer({ minimum: 1 }),
+	paperType: ManuscriptPaperTypeSchema,
+	title: NonEmptyStringSchema,
+	abstract: Nullable(Type.String()),
+	sectionIds: Type.Array(NonEmptyStringSchema, { minItems: 1 }),
+	claimOccurrenceIds: Type.Array(NonEmptyStringSchema),
+	bibliography: Type.Array(BibliographyEntrySchema),
+	methodRecords: Type.Array(RecordRefSchema),
+	supersedesManuscriptId: Nullable(NonEmptyStringSchema),
+	authoring: PersistedObject({
+		origin: Type.Union([Type.Literal("human"), Type.Literal("model"), Type.Literal("imported")]),
+		provider: Nullable(NonEmptyStringSchema),
+		modelId: Nullable(NonEmptyStringSchema),
+	}),
+	contentHash: HashValueSchema,
+	createdAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type ManuscriptRecord = Static<typeof ManuscriptRecordSchema>;
+
+export const SectionRecordSchema = PersistedObject({
+	kind: Type.Literal("section"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	sectionId: NonEmptyStringSchema,
+	manuscriptId: NonEmptyStringSchema,
+	sectionKey: NonEmptyStringSchema,
+	title: NonEmptyStringSchema,
+	order: NonNegativeIntegerSchema,
+	content: Type.String(),
+	contentHash: HashValueSchema,
+	wordCount: NonNegativeIntegerSchema,
+	audit: RecordAuditSchema,
+});
+export type SectionRecord = Static<typeof SectionRecordSchema>;
+
+export const ClaimOccurrenceSchema = PersistedObject({
+	kind: Type.Literal("claim_occurrence"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	claimOccurrenceId: NonEmptyStringSchema,
+	manuscriptId: NonEmptyStringSchema,
+	sectionId: NonEmptyStringSchema,
+	claimId: NonEmptyStringSchema,
+	text: NonEmptyStringSchema,
+	charStart: NonNegativeIntegerSchema,
+	charEnd: Type.Integer({ minimum: 1 }),
+	anchorHash: HashValueSchema,
+	core: Type.Boolean(),
+	citationKeys: Type.Array(NonEmptyStringSchema),
+	evidenceIds: Type.Array(NonEmptyStringSchema),
+	audit: RecordAuditSchema,
+});
+export type ClaimOccurrence = Static<typeof ClaimOccurrenceSchema>;
+
+export const ReviewFindingTypeSchema = Type.Union([
+	Type.Literal("deterministic_violation"),
+	Type.Literal("evidence_based_concern"),
+	Type.Literal("methodological_judgment"),
+	Type.Literal("stylistic_suggestion"),
+]);
+export type ReviewFindingType = Static<typeof ReviewFindingTypeSchema>;
+
+export const ReviewFindingSchema = PersistedObject({
+	kind: Type.Literal("review_finding"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	reviewFindingId: NonEmptyStringSchema,
+	manuscriptId: NonEmptyStringSchema,
+	reviewerRole: Type.Union([
+		Type.Literal("editor"),
+		Type.Literal("methods"),
+		Type.Literal("theory"),
+		Type.Literal("devils_advocate"),
+		Type.Literal("integrity"),
+	]),
+	findingType: ReviewFindingTypeSchema,
+	severity: Type.Union([Type.Literal("P0"), Type.Literal("P1"), Type.Literal("P2"), Type.Literal("P3")]),
+	title: NonEmptyStringSchema,
+	message: NonEmptyStringSchema,
+	sectionId: Nullable(NonEmptyStringSchema),
+	claimOccurrenceId: Nullable(NonEmptyStringSchema),
+	fingerprint: HashValueSchema,
+	source: Type.Union([Type.Literal("deterministic"), Type.Literal("model")]),
+	model: Nullable(
+		PersistedObject({
+			provider: NonEmptyStringSchema,
+			modelId: NonEmptyStringSchema,
+			thinkingLevel: Nullable(Type.String()),
+		}),
+	),
+	createdAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type ReviewFinding = Static<typeof ReviewFindingSchema>;
+
+export const RevisionDecisionSchema = PersistedObject({
+	kind: Type.Literal("revision_decision"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	revisionDecisionId: NonEmptyStringSchema,
+	manuscriptSeriesId: NonEmptyStringSchema,
+	fromManuscriptId: Nullable(NonEmptyStringSchema),
+	toManuscriptId: NonEmptyStringSchema,
+	reviewFindingId: Nullable(NonEmptyStringSchema),
+	decision: Type.Union([
+		Type.Literal("accept"),
+		Type.Literal("reject"),
+		Type.Literal("defer"),
+		Type.Literal("activate"),
+		Type.Literal("rollback"),
+	]),
+	rationale: NonEmptyStringSchema,
+	decidedAt: NonEmptyStringSchema,
+	decidedBy: Type.Literal("user"),
+	audit: RecordAuditSchema,
+});
+export type RevisionDecision = Static<typeof RevisionDecisionSchema>;
+
+export const DisclosureRecordSchema = PersistedObject({
+	kind: Type.Literal("disclosure"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	disclosureId: NonEmptyStringSchema,
+	manuscriptId: NonEmptyStringSchema,
+	aiUse: NonEmptyStringSchema,
+	modelIds: Type.Array(NonEmptyStringSchema),
+	humanResponsibilities: Type.Array(NonEmptyStringSchema, { minItems: 1 }),
+	limitations: Type.Array(NonEmptyStringSchema, { minItems: 1 }),
+	unautomatedDecisions: Type.Array(NonEmptyStringSchema, { minItems: 1 }),
+	status: Type.Union([Type.Literal("awaiting_confirmation"), Type.Literal("confirmed"), Type.Literal("rejected")]),
+	confirmation: DesignConfirmationSchema,
+	createdAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type DisclosureRecord = Static<typeof DisclosureRecordSchema>;
+
+export const SubmissionGateCheckSchema = PersistedObject({
+	code: NonEmptyStringSchema,
+	status: Type.Union([Type.Literal("passed"), Type.Literal("warning"), Type.Literal("failed")]),
+	message: NonEmptyStringSchema,
+	recordRefs: Type.Array(RecordRefSchema),
+});
+export type SubmissionGateCheck = Static<typeof SubmissionGateCheckSchema>;
+
+export const SubmissionGateReportSchema = PersistedObject({
+	kind: Type.Literal("submission_gate_report"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	submissionGateReportId: NonEmptyStringSchema,
+	manuscriptId: NonEmptyStringSchema,
+	passed: Type.Boolean(),
+	publishability: PublishabilitySchema,
+	checks: Type.Array(SubmissionGateCheckSchema, { minItems: 1 }),
+	coreClaimOccurrenceCoverage: Type.Number({ minimum: 0, maximum: 1 }),
+	citationVerificationCoverage: Type.Number({ minimum: 0, maximum: 1 }),
+	openP0ReviewFindingCount: NonNegativeIntegerSchema,
+	warningsAccepted: Type.Boolean(),
+	approvalId: Nullable(NonEmptyStringSchema),
+	checkedAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type SubmissionGateReport = Static<typeof SubmissionGateReportSchema>;
 
 export const TaskStatusSchema = Type.Union([
 	Type.Literal("planned"),
@@ -1165,7 +1364,7 @@ export type ResearchTask = Static<typeof ResearchTaskSchema>;
 
 export const AnalysisRunSchema = PersistedObject({
 	kind: Type.Literal("analysis_run"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: DataRecordSchemaVersionSchema,
 	analysisRunId: NonEmptyStringSchema,
 	analysisSpecificationId: NonEmptyStringSchema,
 	taskId: NonEmptyStringSchema,
@@ -1424,6 +1623,13 @@ export const PersistedRecordSchema = Type.Union([
 	ModelSuggestionSchema,
 	CodingDecisionSchema,
 	ThemeSynthesisSchema,
+	ManuscriptRecordSchema,
+	SectionRecordSchema,
+	ClaimOccurrenceSchema,
+	ReviewFindingSchema,
+	RevisionDecisionSchema,
+	DisclosureRecordSchema,
+	SubmissionGateReportSchema,
 	ResearchTaskSchema,
 	OperationRecordSchema,
 	AnalysisRunSchema,

@@ -308,6 +308,8 @@ describe("research extension commands", () => {
 			"research_design",
 			"research_analysis",
 			"research_qualitative",
+			"research_manuscript",
+			"research_review",
 		]);
 		expect(
 			(await ordinary.emit("tool_call", { type: "tool_call", toolName: "write", input: {} }, ordinaryContext)).at(
@@ -333,7 +335,7 @@ describe("research extension commands", () => {
 		).toMatchObject({ block: true });
 	});
 
-	it("requires confirmation to migrate and rolls back only an unchanged v0.2 manifest", async () => {
+	it("requires confirmation to migrate and rolls back only an unchanged v0.3 manifest", async () => {
 		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-migration-command-"));
 		const projectRoot = join(temporaryDirectory, "legacy-project");
 		await initializeProject(projectRoot, { title: "Legacy migration fixture" });
@@ -342,20 +344,17 @@ describe("research extension commands", () => {
 			schemaVersion: string;
 			recordSets: { kind: string }[];
 		};
-		const v0_3Kinds = new Set([
-			"dataset",
-			"variable",
-			"analysis_specification",
-			"qualitative_material",
-			"qualitative_segment",
-			"codebook_version",
-			"model_suggestion",
-			"coding_decision",
-			"theme_synthesis",
-			"analysis_run",
+		const v0_4Kinds = new Set([
+			"manuscript",
+			"section",
+			"claim_occurrence",
+			"review_finding",
+			"revision_decision",
+			"disclosure",
+			"submission_gate_report",
 		]);
 		manifest.schemaVersion = RESEARCH_LEGACY_SCHEMA_VERSION;
-		manifest.recordSets = manifest.recordSets.filter(({ kind }) => !v0_3Kinds.has(kind));
+		manifest.recordSets = manifest.recordSets.filter(({ kind }) => !v0_4Kinds.has(kind));
 		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
 		const harness = createHarness();

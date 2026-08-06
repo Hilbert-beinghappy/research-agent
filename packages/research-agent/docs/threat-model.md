@@ -1,4 +1,4 @@
-# Threat model v0.3
+# Threat model v0.4
 
 ## Assets
 
@@ -33,13 +33,14 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 | Script mutates raw research data | Content-addressed originals are read-only, copied for execution, hash-checked afterward, and restored from an external temporary backup when mutation is detected. | A host process with the same account can still race or alter files outside this transaction boundary. |
 | Failed analysis reported as a finding | Terminal status, exit code, logs, expected-output checks, timeout/abort and explicit non-convergence are canonical `AnalysisRun` facts; failed outputs are not success artifacts. | A successful script can still implement a scientifically invalid method; confirmation and review remain required. |
 | Model coding replaces human judgment | `ModelSuggestion` is immutable and separate; `CodingDecision` requires an explicit user accept/edit/reject action and preserves supersession and negative cases. | Human coding can still be inconsistent or biased; v0.3 does not calculate intercoder reliability automatically. |
+| Model invents support or treats reviewer consensus as verification | ClaimOccurrences require canonical Claim/Evidence/citation links; deterministic integrity runs first; reviewer roles are rubrics; immutable revisions, user dispositions, disclosure, P0 blocking, and explicit submission approval remain recorded. | Narrative quality, interpretation, and factual truth still require author review and external scholarly scrutiny. |
 | Commercial software/license leakage | Stata is detected by executable path only, never bundled, and its license content is not inspected. Every run requires commercial-runtime approval. | Users remain responsible for installation, licensing and permitted use. |
 
 ## Privacy defaults
 
 Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
 
-Project exports and runtime logs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. v0.3 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background monitor, automated email, or automated submission.
+Project exports, manuscripts, review findings, and runtime logs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. v0.4 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background monitor, automated email, or automated submission.
 
 ## Security non-goals
 

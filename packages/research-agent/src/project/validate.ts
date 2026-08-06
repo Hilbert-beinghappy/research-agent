@@ -5,6 +5,7 @@ import type { FileRef, OperationRecord, RecordKind, RecordRef } from "../contrac
 import { readParsedPdfDocument, resolveParsedPdfLocator } from "../evidence/query.ts";
 import { hashBytes, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
+import { countManuscriptWords, manuscriptContentHash, reviewFindingFingerprint } from "../tools/writing.ts";
 import { openProject } from "./open.ts";
 import {
 	calculateRecordSetIndex,
@@ -50,6 +51,13 @@ const RECORD_KINDS = new Set<RecordKind>([
 	"model_suggestion",
 	"coding_decision",
 	"theme_synthesis",
+	"manuscript",
+	"section",
+	"claim_occurrence",
+	"review_finding",
+	"revision_decision",
+	"disclosure",
+	"submission_gate_report",
 	"task",
 	"operation",
 	"analysis_run",
@@ -753,6 +761,211 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 								message: "Theme synthesis revisions must retain the codebook version",
 							});
 						}
+					}
+					break;
+				}
+				case "manuscript": {
+					for (const sectionId of record.sectionIds) requireRecord("section", sectionId, `${path}#sectionIds`);
+					for (const claimOccurrenceId of record.claimOccurrenceIds)
+						requireRecord("claim_occurrence", claimOccurrenceId, `${path}#claimOccurrenceIds`);
+					for (const entry of record.bibliography) requireRecord("source", entry.sourceId, `${path}#bibliography`);
+					if (record.supersedesManuscriptId !== null) {
+						requireRecord("manuscript", record.supersedesManuscriptId, `${path}#supersedesManuscriptId`);
+						const previous = records.get("manuscript")?.get(record.supersedesManuscriptId);
+						if (
+							previous?.kind === "manuscript" &&
+							(previous.manuscriptSeriesId !== record.manuscriptSeriesId ||
+								previous.paperType !== record.paperType ||
+								previous.version + 1 !== record.version)
+						) {
+							issues.push({
+								code: "INVALID_MANUSCRIPT_VERSION_CHAIN",
+								path: `${path}#supersedesManuscriptId`,
+								message: "Manuscript revisions must advance by one in the same series and paper type",
+							});
+						}
+					}
+					const manuscriptSections = record.sectionIds
+						.map((sectionId) => records.get("section")?.get(sectionId))
+						.filter((section) => section?.kind === "section");
+					const manuscriptOccurrences = record.claimOccurrenceIds
+						.map((claimOccurrenceId) => records.get("claim_occurrence")?.get(claimOccurrenceId))
+						.filter((occurrence) => occurrence?.kind === "claim_occurrence");
+					if (
+						manuscriptSections.length === record.sectionIds.length &&
+						manuscriptOccurrences.length === record.claimOccurrenceIds.length
+					) {
+						const reconstructed = manuscriptContentHash({
+							title: record.title,
+							paperType: record.paperType,
+							abstract: record.abstract,
+							bibliography: record.bibliography,
+							methodRecords: record.methodRecords,
+							sections: manuscriptSections.map((section) => ({
+								sectionKey: section.sectionKey,
+								title: section.title,
+								order: section.order,
+								content: section.content,
+								occurrences: manuscriptOccurrences
+									.filter((occurrence) => occurrence.sectionId === section.sectionId)
+									.map((occurrence) => ({
+										claimId: occurrence.claimId,
+										text: occurrence.text,
+										charStart: occurrence.charStart,
+										charEnd: occurrence.charEnd,
+										core: occurrence.core,
+										citationKeys: occurrence.citationKeys,
+										evidenceIds: occurrence.evidenceIds,
+									})),
+							})),
+						});
+						if (reconstructed.value !== record.contentHash.value) {
+							issues.push({
+								code: "MANUSCRIPT_CONTENT_HASH_MISMATCH",
+								path: `${path}#contentHash`,
+								message: "Manuscript content hash does not match its canonical sections and references",
+							});
+						}
+					}
+					break;
+				}
+				case "section": {
+					requireRecord("manuscript", record.manuscriptId, `${path}#manuscriptId`);
+					const manuscript = records.get("manuscript")?.get(record.manuscriptId);
+					if (
+						manuscript?.kind === "manuscript" &&
+						(!manuscript.sectionIds.includes(record.sectionId) ||
+							record.contentHash.value !== hashBytes(record.content).value ||
+							record.wordCount !== countManuscriptWords(record.content))
+					) {
+						issues.push({
+							code: "INVALID_MANUSCRIPT_SECTION",
+							path,
+							message: "Section index, content hash, or word count does not match its manuscript snapshot",
+						});
+					}
+					break;
+				}
+				case "claim_occurrence": {
+					requireRecord("manuscript", record.manuscriptId, `${path}#manuscriptId`);
+					requireRecord("section", record.sectionId, `${path}#sectionId`);
+					requireRecord("claim", record.claimId, `${path}#claimId`);
+					for (const evidenceId of record.evidenceIds)
+						requireRecord("evidence", evidenceId, `${path}#evidenceIds`);
+					const manuscript = records.get("manuscript")?.get(record.manuscriptId);
+					const section = records.get("section")?.get(record.sectionId);
+					const claim = records.get("claim")?.get(record.claimId);
+					if (
+						manuscript?.kind === "manuscript" &&
+						section?.kind === "section" &&
+						claim?.kind === "claim" &&
+						(!manuscript.claimOccurrenceIds.includes(record.claimOccurrenceId) ||
+							section.manuscriptId !== record.manuscriptId ||
+							section.content.slice(record.charStart, record.charEnd) !== record.text ||
+							hashBytes(record.text).value !== record.anchorHash.value ||
+							record.evidenceIds.some(
+								(evidenceId) => !claim.evidenceLinks.some((link) => link.evidenceId === evidenceId),
+							))
+					) {
+						issues.push({
+							code: "INVALID_CLAIM_OCCURRENCE",
+							path,
+							message: "ClaimOccurrence locator, anchor, manuscript index, or evidence link is invalid",
+						});
+					}
+					break;
+				}
+				case "review_finding": {
+					requireRecord("manuscript", record.manuscriptId, `${path}#manuscriptId`);
+					if (record.sectionId !== null) requireRecord("section", record.sectionId, `${path}#sectionId`);
+					if (record.claimOccurrenceId !== null)
+						requireRecord("claim_occurrence", record.claimOccurrenceId, `${path}#claimOccurrenceId`);
+					const section = record.sectionId === null ? undefined : records.get("section")?.get(record.sectionId);
+					const occurrence =
+						record.claimOccurrenceId === null
+							? undefined
+							: records.get("claim_occurrence")?.get(record.claimOccurrenceId);
+					const fingerprint = reviewFindingFingerprint(record.manuscriptId, {
+						reviewerRole: record.reviewerRole,
+						findingType: record.findingType,
+						severity: record.severity,
+						title: record.title,
+						message: record.message,
+						sectionId: record.sectionId,
+						claimOccurrenceId: record.claimOccurrenceId,
+					});
+					if (
+						(section?.kind === "section" && section.manuscriptId !== record.manuscriptId) ||
+						(occurrence?.kind === "claim_occurrence" && occurrence.manuscriptId !== record.manuscriptId) ||
+						fingerprint.value !== record.fingerprint.value
+					) {
+						issues.push({
+							code: "INVALID_REVIEW_FINDING",
+							path,
+							message: "Review finding target or deterministic fingerprint is invalid",
+						});
+					}
+					break;
+				}
+				case "revision_decision": {
+					requireRecord("manuscript", record.toManuscriptId, `${path}#toManuscriptId`);
+					if (record.fromManuscriptId !== null)
+						requireRecord("manuscript", record.fromManuscriptId, `${path}#fromManuscriptId`);
+					if (record.reviewFindingId !== null)
+						requireRecord("review_finding", record.reviewFindingId, `${path}#reviewFindingId`);
+					const target = records.get("manuscript")?.get(record.toManuscriptId);
+					const source =
+						record.fromManuscriptId === null
+							? undefined
+							: records.get("manuscript")?.get(record.fromManuscriptId);
+					const finding =
+						record.reviewFindingId === null
+							? undefined
+							: records.get("review_finding")?.get(record.reviewFindingId);
+					if (
+						target?.kind === "manuscript" &&
+						(target.manuscriptSeriesId !== record.manuscriptSeriesId ||
+							(source?.kind === "manuscript" && source.manuscriptSeriesId !== record.manuscriptSeriesId) ||
+							(finding?.kind === "review_finding" && finding.manuscriptId !== record.toManuscriptId))
+					) {
+						issues.push({
+							code: "INVALID_REVISION_DECISION",
+							path,
+							message: "Revision decision series or review target is inconsistent",
+						});
+					}
+					break;
+				}
+				case "disclosure":
+					requireRecord("manuscript", record.manuscriptId, `${path}#manuscriptId`);
+					break;
+				case "submission_gate_report": {
+					requireRecord("manuscript", record.manuscriptId, `${path}#manuscriptId`);
+					if (record.approvalId !== null) requireRecord("approval", record.approvalId, `${path}#approvalId`);
+					const approval =
+						record.approvalId === null ? undefined : records.get("approval")?.get(record.approvalId);
+					const validApproval =
+						approval?.kind === "approval" &&
+						approval.decision === "approved" &&
+						approval.actionClass === "publish_or_submit" &&
+						approval.actionName === "research.manuscript.mark_submission_candidate" &&
+						approval.dataEgress.recordRefs.some(
+							({ kind, id }) => kind === "manuscript" && id === record.manuscriptId,
+						);
+					if (
+						(record.approvalId !== null && !validApproval) ||
+						(record.passed &&
+							(!validApproval ||
+								record.publishability !== "submission_candidate" ||
+								!record.warningsAccepted ||
+								record.checks.some(({ status }) => status === "failed"))) ||
+						(!record.passed && record.publishability === "submission_candidate")
+					) {
+						issues.push({
+							code: "INVALID_SUBMISSION_GATE_REPORT",
+							path,
+							message: "Submission gate state or approval is inconsistent with its manuscript",
+						});
 					}
 					break;
 				}

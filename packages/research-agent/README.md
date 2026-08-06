@@ -1,6 +1,6 @@
 # Pi Research Agent
 
-Pi Research Agent is a local-first Pi package for evidence-based management and public-administration research. v0.3 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, and auditable qualitative coding without adding a database or a separate UI.
+Pi Research Agent is a local-first Pi package for evidence-based management and public-administration research. v0.4 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, and immutable claim-to-evidence manuscript revision without adding a database or a separate UI.
 
 The package is evidence-first: metadata, abstract text, acquired full text, located excerpts, and verified citations are distinct states. Missing full text, unresolved metadata, paywalls, retractions, and insufficient evidence remain explicit; they are never converted into success by model wording.
 
@@ -31,10 +31,10 @@ Then initialize and load the intake workflow:
 Expected version notification:
 
 ```text
-pi-research-agent v0.3.0
+pi-research-agent v0.4.0
 ```
 
-The six bundled Skills are `research-project-intake`, `literature-evidence`, `literature-review`, `research-design`, `quantitative-research`, and `qualitative-research`. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes ten governed aggregate Tools; users do not edit canonical `.research/records` files directly.
+The nine bundled Skills add `academic-writing`, `academic-review`, and `academic-revision` to the v0.3 research workflows. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes twelve governed aggregate Tools; users do not edit canonical `.research/records` files directly.
 
 ## Optional provider configuration
 
@@ -59,18 +59,22 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [v0.1 release evidence and limitations](docs/release-v0.1.md)
 - [v0.2 release evidence and limitations](docs/release-v0.2.md)
 - [v0.3 release evidence and limitations](docs/release-v0.3.md)
+- [v0.4 release evidence and limitations](docs/release-v0.4.md)
+- [Manuscript review rubrics](docs/review-rubrics.md)
+- [Submission gate](docs/submission-gate.md)
+- [AI disclosure template](docs/ai-disclosure-template.md)
 - [Runnable example requests](examples/README.md)
 
 ## Public contracts
 
-The current v0.3 persisted-record and result contracts are exported from `pi-research-agent/contracts`. TypeBox definitions in `src/contracts/schemas.ts` are the single source for static types, runtime validation, and the JSON Schemas under `schemas/v0.3`. The immutable v0.1 and v0.2 schemas remain committed; their records remain readable after sequential manifest migration.
+The current v0.4 persisted-record and result contracts are exported from `pi-research-agent/contracts`. TypeBox definitions in `src/contracts/schemas.ts` are the single source for static types, runtime validation, and the JSON Schemas under `schemas/v0.4`. The immutable v0.1–v0.3 schemas remain committed; their records remain readable after sequential manifest migration.
 
 ```sh
 npm run generate:schemas -w packages/research-agent
 npm run test:unit -w packages/research-agent -- contracts
 ```
 
-The built-in SourceAdapter contract is exported from `pi-research-agent/adapters/source`. It remains experimental in v0.3; the stable third-party Adapter v1 contract is a v1.5 milestone. Local analysis runtimes are internal adapters, not a stable third-party execution API.
+The built-in SourceAdapter contract is exported from `pi-research-agent/adapters/source`. It remains experimental in v0.4; the stable third-party Adapter v1 contract is a v1.5 milestone. Local analysis runtimes are internal adapters, not a stable third-party execution API.
 
 ## Release checks
 
@@ -86,6 +90,8 @@ npm run benchmark:v0.2 -w packages/research-agent
 npm run eval:v0.3 -w packages/research-agent -- v0.3
 npm run benchmark:v0.3 -w packages/research-agent
 npm run qualify:runtimes:v0.3 -w packages/research-agent
+npm run eval:v0.4 -w packages/research-agent -- v0.4
+npm run benchmark:v0.4 -w packages/research-agent
 npm run scan:release -w packages/research-agent
 npm run test:clean-install -w packages/research-agent
 npm run test:compat -w packages/research-agent

@@ -17,6 +17,8 @@ const allowedTools = new Set([
 	"research_design",
 	"research_analysis",
 	"research_qualitative",
+	"research_manuscript",
+	"research_review",
 ]);
 
 function researchTools(content: string): string[] {
@@ -24,7 +26,7 @@ function researchTools(content: string): string[] {
 }
 
 describe("research skill routing", () => {
-	it("loads six bounded workflow skills and two thin prompt templates", async () => {
+	it("loads nine bounded workflow skills and two thin prompt templates", async () => {
 		const tempDir = await mkdtemp(join(tmpdir(), "pi-research-skills-"));
 		const cwd = join(tempDir, "project");
 		const agentDir = join(tempDir, "agent");
@@ -44,6 +46,9 @@ describe("research skill routing", () => {
 				filePath.startsWith(`${join(packageDir, "skills")}${sep}`),
 			);
 			expect(packageSkills.map(({ name }) => name).sort()).toEqual([
+				"academic-review",
+				"academic-revision",
+				"academic-writing",
 				"literature-evidence",
 				"literature-review",
 				"qualitative-research",
@@ -58,6 +63,9 @@ describe("research skill routing", () => {
 			expect(descriptions.get("research-design")).toContain("research question");
 			expect(descriptions.get("quantitative-research")).toContain("UTF-8 CSV");
 			expect(descriptions.get("qualitative-research")).toContain("human coding decisions");
+			expect(descriptions.get("academic-writing")).toContain("immutable");
+			expect(descriptions.get("academic-review")).toContain("rubrics");
+			expect(descriptions.get("academic-revision")).toContain("submission gate");
 
 			const skillText = new Map<string, string>();
 			for (const skill of packageSkills) {

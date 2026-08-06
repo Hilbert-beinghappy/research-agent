@@ -54,6 +54,20 @@ export function projectRecordId(record: ProjectRecord): string {
 			return record.codingDecisionId;
 		case "theme_synthesis":
 			return record.themeSynthesisId;
+		case "manuscript":
+			return record.manuscriptId;
+		case "section":
+			return record.sectionId;
+		case "claim_occurrence":
+			return record.claimOccurrenceId;
+		case "review_finding":
+			return record.reviewFindingId;
+		case "revision_decision":
+			return record.revisionDecisionId;
+		case "disclosure":
+			return record.disclosureId;
+		case "submission_gate_report":
+			return record.submissionGateReportId;
 		case "task":
 			return record.taskId;
 		case "operation":
@@ -111,6 +125,20 @@ export function projectRecordIdField(kind: RecordKind): string {
 			return "codingDecisionId";
 		case "theme_synthesis":
 			return "themeSynthesisId";
+		case "manuscript":
+			return "manuscriptId";
+		case "section":
+			return "sectionId";
+		case "claim_occurrence":
+			return "claimOccurrenceId";
+		case "review_finding":
+			return "reviewFindingId";
+		case "revision_decision":
+			return "revisionDecisionId";
+		case "disclosure":
+			return "disclosureId";
+		case "submission_gate_report":
+			return "submissionGateReportId";
 		case "task":
 			return "taskId";
 		case "operation":

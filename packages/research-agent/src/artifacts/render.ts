@@ -10,16 +10,27 @@ import type {
 	ConceptRecord,
 	ContributorName,
 	DesignDecision,
+	DisclosureRecord,
 	EvidenceCard,
 	JsonValue,
+	ManuscriptRecord,
 	ProtocolRecord,
 	ResearchQuestionVersion,
+	SectionRecord,
 	SourceRecord,
+	SubmissionGateReport,
 	TheoryRelation,
 } from "../contracts/schemas.ts";
 import { type ProjectRecord, projectRecordId } from "../project/record-index.ts";
 
-export type ResearchArtifactType = "review" | "evidence-matrix" | "research-design" | "ris" | "bibtex" | "json";
+export type ResearchArtifactType =
+	| "review"
+	| "evidence-matrix"
+	| "research-design"
+	| "manuscript"
+	| "ris"
+	| "bibtex"
+	| "json";
 
 export interface ArtifactFormatSpec {
 	artifactKind: ArtifactKind;
@@ -58,6 +69,14 @@ const FORMAT_SPECS: Record<ResearchArtifactType, ArtifactFormatSpec> = {
 		mediaType: "text/markdown",
 		title: "Research design",
 		directory: "artifacts/designs",
+	},
+	manuscript: {
+		artifactKind: "markdown",
+		extension: "md",
+		generatorId: "research.manuscript-markdown",
+		mediaType: "text/markdown",
+		title: "Auditable manuscript",
+		directory: "artifacts/manuscripts",
 	},
 	ris: {
 		artifactKind: "ris",
@@ -275,6 +294,66 @@ function renderResearchDesign(records: readonly ProjectRecord[]): string {
 	return `${lines.join("\n").trimEnd()}\n`;
 }
 
+function renderManuscript(records: readonly ProjectRecord[]): string {
+	const manuscripts = records.filter((record): record is ManuscriptRecord => record.kind === "manuscript");
+	if (manuscripts.length !== 1) throw new TypeError("Manuscript export requires exactly one ManuscriptRecord");
+	const manuscript = manuscripts[0];
+	if (manuscript === undefined) throw new TypeError("Manuscript export is missing its manuscript record");
+	const sectionsById = new Map(
+		records
+			.filter((record): record is SectionRecord => record.kind === "section")
+			.map((record) => [record.sectionId, record]),
+	);
+	const sourceById = new Map(
+		records
+			.filter((record): record is SourceRecord => record.kind === "source")
+			.map((record) => [record.sourceId, record]),
+	);
+	const sections = manuscript.sectionIds.map((sectionId) => sectionsById.get(sectionId));
+	if (sections.some((section) => section === undefined)) throw new TypeError("Manuscript export is missing a section");
+	const disclosure = records
+		.filter(
+			(record): record is DisclosureRecord =>
+				record.kind === "disclosure" && record.manuscriptId === manuscript.manuscriptId,
+		)
+		.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))[0];
+	const gate = records
+		.filter(
+			(record): record is SubmissionGateReport =>
+				record.kind === "submission_gate_report" && record.manuscriptId === manuscript.manuscriptId,
+		)
+		.sort((left, right) => Date.parse(right.checkedAt) - Date.parse(left.checkedAt))[0];
+	const lines = [`# ${manuscript.title}`, ""];
+	if (manuscript.abstract !== null) lines.push("## Abstract", "", manuscript.abstract, "");
+	for (const section of sections) {
+		if (section !== undefined) lines.push(`## ${section.title}`, "", section.content, "");
+	}
+	if (manuscript.bibliography.length > 0) {
+		lines.push("## References", "");
+		for (const entry of [...manuscript.bibliography].sort((left, right) =>
+			left.citationKey.localeCompare(right.citationKey),
+		)) {
+			lines.push(`- [@${entry.citationKey}] ${sourceById.get(entry.sourceId)?.title ?? entry.sourceId}`);
+		}
+		lines.push("");
+	}
+	if (disclosure?.kind === "disclosure") {
+		lines.push("## AI Disclosure", "", disclosure.aiUse, "");
+		listSection(lines, "Human responsibilities", disclosure.humanResponsibilities);
+		listSection(lines, "Limitations", disclosure.limitations);
+		listSection(lines, "Human-only decisions", disclosure.unautomatedDecisions);
+		lines.push("");
+	}
+	lines.push("## Audit", "", `- Manuscript: ${manuscript.manuscriptId} v${manuscript.version}`);
+	lines.push(`- Content hash: ${manuscript.contentHash.value}`);
+	if (gate?.kind === "submission_gate_report") {
+		lines.push(`- Submission gate: ${gate.passed ? "passed" : "blocked"}`);
+		lines.push(`- Core claim coverage: ${gate.coreClaimOccurrenceCoverage}`);
+		lines.push(`- Citation verification coverage: ${gate.citationVerificationCoverage}`);
+	}
+	return `${lines.join("\n").trimEnd()}\n`;
+}
+
 function contributorValue(contributor: ContributorName): { [key: string]: JsonValue } | null {
 	const value: { [key: string]: JsonValue } = {};
 	if (contributor.family !== null) value.family = contributor.family;
@@ -380,8 +459,10 @@ export function renderArtifact(
 				? renderEvidenceMatrix(records)
 				: type === "research-design"
 					? renderResearchDesign(records)
-					: type === "ris" || type === "bibtex"
-						? renderBibliography(type, records)
-						: renderJson(records);
+					: type === "manuscript"
+						? renderManuscript(records)
+						: type === "ris" || type === "bibtex"
+							? renderBibliography(type, records)
+							: renderJson(records);
 	return { ...spec, content };
 }

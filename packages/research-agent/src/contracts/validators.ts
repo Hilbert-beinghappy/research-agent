@@ -8,17 +8,20 @@ import {
 	type ApprovalRecord,
 	type ArtifactRecord,
 	type CitationVerification,
+	type ClaimOccurrence,
 	type ClaimRecord,
 	type CodebookVersion,
 	type CodingDecision,
 	type ConceptRecord,
 	type DatasetRecord,
 	type DesignDecision,
+	type DisclosureRecord,
 	type DocumentRecord,
 	type EvidenceCard,
 	type FileRef,
 	type JsonResearchResult,
 	JsonResearchResultSchema,
+	type ManuscriptRecord,
 	type ModelSuggestion,
 	type OperationRecord,
 	type PersistedRecord,
@@ -29,7 +32,11 @@ import {
 	type ResearchProjectManifest,
 	type ResearchQuestionVersion,
 	type ResearchTask,
+	type ReviewFinding,
+	type RevisionDecision,
+	type SectionRecord,
 	type SourceRecord,
+	type SubmissionGateReport,
 	type ThemeSynthesis,
 	type TheoryRelation,
 } from "./schemas.ts";
@@ -763,6 +770,132 @@ function themeSynthesisIssues(record: ThemeSynthesis): ContractIssue[] {
 	return issues;
 }
 
+function manuscriptIssues(record: ManuscriptRecord): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (
+		(record.version === 1 && record.supersedesManuscriptId !== null) ||
+		(record.version > 1 && record.supersedesManuscriptId === null)
+	) {
+		issues.push(
+			issue(
+				"supersedesManuscriptId",
+				"manuscript.version_chain_invalid",
+				"manuscript version 1 cannot supersede another version and later versions must do so",
+			),
+		);
+	}
+	if (
+		new Set(record.sectionIds).size !== record.sectionIds.length ||
+		new Set(record.claimOccurrenceIds).size !== record.claimOccurrenceIds.length ||
+		new Set(record.bibliography.map(({ citationKey }) => citationKey)).size !== record.bibliography.length
+	) {
+		issues.push(issue("sectionIds", "manuscript.index_duplicate", "manuscript indexes must be unique"));
+	}
+	if (
+		(record.authoring.origin === "model" &&
+			(record.authoring.provider === null || record.authoring.modelId === null)) ||
+		(record.authoring.origin !== "model" && (record.authoring.provider !== null || record.authoring.modelId !== null))
+	) {
+		issues.push(
+			issue(
+				"authoring",
+				"manuscript.authoring_provenance_invalid",
+				"model-authored manuscripts require provider and model; other origins cannot claim model provenance",
+			),
+		);
+	}
+	if (!Number.isFinite(Date.parse(record.createdAt))) {
+		issues.push(issue("createdAt", "manuscript.time_invalid", "manuscript creation time must be valid"));
+	}
+	return issues;
+}
+
+function sectionIssues(record: SectionRecord): ContractIssue[] {
+	return record.content.length === 0 && record.wordCount !== 0
+		? [issue("wordCount", "section.word_count_invalid", "empty sections must have a zero word count")]
+		: [];
+}
+
+function claimOccurrenceIssues(record: ClaimOccurrence): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (record.charEnd <= record.charStart || record.charEnd - record.charStart !== record.text.length) {
+		issues.push(
+			issue(
+				"charEnd",
+				"claim_occurrence.range_invalid",
+				"claim occurrence must use a non-empty half-open range matching its text",
+			),
+		);
+	}
+	if (
+		new Set(record.citationKeys).size !== record.citationKeys.length ||
+		new Set(record.evidenceIds).size !== record.evidenceIds.length
+	) {
+		issues.push(
+			issue(
+				"citationKeys",
+				"claim_occurrence.reference_duplicate",
+				"claim occurrence citations and evidence references must be unique",
+			),
+		);
+	}
+	return issues;
+}
+
+function reviewFindingIssues(record: ReviewFinding): ContractIssue[] {
+	if (
+		(record.source === "model" && record.model === null) ||
+		(record.source === "deterministic" && record.model !== null)
+	) {
+		return [
+			issue(
+				"model",
+				"review_finding.provenance_invalid",
+				"model review findings require model provenance and deterministic findings cannot claim it",
+			),
+		];
+	}
+	return [];
+}
+
+function revisionDecisionIssues(record: RevisionDecision): ContractIssue[] {
+	const findingDecision = record.decision === "accept" || record.decision === "reject" || record.decision === "defer";
+	if (findingDecision !== (record.reviewFindingId !== null)) {
+		return [
+			issue(
+				"reviewFindingId",
+				"revision_decision.finding_mismatch",
+				"review dispositions require a finding; activate and rollback decisions do not",
+			),
+		];
+	}
+	return [];
+}
+
+function disclosureIssues(record: DisclosureRecord): ContractIssue[] {
+	return confirmationIssues(record);
+}
+
+function submissionGateIssues(record: SubmissionGateReport): ContractIssue[] {
+	const hasFailure = record.checks.some(({ status }) => status === "failed");
+	const hasWarning = record.checks.some(({ status }) => status === "warning");
+	if (
+		record.passed !== (!hasFailure && (!hasWarning || record.warningsAccepted)) ||
+		(record.passed && record.publishability !== "submission_candidate") ||
+		(!record.passed && record.publishability === "submission_candidate") ||
+		record.warningsAccepted !== (record.approvalId !== null)
+	) {
+		return [
+			issue(
+				"passed",
+				"submission_gate.result_invalid",
+				"submission gate result, warnings approval, checks, and publishability are inconsistent",
+			),
+		];
+	}
+	return [];
+}
+
 function taskIssues(record: ResearchTask): ContractIssue[] {
 	const issues: ContractIssue[] = [];
 	if (record.attemptCount > record.maxAttempts) {
@@ -983,6 +1116,20 @@ function invariantIssues(record: PersistedRecord): ContractIssue[] {
 			return codingDecisionIssues(record);
 		case "theme_synthesis":
 			return themeSynthesisIssues(record);
+		case "manuscript":
+			return manuscriptIssues(record);
+		case "section":
+			return sectionIssues(record);
+		case "claim_occurrence":
+			return claimOccurrenceIssues(record);
+		case "review_finding":
+			return reviewFindingIssues(record);
+		case "revision_decision":
+			return revisionDecisionIssues(record);
+		case "disclosure":
+			return disclosureIssues(record);
+		case "submission_gate_report":
+			return submissionGateIssues(record);
 		case "task":
 			return taskIssues(record);
 		case "operation":

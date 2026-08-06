@@ -6,11 +6,14 @@ import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-jso
 import type {
 	ApprovalRecord,
 	JsonValue,
+	ManuscriptRecord,
 	OperationRecord,
 	RecordKind,
 	ResearchPolicyConfig,
 	ResearchResult,
 	ResearchTask,
+	ReviewFinding,
+	RevisionDecision,
 	SessionLink,
 } from "../contracts/schemas.ts";
 import { RESEARCH_SCHEMA_VERSION } from "../contracts/schemas.ts";
@@ -259,18 +262,22 @@ function countValues(values: readonly string[]): Record<string, number> {
 }
 
 export async function projectStatus(project: CurrentProject): Promise<JsonValue> {
-	const [tasks, operations, documents, evidence, citations, design] = await Promise.all([
-		loadRecords(project, "task"),
-		loadRecords(project, "operation"),
-		loadRecords(project, "document"),
-		loadRecords(project, "evidence"),
-		loadRecords(project, "citation_verification"),
-		Promise.all(
-			(["research_question_version", "concept", "theory_relation", "design_decision", "protocol"] as const).map(
-				(kind) => loadRecords(project, kind),
-			),
-		).then((records) => records.flat()),
-	]);
+	const [tasks, operations, documents, evidence, citations, design, manuscripts, reviewFindings, gateReports] =
+		await Promise.all([
+			loadRecords(project, "task"),
+			loadRecords(project, "operation"),
+			loadRecords(project, "document"),
+			loadRecords(project, "evidence"),
+			loadRecords(project, "citation_verification"),
+			Promise.all(
+				(["research_question_version", "concept", "theory_relation", "design_decision", "protocol"] as const).map(
+					(kind) => loadRecords(project, kind),
+				),
+			).then((records) => records.flat()),
+			loadRecords(project, "manuscript"),
+			loadRecords(project, "review_finding"),
+			loadRecords(project, "submission_gate_report"),
+		]);
 	const taskRecords = tasks.filter((record) => record.kind === "task");
 	const budgetActual: Record<string, number> = {};
 	for (const task of taskRecords) {
@@ -298,6 +305,15 @@ export async function projectStatus(project: CurrentProject): Promise<JsonValue>
 			citations.filter((record) => record.kind === "citation_verification").map(({ finalStatus }) => finalStatus),
 		),
 		designByStatus: countValues(design.filter(isDesignRecord).map(({ status }) => status)),
+		manuscriptVersions: manuscripts.filter((record) => record.kind === "manuscript").length,
+		reviewFindingsBySeverity: countValues(
+			reviewFindings.filter((record) => record.kind === "review_finding").map(({ severity }) => severity),
+		),
+		submissionGatesByPublishability: countValues(
+			gateReports
+				.filter((record) => record.kind === "submission_gate_report")
+				.map(({ publishability }) => publishability),
+		),
 		budgetActual,
 	});
 }
@@ -400,7 +416,7 @@ export function registerResearchCommands(
 
 	register(
 		"research-migrate",
-		"Migrate a v0.2 project to v0.3 or roll back an unchanged migration",
+		"Migrate a v0.3 project to v0.4 or roll back an unchanged migration",
 		async (args, ctx) => {
 			const [action, migrationId] = args.split(/\s+/, 2);
 			if (action === "rollback") {
@@ -417,7 +433,7 @@ export function registerResearchCommands(
 				}
 				const confirmed = await ctx.ui.confirm(
 					"Roll back research project migration",
-					`Restore the v0.2 manifest snapshot from ${migrationId}? Rollback is refused if any v0.3 state was written.`,
+					`Restore the v0.3 manifest snapshot from ${migrationId}? Rollback is refused if any v0.4 state was written.`,
 				);
 				if (!confirmed) {
 					return failureResult(
@@ -538,7 +554,7 @@ export function registerResearchCommands(
 
 	register("research-resume", "Show incomplete and blocked research tasks", async (_args, ctx) => {
 		const project = await requireProject(ctx);
-		const [taskRecords, operationRecords, designRecords] = await Promise.all([
+		const [taskRecords, operationRecords, designRecords, manuscripts, findings, decisions] = await Promise.all([
 			loadRecords(project, "task"),
 			loadRecords(project, "operation"),
 			Promise.all(
@@ -546,6 +562,9 @@ export function registerResearchCommands(
 					(kind) => loadRecords(project, kind),
 				),
 			).then((records) => records.flat()),
+			loadRecords(project, "manuscript"),
+			loadRecords(project, "review_finding"),
+			loadRecords(project, "revision_decision"),
 		]);
 		const tasks = taskRecords
 			.filter((record) => record.kind === "task")
@@ -575,6 +594,37 @@ export function registerResearchCommands(
 				id: projectRecordId(record),
 				revision: record.audit.revision,
 			}));
+		const manuscriptRecords = manuscripts.filter(
+			(record): record is ManuscriptRecord => record.kind === "manuscript",
+		);
+		const latestActiveDecision = decisions
+			.filter(
+				(record): record is RevisionDecision =>
+					record.kind === "revision_decision" &&
+					record.reviewFindingId === null &&
+					(record.decision === "activate" || record.decision === "rollback"),
+			)
+			.sort((left, right) => Date.parse(right.decidedAt) - Date.parse(left.decidedAt))[0];
+		const latestManuscript = [...manuscriptRecords].sort(
+			(left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt) || right.version - left.version,
+		)[0];
+		const activeManuscriptId = latestActiveDecision?.toManuscriptId ?? latestManuscript?.manuscriptId ?? null;
+		const openP0ReviewFindings = findings
+			.filter((record): record is ReviewFinding => record.kind === "review_finding" && record.severity === "P0")
+			.filter((finding) => {
+				const latest = decisions
+					.filter(
+						(record): record is RevisionDecision =>
+							record.kind === "revision_decision" && record.reviewFindingId === finding.reviewFindingId,
+					)
+					.sort((left, right) => Date.parse(right.decidedAt) - Date.parse(left.decidedAt))[0];
+				return finding.findingType === "deterministic_violation" || latest?.decision !== "reject";
+			})
+			.map((finding) => ({
+				reviewFindingId: finding.reviewFindingId,
+				manuscriptId: finding.manuscriptId,
+				findingType: finding.findingType,
+			}));
 		return successResult(
 			asJson({
 				projectId: project.manifest.projectId,
@@ -582,6 +632,8 @@ export function registerResearchCommands(
 				tasks,
 				operations,
 				designAwaitingConfirmation,
+				activeManuscriptId,
+				openP0ReviewFindings,
 			}),
 			null,
 		);

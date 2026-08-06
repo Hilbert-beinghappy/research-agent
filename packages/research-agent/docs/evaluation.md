@@ -59,3 +59,14 @@ The gate checks the public v0.3 rubric, actual Python/R clean-room report, failu
 The real-model check used JSON Schema structured output, which required two provider turns and cost USD 0.063315. It selected `research_analysis` and `research_qualitative`, stopped at imports because no specification/codebook was confirmed, preserved the associational claim boundary, rejected significance selection and automatic coding, and listed all eight required warnings. The deterministic evaluator replays only the sanitized baseline and makes no provider call.
 
 `npm run qualify:runtimes:v0.3 -w packages/research-agent` is an explicit local release-candidate check, not default CI. It runs the public standard-library Python/R scripts and fails when either runtime is missing; it never installs a runtime or package. Stata is covered by a mock batch-contract test because the project neither bundles nor licenses commercial software.
+
+## v0.4 writing, review, and revision evaluation
+
+```sh
+npm run eval:v0.4 -w packages/research-agent -- v0.4
+npm run benchmark:v0.4 -w packages/research-agent
+```
+
+The release test suite executes 20 declared injections and requires zero false submission passes; the public evaluator replays their sanitized baseline. The inventory covers invented and missing citation markers, absent/unlocated/unsupported core evidence, unverified/retracted/conflicted sources, missing quantitative/qualitative method records, causal overclaim, missing disclosure/approval, unresolved deterministic and model P0 findings, and section/anchor tampering. The evaluator also verifies the frozen 50,000-word performance baseline, three Skill hashes, rubric and Prompt hashes, and the sanitized real-model boundary result.
+
+The authorized `deepseek-v4-flash` check used no tools or web requests. The validated structured result took two provider turns and cost USD 0.049945. It routed first to deterministic integrity findings, required immutable revision, and refused invented citations, model-consensus verification, and immediate submission. One earlier response failed the local rubric before cost persistence; the baseline records one unobserved-cost invocation rather than estimating it.

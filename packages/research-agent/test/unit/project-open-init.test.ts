@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe("project initialization and opening", () => {
-	it("initializes the fixed v0.3 layout and reopens idempotently", async () => {
+	it("initializes the fixed v0.4 layout and reopens idempotently", async () => {
 		const created = await initializeProject(projectRoot, {
 			title: "Algorithmic transparency and public trust",
 			domain: "public-administration",
@@ -56,6 +56,13 @@ describe("project initialization and opening", () => {
 			"model_suggestion",
 			"coding_decision",
 			"theme_synthesis",
+			"manuscript",
+			"section",
+			"claim_occurrence",
+			"review_finding",
+			"revision_decision",
+			"disclosure",
+			"submission_gate_report",
 			"task",
 			"operation",
 			"analysis_run",
@@ -105,11 +112,11 @@ describe("project initialization and opening", () => {
 			schemaVersion: "0.0.9",
 		});
 
-		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "0.4.0" }));
+		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "0.5.0" }));
 		await expect(openProject(projectRoot)).resolves.toMatchObject({
 			mode: "read-only",
 			compatibility: "newer_schema",
-			schemaVersion: "0.4.0",
+			schemaVersion: "0.5.0",
 		});
 
 		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "next" }));

@@ -387,7 +387,7 @@ function expectIssue(value: unknown, code: string): void {
 	if (!result.ok) expect(result.issues.map((entry) => entry.code)).toContain(code);
 }
 
-describe("v0.3 persisted contracts", () => {
+describe("v0.4 persisted contracts", () => {
 	it.each(validRecords.map((record) => [record.kind, record]))("validates %s", (_kind, record) => {
 		expect(validatePersistedRecord(record)).toMatchObject({ ok: true, value: record, issues: [] });
 	});
@@ -554,7 +554,7 @@ describe("v0.3 persisted contracts", () => {
 	});
 
 	it("keeps committed JSON schemas generated from TypeBox", async () => {
-		const schemaDir = fileURLToPath(new URL("../../schemas/v0.3/", import.meta.url));
+		const schemaDir = fileURLToPath(new URL("../../schemas/v0.4/", import.meta.url));
 		const persisted = JSON.parse(await readFile(`${schemaDir}persisted-record.schema.json`, "utf8"));
 		const result = JSON.parse(await readFile(`${schemaDir}research-result.schema.json`, "utf8"));
 		const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
@@ -563,7 +563,7 @@ describe("v0.3 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent persisted record v0.3",
+					title: "Pi Research Agent persisted record v0.4",
 					...PersistedRecordSchema,
 				}),
 			),
@@ -572,7 +572,7 @@ describe("v0.3 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent result v0.3",
+					title: "Pi Research Agent result v0.4",
 					...JsonResearchResultSchema,
 				}),
 			),
@@ -582,5 +582,11 @@ describe("v0.3 persisted contracts", () => {
 		await expect(readFile(`${legacyDir}persisted-record.schema.json`, "utf8")).resolves.toContain(
 			'"title": "Pi Research Agent persisted record v0.1"',
 		);
+		for (const version of ["0.2", "0.3"]) {
+			const previousDir = fileURLToPath(new URL(`../../schemas/v${version}/`, import.meta.url));
+			await expect(readFile(`${previousDir}persisted-record.schema.json`, "utf8")).resolves.toContain(
+				`"title": "Pi Research Agent persisted record v${version}"`,
+			);
+		}
 	});
 });

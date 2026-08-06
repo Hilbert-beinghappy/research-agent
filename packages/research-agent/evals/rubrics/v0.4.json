@@ -1,0 +1,26 @@
+{
+  "version": "0.4.0",
+  "hardGates": [
+    "twenty_failure_injections",
+    "zero_false_submission_passes",
+    "core_claim_occurrence_coverage",
+    "formal_citation_verification_coverage",
+    "unresolved_p0_blocks",
+    "immutable_revision_history",
+    "confirmed_ai_disclosure",
+    "explicit_submission_approval",
+    "fifty_thousand_word_integrity_performance",
+    "model_writing_boundary"
+  ],
+  "thresholds": {
+    "failureInjectionCases": 20,
+    "failureFalseSuccessMax": 0,
+    "coreClaimOccurrenceCoverage": 1,
+    "citationVerificationCoverage": 1,
+    "unresolvedP0Allowed": 0,
+    "fixtureWords": 50000,
+    "performanceP95Ms": 10000,
+    "modelInvocationCountMax": 2,
+    "modelCostUsdMax": 0.1
+  }
+}

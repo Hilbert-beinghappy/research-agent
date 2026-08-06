@@ -21,10 +21,12 @@ import type {
 	ArtifactRecord,
 	FileRef,
 	HashValue,
+	ManuscriptRecord,
 	Publishability,
 	RecordKind,
 	RecordRef,
 	ResearchResult,
+	SubmissionGateReport,
 } from "../contracts/schemas.ts";
 import { RESEARCH_SCHEMA_VERSION } from "../contracts/schemas.ts";
 import { createOpaqueId } from "../kernel/identity.ts";
@@ -41,7 +43,7 @@ import {
 import { createRecord, readRecord } from "../project/records.ts";
 import { brokerProjectFile } from "../security/broker-files.ts";
 
-export const ARTIFACT_GENERATOR_VERSION = "0.3.0";
+export const ARTIFACT_GENERATOR_VERSION = "0.4.0";
 
 export interface GenerateArtifactRequest {
 	action: "generate_structured" | "commit_markdown";
@@ -87,6 +89,22 @@ const GENERATION_INPUT_KINDS = new Set<RecordKind>([
 	"theory_relation",
 	"design_decision",
 	"protocol",
+	"analysis_specification",
+	"qualitative_material",
+	"qualitative_segment",
+	"codebook_version",
+	"model_suggestion",
+	"coding_decision",
+	"theme_synthesis",
+	"manuscript",
+	"section",
+	"claim_occurrence",
+	"review_finding",
+	"revision_decision",
+	"disclosure",
+	"submission_gate_report",
+	"analysis_run",
+	"approval",
 ]);
 
 function propagatedFailure<Value>(
@@ -124,6 +142,13 @@ function sourceFiles(records: readonly ProjectRecord[]): FileRef[] {
 		if (record.kind === "citation_verification") {
 			return record.verificationSources.map(({ rawRecord }) => rawRecord).filter(completeFile);
 		}
+		if (record.kind === "analysis_specification") {
+			return [record.script, record.environmentFile, ...record.inputFiles].filter(completeFile);
+		}
+		if (record.kind === "analysis_run") {
+			return [record.script, ...record.inputs, ...record.outputs, ...record.logs].filter(completeFile);
+		}
+		if (record.kind === "qualitative_material") return [record.sourceFile].filter(completeFile);
 		return [];
 	});
 	return [...new Map(files.map((file) => [fileKey(file), file])).values()].sort((left, right) =>
@@ -167,6 +192,77 @@ function enqueueDependencies(record: ProjectRecord, pending: RecordRef[]): void 
 	}
 	if (record.kind === "document" || record.kind === "citation_verification") {
 		pending.push({ kind: "source", id: record.sourceId, revision: null });
+	}
+	if (record.kind === "manuscript") {
+		pending.push(...record.sectionIds.map((id) => ({ kind: "section" as const, id, revision: null })));
+		pending.push(
+			...record.claimOccurrenceIds.map((id) => ({ kind: "claim_occurrence" as const, id, revision: null })),
+		);
+		pending.push(
+			...record.bibliography.map(({ sourceId }) => ({ kind: "source" as const, id: sourceId, revision: null })),
+		);
+		pending.push(...record.methodRecords);
+	}
+	if (record.kind === "section") pending.push({ kind: "manuscript", id: record.manuscriptId, revision: null });
+	if (record.kind === "claim_occurrence") {
+		pending.push(
+			{ kind: "manuscript", id: record.manuscriptId, revision: null },
+			{ kind: "section", id: record.sectionId, revision: null },
+			{ kind: "claim", id: record.claimId, revision: null },
+		);
+		pending.push(...record.evidenceIds.map((id) => ({ kind: "evidence" as const, id, revision: null })));
+	}
+	if (record.kind === "review_finding") {
+		pending.push({ kind: "manuscript", id: record.manuscriptId, revision: null });
+		if (record.sectionId !== null) pending.push({ kind: "section", id: record.sectionId, revision: null });
+		if (record.claimOccurrenceId !== null) {
+			pending.push({ kind: "claim_occurrence", id: record.claimOccurrenceId, revision: null });
+		}
+	}
+	if (record.kind === "revision_decision") {
+		pending.push({ kind: "manuscript", id: record.toManuscriptId, revision: null });
+		if (record.fromManuscriptId !== null) {
+			pending.push({ kind: "manuscript", id: record.fromManuscriptId, revision: null });
+		}
+		if (record.reviewFindingId !== null) {
+			pending.push({ kind: "review_finding", id: record.reviewFindingId, revision: null });
+		}
+	}
+	if (record.kind === "disclosure") pending.push({ kind: "manuscript", id: record.manuscriptId, revision: null });
+	if (record.kind === "submission_gate_report") {
+		pending.push({ kind: "manuscript", id: record.manuscriptId, revision: null });
+		if (record.approvalId !== null) pending.push({ kind: "approval", id: record.approvalId, revision: null });
+		pending.push(...record.checks.flatMap(({ recordRefs }) => recordRefs));
+	}
+	if (record.kind === "analysis_run") {
+		pending.push({ kind: "analysis_specification", id: record.analysisSpecificationId, revision: null });
+	}
+	if (record.kind === "theme_synthesis") {
+		pending.push({ kind: "codebook_version", id: record.codebookVersionId, revision: null });
+		pending.push(...record.codingDecisionIds.map((id) => ({ kind: "coding_decision" as const, id, revision: null })));
+		for (const theme of record.themes) {
+			pending.push(
+				...theme.qualitativeSegmentIds.map((id) => ({ kind: "qualitative_segment" as const, id, revision: null })),
+			);
+		}
+	}
+	if (record.kind === "coding_decision") {
+		pending.push(
+			{ kind: "qualitative_segment", id: record.qualitativeSegmentId, revision: null },
+			{ kind: "codebook_version", id: record.codebookVersionId, revision: null },
+		);
+		if (record.modelSuggestionId !== null) {
+			pending.push({ kind: "model_suggestion", id: record.modelSuggestionId, revision: null });
+		}
+	}
+	if (record.kind === "model_suggestion") {
+		pending.push(
+			{ kind: "qualitative_segment", id: record.qualitativeSegmentId, revision: null },
+			{ kind: "codebook_version", id: record.codebookVersionId, revision: null },
+		);
+	}
+	if (record.kind === "qualitative_segment") {
+		pending.push({ kind: "qualitative_material", id: record.qualitativeMaterialId, revision: null });
 	}
 }
 
@@ -420,6 +516,30 @@ function actualPublishability(
 	return target;
 }
 
+function manuscriptSubmissionApproval(records: readonly ProjectRecord[]): ApprovalRecord | null {
+	const manuscripts = records.filter((record): record is ManuscriptRecord => record.kind === "manuscript");
+	if (manuscripts.length !== 1) return null;
+	const manuscript = manuscripts[0];
+	if (manuscript === undefined) return null;
+	const report = records
+		.filter(
+			(record): record is SubmissionGateReport =>
+				record.kind === "submission_gate_report" &&
+				record.manuscriptId === manuscript.manuscriptId &&
+				record.passed,
+		)
+		.sort((left, right) => Date.parse(right.checkedAt) - Date.parse(left.checkedAt))[0];
+	if (report?.kind !== "submission_gate_report" || report.approvalId === null) return null;
+	const approval = records.find((record) => record.kind === "approval" && record.approvalId === report.approvalId);
+	return approval?.kind === "approval" &&
+		approval.decision === "approved" &&
+		approval.actionClass === "publish_or_submit" &&
+		approval.actionName === "research.manuscript.mark_submission_candidate" &&
+		approval.dataEgress.recordRefs.some(({ kind, id }) => kind === "manuscript" && id === manuscript.manuscriptId)
+		? approval
+		: null;
+}
+
 export async function commitPreparedArtifact(
 	projectRoot: string,
 	prepared: PreparedArtifact,
@@ -428,11 +548,11 @@ export async function commitPreparedArtifact(
 	submissionApprovalId: string | null,
 ): Promise<ResearchResult<ArtifactToolValue>> {
 	try {
-		const approval =
+		const explicitApproval =
 			submissionApprovalId === null
 				? null
 				: await validSubmissionApproval(projectRoot, operationId, submissionApprovalId);
-		if (submissionApprovalId !== null && approval === null) {
+		if (submissionApprovalId !== null && explicitApproval === null) {
 			return failureResult(
 				"PERMISSION_BLOCKED",
 				"SUBMISSION_APPROVAL_INVALID",
@@ -441,6 +561,11 @@ export async function commitPreparedArtifact(
 				operationId,
 			);
 		}
+		const approval =
+			explicitApproval ??
+			(prepared.request.artifactType === "manuscript"
+				? manuscriptSubmissionApproval(prepared.snapshot.records)
+				: null);
 		const warningsAccepted = prepared.request.targetStatus === "submission_candidate" && approval !== null;
 		const validation = await evaluateArtifactGates({
 			projectRoot,
@@ -652,10 +777,11 @@ export async function validateArtifact(
 			recordRefs: [{ kind: "artifact", id: artifact.artifactId, revision: artifact.audit.revision }],
 		});
 		const generator = await readRecord(projectRoot, "operation", artifact.generator.operationId);
-		let submissionApproval: ApprovalRecord | null = null;
+		let submissionApproval: ApprovalRecord | null =
+			artifactType === "manuscript" ? manuscriptSubmissionApproval(snapshot.value.records) : null;
 		if (generator.ok && generator.value.kind === "operation") {
 			const generatorOperation = generator.value;
-			submissionApproval =
+			submissionApproval ??=
 				(
 					await Promise.all(
 						generatorOperation.approvalIds.map((approvalId) =>

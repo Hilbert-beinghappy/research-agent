@@ -6,10 +6,12 @@ import type {
 	ClaimRecord,
 	EvidenceCard,
 	FileRef,
+	ManuscriptRecord,
 	OperationRecord,
 	Publishability,
 	RecordRef,
 	SourceRecord,
+	SubmissionGateReport,
 } from "../contracts/schemas.ts";
 import type { ProjectRecord } from "../project/record-index.ts";
 import { projectRecordId, projectRecordRevision } from "../project/record-index.ts";
@@ -42,7 +44,7 @@ function check(
 	return { name, status, message, recordRefs: records.map(recordRef) };
 }
 
-function locatedEvidence(evidence: EvidenceCard | undefined): evidence is EvidenceCard {
+export function locatedEvidence(evidence: EvidenceCard | undefined): evidence is EvidenceCard {
 	return (
 		evidence !== undefined &&
 		evidence.validity === "active" &&
@@ -52,7 +54,7 @@ function locatedEvidence(evidence: EvidenceCard | undefined): evidence is Eviden
 	);
 }
 
-async function currentCitation(
+export async function currentCitation(
 	projectRoot: string,
 	source: SourceRecord,
 	candidates: readonly CitationVerification[],
@@ -96,7 +98,7 @@ function claimSupportCheck(claim: ClaimRecord): ArtifactValidationCheck {
 	return check("claim_support", "failed", `Claim ${claim.claimId} is ${claim.supportStatus}`, [claim]);
 }
 
-function sourceIntegrityCheck(source: SourceRecord): ArtifactValidationCheck {
+export function sourceIntegrityCheck(source: SourceRecord): ArtifactValidationCheck {
 	const unresolved = source.metadataConflicts.some(({ resolution }) => resolution === "unresolved");
 	if (
 		unresolved ||
@@ -113,7 +115,10 @@ function sourceIntegrityCheck(source: SourceRecord): ArtifactValidationCheck {
 	return check("source_metadata", "passed", `Source ${source.sourceId} metadata is resolved`, [source]);
 }
 
-function citationStatusCheck(source: SourceRecord, citation: CitationVerification | null): ArtifactValidationCheck {
+export function citationStatusCheck(
+	source: SourceRecord,
+	citation: CitationVerification | null,
+): ArtifactValidationCheck {
 	if (citation === null) {
 		return check(
 			"citation_verification",
@@ -159,6 +164,61 @@ export async function evaluateArtifactGates(input: ArtifactGateInput): Promise<A
 		return {
 			status: "passed",
 			checks: [check("artifact_inputs", "passed", "Artifact inputs are valid project snapshots", input.records)],
+		};
+	}
+	if (input.artifactType === "manuscript") {
+		const manuscripts = input.records.filter((record): record is ManuscriptRecord => record.kind === "manuscript");
+		const manuscript = manuscripts[0];
+		const reports = input.records
+			.filter(
+				(record): record is SubmissionGateReport =>
+					record.kind === "submission_gate_report" &&
+					manuscript !== undefined &&
+					record.manuscriptId === manuscript.manuscriptId,
+			)
+			.sort((left, right) => Date.parse(right.checkedAt) - Date.parse(left.checkedAt));
+		const report = reports[0];
+		const checks: ArtifactValidationCheck[] = [
+			check(
+				"manuscript_scope",
+				manuscripts.length === 1 ? "passed" : "failed",
+				manuscripts.length === 1
+					? "Artifact contains one immutable manuscript revision"
+					: "Manuscript artifact requires exactly one ManuscriptRecord",
+				manuscripts,
+			),
+		];
+		if (input.targetStatus === "submission_candidate") {
+			checks.push(
+				check(
+					"manuscript_submission_gate",
+					report?.kind === "submission_gate_report" && report.passed ? "passed" : "failed",
+					report?.kind === "submission_gate_report" && report.passed
+						? "Latest manuscript submission gate passed with explicit user approval"
+						: "Latest manuscript submission gate is missing or blocked",
+					report === undefined ? manuscripts : [manuscript, report].filter((record) => record !== undefined),
+				),
+			);
+			if (report?.kind === "submission_gate_report") {
+				checks.push(
+					...report.checks.map(({ code, status, message, recordRefs }) => ({
+						name: `manuscript_${code}`,
+						status,
+						message,
+						recordRefs,
+					})),
+				);
+			}
+		}
+		const hasFailure = checks.some(({ status }) => status === "failed");
+		const hasWarning = checks.some(({ status }) => status === "warning");
+		return {
+			status: hasFailure
+				? "failed"
+				: hasWarning && report?.kind === "submission_gate_report" && !report.warningsAccepted
+					? "passed_with_warnings"
+					: "passed",
+			checks,
 		};
 	}
 

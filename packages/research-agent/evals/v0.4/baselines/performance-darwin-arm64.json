@@ -1,0 +1,34 @@
+{
+  "benchmark": "pi-research-agent-v0.4",
+  "generatedAt": "2026-08-06T21:12:24.169Z",
+  "schemaVersion": "0.4.0",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "fixture": {
+    "words": 50000,
+    "sections": 1,
+    "claimOccurrences": 0
+  },
+  "results": {
+    "manuscriptIntegrity": {
+      "samples": 5,
+      "measurementsMs": [
+        5.416,
+        4.521,
+        4.604,
+        4.661,
+        4.744
+      ],
+      "p95Ms": 5.416,
+      "thresholdMs": 10000,
+      "passed": true
+    }
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}
