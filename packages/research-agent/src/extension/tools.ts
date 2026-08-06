@@ -18,6 +18,10 @@ import {
 	type CitationVerification,
 	type ClaimRecord,
 	ClaimRecordSchema,
+	ConceptRecordSchema,
+	DesignBasisSchema,
+	DesignDecisionSchema,
+	DesignProvenanceRefSchema,
 	type DocumentRecord,
 	type EvidenceCard,
 	EvidenceCardSchema,
@@ -26,13 +30,16 @@ import {
 	JsonValueSchema,
 	type Money,
 	type OperationRecord,
+	ProtocolRecordSchema,
 	RESEARCH_SCHEMA_VERSION,
 	type RecordRef,
 	RecordRefSchema,
 	type ResearchError,
+	ResearchQuestionVersionSchema,
 	type ResearchResult,
 	type SessionLink,
 	type SourceRecord,
+	TheoryRelationSchema,
 } from "../contracts/schemas.ts";
 import { locateSourceDocument } from "../documents/locate.ts";
 import { type EvidenceCardDraft, evidenceFingerprint, validateEvidenceCardDraft } from "../evidence/commit.ts";
@@ -42,7 +49,7 @@ import { hashBytes, hashCanonicalJson } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { type FailureStatus, failureResult, successResult } from "../kernel/results.ts";
 import { type OpenedProject, openProject } from "../project/open.ts";
-import { listProjectRecordIds } from "../project/record-index.ts";
+import { listProjectRecordIds, projectRecordId, projectRecordRevision } from "../project/record-index.ts";
 import { createRecord, readRecord, updateRecord } from "../project/records.ts";
 import { readApprovalRecords } from "../security/approval.ts";
 import { brokerProjectFile } from "../security/broker-files.ts";
@@ -59,6 +66,14 @@ import {
 	prepareArtifact,
 	validateArtifact,
 } from "../tools/artifacts.ts";
+import {
+	commitDesignDraft,
+	type DesignDraft,
+	type DesignRecord,
+	type DesignRecordKind,
+	decideDesignRecord,
+	markDesignAwaitingConfirmation,
+} from "../tools/design.ts";
 import { acquireDocument, parseDocument, recordDocumentLocation } from "../tools/documents.ts";
 import {
 	type ClaimDraft,
@@ -82,6 +97,7 @@ export const RESEARCH_TOOL_NAMES = [
 	"research_commit_evidence",
 	"research_verify_citations",
 	"research_artifacts",
+	"research_design",
 ] as const;
 
 const SearchSourcesParameters = Type.Object(
@@ -256,6 +272,7 @@ const ArtifactsParameters = Type.Object(
 		artifactType: Type.Union([
 			Type.Literal("review"),
 			Type.Literal("evidence-matrix"),
+			Type.Literal("research-design"),
 			Type.Literal("ris"),
 			Type.Literal("bibtex"),
 			Type.Literal("json"),
@@ -271,6 +288,136 @@ const ArtifactsParameters = Type.Object(
 	},
 	{ additionalProperties: false },
 );
+
+const DesignBasisInputSchema = Type.Object(
+	{
+		summary: DesignBasisSchema.properties.summary,
+		provenance: Type.Array(DesignProvenanceRefSchema),
+		evidenceGap: DesignBasisSchema.properties.evidenceGap,
+	},
+	{ additionalProperties: false },
+);
+
+const DesignParameters = Type.Union([
+	Type.Object(
+		{
+			action: Type.Literal("create_question"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			questionSeriesId: ResearchQuestionVersionSchema.properties.questionSeriesId,
+			version: ResearchQuestionVersionSchema.properties.version,
+			text: ResearchQuestionVersionSchema.properties.text,
+			questionType: ResearchQuestionVersionSchema.properties.questionType,
+			rationale: ResearchQuestionVersionSchema.properties.rationale,
+			scope: ResearchQuestionVersionSchema.properties.scope,
+			boundaryConditions: ResearchQuestionVersionSchema.properties.boundaryConditions,
+			basis: DesignBasisInputSchema,
+			supersedesResearchQuestionVersionId:
+				ResearchQuestionVersionSchema.properties.supersedesResearchQuestionVersionId,
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_concept"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			name: ConceptRecordSchema.properties.name,
+			definition: ConceptRecordSchema.properties.definition,
+			role: ConceptRecordSchema.properties.role,
+			aliases: ConceptRecordSchema.properties.aliases,
+			measurementNotes: ConceptRecordSchema.properties.measurementNotes,
+			boundaryConditions: ConceptRecordSchema.properties.boundaryConditions,
+			basis: DesignBasisInputSchema,
+			supersedesConceptId: ConceptRecordSchema.properties.supersedesConceptId,
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_relation"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			fromConceptId: TheoryRelationSchema.properties.fromConceptId,
+			toConceptId: TheoryRelationSchema.properties.toConceptId,
+			relationType: TheoryRelationSchema.properties.relationType,
+			direction: TheoryRelationSchema.properties.direction,
+			statement: TheoryRelationSchema.properties.statement,
+			hypothesesOrPropositions: TheoryRelationSchema.properties.hypothesesOrPropositions,
+			boundaryConditions: TheoryRelationSchema.properties.boundaryConditions,
+			alternativeExplanations: TheoryRelationSchema.properties.alternativeExplanations,
+			basis: DesignBasisInputSchema,
+			supersedesTheoryRelationId: TheoryRelationSchema.properties.supersedesTheoryRelationId,
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_decision"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			decisionType: DesignDecisionSchema.properties.decisionType,
+			question: DesignDecisionSchema.properties.question,
+			options: DesignDecisionSchema.properties.options,
+			selectedOptionId: DesignDecisionSchema.properties.selectedOptionId,
+			rationale: DesignDecisionSchema.properties.rationale,
+			alternativesConsidered: DesignDecisionSchema.properties.alternativesConsidered,
+			limitations: DesignDecisionSchema.properties.limitations,
+			basis: DesignBasisInputSchema,
+			critical: DesignDecisionSchema.properties.critical,
+			supersedesDesignDecisionId: DesignDecisionSchema.properties.supersedesDesignDecisionId,
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_protocol"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			title: ProtocolRecordSchema.properties.title,
+			researchQuestionVersionId: ProtocolRecordSchema.properties.researchQuestionVersionId,
+			designType: ProtocolRecordSchema.properties.designType,
+			claimMode: ProtocolRecordSchema.properties.claimMode,
+			method: ProtocolRecordSchema.properties.method,
+			population: ProtocolRecordSchema.properties.population,
+			unitOfAnalysis: ProtocolRecordSchema.properties.unitOfAnalysis,
+			timeframe: ProtocolRecordSchema.properties.timeframe,
+			samplingPlan: ProtocolRecordSchema.properties.samplingPlan,
+			measurementPlan: ProtocolRecordSchema.properties.measurementPlan,
+			dataCollectionPlan: ProtocolRecordSchema.properties.dataCollectionPlan,
+			analysisPlan: ProtocolRecordSchema.properties.analysisPlan,
+			identificationStrategy: ProtocolRecordSchema.properties.identificationStrategy,
+			identificationAssumptions: ProtocolRecordSchema.properties.identificationAssumptions,
+			preanalysisPlan: ProtocolRecordSchema.properties.preanalysisPlan,
+			interviewPlan: ProtocolRecordSchema.properties.interviewPlan,
+			caseSelectionPlan: ProtocolRecordSchema.properties.caseSelectionPlan,
+			inclusionCriteria: ProtocolRecordSchema.properties.inclusionCriteria,
+			exclusionCriteria: ProtocolRecordSchema.properties.exclusionCriteria,
+			alternativeExplanations: ProtocolRecordSchema.properties.alternativeExplanations,
+			boundaryConditions: ProtocolRecordSchema.properties.boundaryConditions,
+			feasibilityLimits: ProtocolRecordSchema.properties.feasibilityLimits,
+			ethicsChecklist: ProtocolRecordSchema.properties.ethicsChecklist,
+			decisionIds: ProtocolRecordSchema.properties.decisionIds,
+			conceptIds: ProtocolRecordSchema.properties.conceptIds,
+			theoryRelationIds: ProtocolRecordSchema.properties.theoryRelationIds,
+			basis: DesignBasisInputSchema,
+			supersedesProtocolId: ProtocolRecordSchema.properties.supersedesProtocolId,
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("confirm"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			recordKind: Type.Union([
+				Type.Literal("research_question_version"),
+				Type.Literal("concept"),
+				Type.Literal("theory_relation"),
+				Type.Literal("design_decision"),
+				Type.Literal("protocol"),
+			]),
+			recordId: Type.String({ minLength: 1 }),
+			expectedRecordRevision: Type.Integer({ minimum: 0 }),
+			note: Type.Optional(Type.String()),
+		},
+		{ additionalProperties: false },
+	),
+]);
 
 interface ToolOutcome<Value> {
 	result: ResearchResult<Value>;
@@ -345,11 +492,12 @@ async function trackedTool<Value>(
 	effect: (operation: OperationRecord) => Promise<ToolOutcome<Value>>,
 	inputs: RecordRef[] = [],
 	inputFiles: FileRef[] = [],
+	implementationVersion = options.version,
 ): Promise<ResearchResult<Value>> {
 	const started = await startOperation(project.root, {
 		operationKind: "tool",
 		name,
-		implementationVersion: options.version,
+		implementationVersion,
 		session: sessionLink(ctx),
 		inputs,
 		inputFiles,
@@ -2563,6 +2711,239 @@ async function sourceInputs(projectRoot: string, sourceIds: readonly string[]): 
 	return inputs;
 }
 
+function designDraft(params: Static<typeof DesignParameters>): DesignDraft {
+	switch (params.action) {
+		case "create_question":
+			return {
+				kind: "research_question_version",
+				value: {
+					questionSeriesId: params.questionSeriesId,
+					version: params.version,
+					text: params.text,
+					questionType: params.questionType,
+					rationale: params.rationale,
+					scope: params.scope,
+					boundaryConditions: params.boundaryConditions,
+					basis: params.basis,
+					supersedesResearchQuestionVersionId: params.supersedesResearchQuestionVersionId,
+				},
+			};
+		case "create_concept":
+			return {
+				kind: "concept",
+				value: {
+					name: params.name,
+					definition: params.definition,
+					role: params.role,
+					aliases: params.aliases,
+					measurementNotes: params.measurementNotes,
+					boundaryConditions: params.boundaryConditions,
+					basis: params.basis,
+					supersedesConceptId: params.supersedesConceptId,
+				},
+			};
+		case "create_relation":
+			return {
+				kind: "theory_relation",
+				value: {
+					fromConceptId: params.fromConceptId,
+					toConceptId: params.toConceptId,
+					relationType: params.relationType,
+					direction: params.direction,
+					statement: params.statement,
+					hypothesesOrPropositions: params.hypothesesOrPropositions,
+					boundaryConditions: params.boundaryConditions,
+					alternativeExplanations: params.alternativeExplanations,
+					basis: params.basis,
+					supersedesTheoryRelationId: params.supersedesTheoryRelationId,
+				},
+			};
+		case "create_decision":
+			return {
+				kind: "design_decision",
+				value: {
+					decisionType: params.decisionType,
+					question: params.question,
+					options: params.options,
+					selectedOptionId: params.selectedOptionId,
+					rationale: params.rationale,
+					alternativesConsidered: params.alternativesConsidered,
+					limitations: params.limitations,
+					basis: params.basis,
+					critical: params.critical,
+					supersedesDesignDecisionId: params.supersedesDesignDecisionId,
+				},
+			};
+		case "create_protocol":
+			return {
+				kind: "protocol",
+				value: {
+					title: params.title,
+					researchQuestionVersionId: params.researchQuestionVersionId,
+					designType: params.designType,
+					claimMode: params.claimMode,
+					method: params.method,
+					population: params.population,
+					unitOfAnalysis: params.unitOfAnalysis,
+					timeframe: params.timeframe,
+					samplingPlan: params.samplingPlan,
+					measurementPlan: params.measurementPlan,
+					dataCollectionPlan: params.dataCollectionPlan,
+					analysisPlan: params.analysisPlan,
+					identificationStrategy: params.identificationStrategy,
+					identificationAssumptions: params.identificationAssumptions,
+					preanalysisPlan: params.preanalysisPlan,
+					interviewPlan: params.interviewPlan,
+					caseSelectionPlan: params.caseSelectionPlan,
+					inclusionCriteria: params.inclusionCriteria,
+					exclusionCriteria: params.exclusionCriteria,
+					alternativeExplanations: params.alternativeExplanations,
+					boundaryConditions: params.boundaryConditions,
+					feasibilityLimits: params.feasibilityLimits,
+					ethicsChecklist: params.ethicsChecklist,
+					decisionIds: params.decisionIds,
+					conceptIds: params.conceptIds,
+					theoryRelationIds: params.theoryRelationIds,
+					basis: params.basis,
+					supersedesProtocolId: params.supersedesProtocolId,
+				},
+			};
+		case "confirm":
+			throw new TypeError("Confirmation is not a design draft");
+	}
+}
+
+function requestedDesignInputs(params: Static<typeof DesignParameters>): RecordRef[] {
+	if (params.action === "confirm") {
+		return [{ kind: params.recordKind, id: params.recordId, revision: params.expectedRecordRevision }];
+	}
+	const refs: RecordRef[] = [...params.basis.provenance];
+	if (params.action === "create_question" && params.supersedesResearchQuestionVersionId !== null) {
+		refs.push({
+			kind: "research_question_version",
+			id: params.supersedesResearchQuestionVersionId,
+			revision: null,
+		});
+	}
+	if (params.action === "create_concept" && params.supersedesConceptId !== null) {
+		refs.push({ kind: "concept", id: params.supersedesConceptId, revision: null });
+	}
+	if (params.action === "create_relation") {
+		refs.push(
+			{ kind: "concept", id: params.fromConceptId, revision: null },
+			{ kind: "concept", id: params.toConceptId, revision: null },
+		);
+		if (params.supersedesTheoryRelationId !== null) {
+			refs.push({ kind: "theory_relation", id: params.supersedesTheoryRelationId, revision: null });
+		}
+	}
+	if (params.action === "create_decision" && params.supersedesDesignDecisionId !== null) {
+		refs.push({ kind: "design_decision", id: params.supersedesDesignDecisionId, revision: null });
+	}
+	if (params.action === "create_protocol") {
+		refs.push({ kind: "research_question_version", id: params.researchQuestionVersionId, revision: null });
+		refs.push(...params.decisionIds.map((id) => ({ kind: "design_decision" as const, id, revision: null })));
+		refs.push(...params.conceptIds.map((id) => ({ kind: "concept" as const, id, revision: null })));
+		refs.push(...params.theoryRelationIds.map((id) => ({ kind: "theory_relation" as const, id, revision: null })));
+		if (params.supersedesProtocolId !== null) {
+			refs.push({ kind: "protocol", id: params.supersedesProtocolId, revision: null });
+		}
+	}
+	return refs;
+}
+
+async function resolveDesignInputs(projectRoot: string, refs: readonly RecordRef[]): Promise<RecordRef[]> {
+	const resolved: RecordRef[] = [];
+	for (const ref of refs) {
+		const result = await readRecord(projectRoot, ref.kind, ref.id);
+		if (!result.ok) throw new TypeError(result.errors[0].message);
+		const revision = projectRecordRevision(result.value);
+		if (ref.revision !== null && revision < ref.revision) {
+			throw new TypeError(`Design input references future ${ref.kind} ${ref.id} revision ${ref.revision}`);
+		}
+		resolved.push({ ...ref, revision: ref.revision ?? revision });
+	}
+	return [...new Map(resolved.map((ref) => [`${ref.kind}:${ref.id}:${ref.revision}`, ref])).values()];
+}
+
+function designRecordLabel(record: DesignRecord): string {
+	switch (record.kind) {
+		case "research_question_version":
+			return record.text;
+		case "concept":
+			return `${record.name}: ${record.definition}`;
+		case "theory_relation":
+			return record.statement;
+		case "design_decision":
+			return record.question;
+		case "protocol":
+			return record.title;
+	}
+}
+
+async function designTool(
+	project: CurrentProject,
+	ctx: ExtensionContext,
+	params: Static<typeof DesignParameters>,
+	operation: OperationRecord,
+): Promise<ToolOutcome<DesignRecord>> {
+	if (params.action !== "confirm") {
+		const result = await commitDesignDraft(project.root, operation.operationId, designDraft(params));
+		return result.ok
+			? {
+					result,
+					outputs: [
+						{ kind: result.value.kind, id: projectRecordId(result.value), revision: result.value.audit.revision },
+					],
+				}
+			: { result };
+	}
+	const awaiting = await markDesignAwaitingConfirmation(
+		project.root,
+		params.recordKind as DesignRecordKind,
+		params.recordId,
+		params.expectedRecordRevision,
+		operation.operationId,
+	);
+	if (!awaiting.ok) return { result: awaiting };
+	if (!ctx.hasUI) {
+		return {
+			result: failureResult(
+				"PERMISSION_BLOCKED",
+				"DESIGN_USER_CONFIRMATION_REQUIRED",
+				"permission",
+				`${params.recordKind} ${params.recordId} is awaiting user confirmation`,
+				operation.operationId,
+			),
+		};
+	}
+	const confirmed = await ctx.ui.confirm(
+		"Confirm research design record",
+		`${designRecordLabel(awaiting.value)}\n\nChoose Yes to confirm. Choose No to preserve this version as rejected.`,
+	);
+	const decided = await decideDesignRecord(
+		project.root,
+		params.recordKind as DesignRecordKind,
+		params.recordId,
+		awaiting.value.audit.revision,
+		confirmed ? "confirmed" : "rejected",
+		params.note ?? null,
+		operation.operationId,
+	);
+	return decided.ok
+		? {
+				result: decided,
+				outputs: [
+					{
+						kind: decided.value.kind,
+						id: projectRecordId(decided.value),
+						revision: decided.value.audit.revision,
+					},
+				],
+			}
+		: { result: decided };
+}
+
 export function registerResearchTools(pi: ExtensionAPI, options: RegisterResearchToolsOptions): void {
 	pi.registerTool({
 		name: "research_search_sources",
@@ -2707,6 +3088,8 @@ export function registerResearchTools(pi: ExtensionAPI, options: RegisterResearc
 						"research.verify_citations",
 						(operation) => verifyCitations(project, ctx, options, params, operation, executionSignal),
 						inputs,
+						[],
+						CITATION_VERIFIER_VERSION,
 					),
 				);
 			} catch (error) {
@@ -2730,6 +3113,45 @@ export function registerResearchTools(pi: ExtensionAPI, options: RegisterResearc
 				return toolResponse(
 					await trackedTool(project, ctx, options, "research.artifacts", (operation) =>
 						artifactTool(project, ctx, params, operation),
+					),
+				);
+			} catch (error) {
+				return unavailableToolResult(error);
+			}
+		},
+	});
+
+	pi.registerTool({
+		name: "research_design",
+		label: "Build research design",
+		description:
+			"Create versioned research questions, concepts, theory relations, design decisions, and protocols, then request explicit user confirmation.",
+		promptSnippet: "Turn canonical evidence and gaps into a user-confirmed research design",
+		parameters: DesignParameters,
+		executionMode: "sequential",
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			try {
+				const project = await options.requireProject(ctx);
+				if (project.manifest.revision !== params.expectedRevision) {
+					return toolResponse(
+						failureResult(
+							"DATA_CONFLICT",
+							"DESIGN_PROJECT_REVISION_CONFLICT",
+							"data_conflict",
+							`Expected project revision ${params.expectedRevision}, found ${project.manifest.revision}`,
+							null,
+						),
+					);
+				}
+				const inputs = await resolveDesignInputs(project.root, requestedDesignInputs(params));
+				return toolResponse(
+					await trackedTool(
+						project,
+						ctx,
+						options,
+						"research.design",
+						(operation) => designTool(project, ctx, params, operation),
+						inputs,
 					),
 				);
 			} catch (error) {

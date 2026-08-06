@@ -1,14 +1,20 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import researchExtension from "../../extensions/research.ts";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
-import { RESEARCH_SCHEMA_VERSION, type ResearchTask } from "../../src/contracts/schemas.ts";
+import {
+	RESEARCH_LEGACY_SCHEMA_VERSION,
+	RESEARCH_SCHEMA_VERSION,
+	type ResearchTask,
+} from "../../src/contracts/schemas.ts";
 import { RESEARCH_SESSION_ENTRY_TYPE } from "../../src/extension/commands.ts";
 import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { hashBytes } from "../../src/kernel/integrity.ts";
+import { initializeProject } from "../../src/project/init.ts";
+import { PROJECT_MANIFEST_PATH } from "../../src/project/layout.ts";
 import { openProject } from "../../src/project/open.ts";
 import { calculateRecordSetIndex, listProjectRecordIds, projectRecordPath } from "../../src/project/record-index.ts";
 import { readRecord } from "../../src/project/records.ts";
@@ -149,6 +155,7 @@ describe("research extension commands", () => {
 
 		expect([...harness.commands.keys()].sort()).toEqual([
 			"research-init",
+			"research-migrate",
 			"research-open",
 			"research-policy",
 			"research-recover",
@@ -298,6 +305,7 @@ describe("research extension commands", () => {
 			"research_commit_evidence",
 			"research_verify_citations",
 			"research_artifacts",
+			"research_design",
 		]);
 		expect(
 			(await ordinary.emit("tool_call", { type: "tool_call", toolName: "write", input: {} }, ordinaryContext)).at(
@@ -321,5 +329,71 @@ describe("research extension commands", () => {
 				-1,
 			),
 		).toMatchObject({ block: true });
+	});
+
+	it("requires confirmation to migrate and rolls back only an unchanged v0.2 manifest", async () => {
+		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-migration-command-"));
+		const projectRoot = join(temporaryDirectory, "legacy-project");
+		await initializeProject(projectRoot, { title: "Legacy migration fixture" });
+		const manifestPath = join(projectRoot, PROJECT_MANIFEST_PATH);
+		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+			schemaVersion: string;
+			recordSets: { kind: string }[];
+		};
+		const designKinds = new Set([
+			"research_question_version",
+			"concept",
+			"theory_relation",
+			"design_decision",
+			"protocol",
+		]);
+		manifest.schemaVersion = RESEARCH_LEGACY_SCHEMA_VERSION;
+		manifest.recordSets = manifest.recordSets.filter(({ kind }) => !designKinds.has(kind));
+		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+		const harness = createHarness();
+		const headless = harness.context(temporaryDirectory, false);
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		await harness.commands.get("research-migrate")?.(`"${projectRoot}"`, headless);
+		const blocked = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as Record<string, unknown>;
+		stdout.mockRestore();
+		expect(blocked).toMatchObject({
+			ok: false,
+			status: "PERMISSION_BLOCKED",
+			errors: [{ code: "MIGRATION_CONFIRMATION_REQUIRED" }],
+		});
+		expect(await openProject(projectRoot)).toMatchObject({
+			compatibility: "migration_required",
+			schemaVersion: RESEARCH_LEGACY_SCHEMA_VERSION,
+		});
+
+		const ctx = harness.context(temporaryDirectory);
+		await harness.commands.get("research-migrate")?.(`"${projectRoot}"`, ctx);
+		const migrated = commandResult(harness);
+		expect(migrated).toMatchObject({
+			ok: true,
+			value: {
+				fromVersion: RESEARCH_LEGACY_SCHEMA_VERSION,
+				toVersion: RESEARCH_SCHEMA_VERSION,
+				migrated: true,
+				migrationId: expect.any(String),
+			},
+		});
+		const migrationId = (migrated.value as { migrationId: string }).migrationId;
+		expect(await openProject(projectRoot)).toMatchObject({ compatibility: "current", mode: "read-write" });
+
+		await harness.commands.get("research-migrate")?.(`rollback ${migrationId}`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: {
+				migrationId,
+				schemaVersion: RESEARCH_LEGACY_SCHEMA_VERSION,
+				compatibility: "migration_required",
+			},
+		});
+		expect(await openProject(projectRoot)).toMatchObject({
+			mode: "read-only",
+			compatibility: "migration_required",
+		});
 	});
 });

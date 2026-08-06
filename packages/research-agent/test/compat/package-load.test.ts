@@ -30,7 +30,7 @@ describe("Pi package compatibility", () => {
 				hasUI: true,
 				ui: { notify },
 			} as unknown as ExtensionCommandContext);
-			expect(notify).toHaveBeenCalledWith("pi-research-agent v0.1.0", "info");
+			expect(notify).toHaveBeenCalledWith(`pi-research-agent v${RESEARCH_AGENT_VERSION}`, "info");
 
 			settingsManager.setPackages([{ source: packageDir, autoload: false }]);
 			await loader.reload();

@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "reviewer": "frozen-expert-rubric-v0.2",
+  "input": {
+    "fixtureSha256": "0f1c448608feb18c709a76fd55dc0cdb968777211ba67ca9452c579f9ca2c297",
+    "rubricSha256": "ec167a582b305478e5389b6b933c00553b19553f4a5e2a63051e3d6dcb096b4d"
+  },
+  "cases": [
+    { "caseId": "quant-descriptive-appeals", "hardGatesPassed": 8, "p0Violations": [] },
+    { "caseId": "quant-associational-transparency", "hardGatesPassed": 8, "p0Violations": [] },
+    { "caseId": "quant-causal-staggered-disclosure", "hardGatesPassed": 8, "p0Violations": [] },
+    { "caseId": "qual-interpretive-frontline", "hardGatesPassed": 8, "p0Violations": [] },
+    { "caseId": "qual-comparative-vendor-oversight", "hardGatesPassed": 8, "p0Violations": [] },
+    { "caseId": "qual-causal-process-tracing", "hardGatesPassed": 8, "p0Violations": [] }
+  ],
+  "metrics": {
+    "fixtureCount": 6,
+    "quantitativeCount": 3,
+    "qualitativeCount": 3,
+    "causalAssociationalGoldViolations": 0,
+    "confirmedMissingProvenance": 0,
+    "injectedBoundaryFalseNegatives": 0
+  }
+}

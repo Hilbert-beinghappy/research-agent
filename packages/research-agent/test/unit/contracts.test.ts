@@ -384,7 +384,7 @@ function expectIssue(value: unknown, code: string): void {
 	if (!result.ok) expect(result.issues.map((entry) => entry.code)).toContain(code);
 }
 
-describe("v0.1 persisted contracts", () => {
+describe("v0.2 persisted contracts", () => {
 	it.each(validRecords.map((record) => [record.kind, record]))("validates %s", (_kind, record) => {
 		expect(validatePersistedRecord(record)).toMatchObject({ ok: true, value: record, issues: [] });
 	});
@@ -551,7 +551,7 @@ describe("v0.1 persisted contracts", () => {
 	});
 
 	it("keeps committed JSON schemas generated from TypeBox", async () => {
-		const schemaDir = fileURLToPath(new URL("../../schemas/v0.1/", import.meta.url));
+		const schemaDir = fileURLToPath(new URL("../../schemas/v0.2/", import.meta.url));
 		const persisted = JSON.parse(await readFile(`${schemaDir}persisted-record.schema.json`, "utf8"));
 		const result = JSON.parse(await readFile(`${schemaDir}research-result.schema.json`, "utf8"));
 		const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
@@ -560,7 +560,7 @@ describe("v0.1 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent persisted record v0.1",
+					title: "Pi Research Agent persisted record v0.2",
 					...PersistedRecordSchema,
 				}),
 			),
@@ -569,10 +569,15 @@ describe("v0.1 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent result v0.1",
+					title: "Pi Research Agent result v0.2",
 					...JsonResearchResultSchema,
 				}),
 			),
+		);
+
+		const legacyDir = fileURLToPath(new URL("../../schemas/v0.1/", import.meta.url));
+		await expect(readFile(`${legacyDir}persisted-record.schema.json`, "utf8")).resolves.toContain(
+			'"title": "Pi Research Agent persisted record v0.1"',
 		);
 	});
 });

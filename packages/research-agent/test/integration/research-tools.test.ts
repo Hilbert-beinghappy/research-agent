@@ -204,7 +204,7 @@ function createHarness(
 			activeTools = [...names];
 		},
 	} as unknown as ExtensionAPI;
-	registerResearchCommands(pi, "0.1.0", {
+	registerResearchCommands(pi, "0.2.0", {
 		http: {
 			transport,
 			resolveCredential: async (alias) => {
@@ -641,6 +641,7 @@ describe("research tools", () => {
 			},
 			ctx,
 		);
+		if (citations.ok !== true) throw new Error(JSON.stringify(citations.errors));
 		expect(citations).toMatchObject({
 			ok: true,
 			value: { verifications: [{ sourceId, finalStatus: "verified_with_warning", publicationStatus: "unknown" }] },
@@ -761,5 +762,117 @@ describe("research tools", () => {
 		expect(operation).toMatchObject({ ok: true, value: { status: "blocked" } });
 		const validation = await validateProject(temporaryDirectory);
 		expect(validation).toMatchObject({ valid: true, issues: [], pendingTransactionIds: [] });
+	});
+
+	it("routes design drafts through explicit confirmation and preserves headless pending state", async () => {
+		temporaryDirectory = join(tmpdir(), `pi-research-tools-design-${crypto.randomUUID()}`);
+		const harness = createHarness(createRecordedHttpTransport([]));
+		const ctx = harness.context(temporaryDirectory);
+		await harness.commands.get("research-init")?.("Design Tool Fixture", ctx);
+		let opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const created = await callTool(
+			harness,
+			"research_design",
+			{
+				action: "create_question",
+				expectedRevision: opened.manifest.revision,
+				questionSeriesId: "series-rejected",
+				version: 1,
+				text: "How should this synthetic question be scoped?",
+				questionType: "exploratory",
+				rationale: "Test the explicit design confirmation boundary",
+				scope: "Synthetic public-management fixture",
+				boundaryConditions: ["No empirical claim"],
+				basis: { summary: "Evidence gap is explicit", provenance: [], evidenceGap: true },
+				supersedesResearchQuestionVersionId: null,
+			},
+			ctx,
+		);
+		expect(created).toMatchObject({ ok: true, value: { status: "draft" } });
+		const createdValue = object(created.value);
+		const rejectedId = createdValue.researchQuestionVersionId;
+		if (typeof rejectedId !== "string") throw new Error("Missing question ID");
+
+		harness.confirm.mockResolvedValue(false);
+		opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const rejected = await callTool(
+			harness,
+			"research_design",
+			{
+				action: "confirm",
+				expectedRevision: opened.manifest.revision,
+				recordKind: "research_question_version",
+				recordId: rejectedId,
+				expectedRecordRevision: 0,
+				note: "Rejected in the fixture",
+			},
+			ctx,
+		);
+		expect(rejected).toMatchObject({
+			ok: true,
+			value: { status: "rejected", confirmation: { decision: "rejected", decidedBy: "user" } },
+		});
+
+		opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const pendingDraft = await callTool(
+			harness,
+			"research_design",
+			{
+				action: "create_question",
+				expectedRevision: opened.manifest.revision,
+				questionSeriesId: "series-headless",
+				version: 1,
+				text: "Can a headless run confirm this question?",
+				questionType: "exploratory",
+				rationale: "A headless run must stop at the approval boundary",
+				scope: "Synthetic public-management fixture",
+				boundaryConditions: ["No UI is available"],
+				basis: { summary: "Evidence gap is explicit", provenance: [], evidenceGap: true },
+				supersedesResearchQuestionVersionId: null,
+			},
+			ctx,
+		);
+		const pendingValue = object(pendingDraft.value);
+		const pendingId = pendingValue.researchQuestionVersionId;
+		if (typeof pendingId !== "string") throw new Error("Missing pending question ID");
+		opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const headless = { ...ctx, hasUI: false } as ExtensionContext;
+		const blocked = await callTool(
+			harness,
+			"research_design",
+			{
+				action: "confirm",
+				expectedRevision: opened.manifest.revision,
+				recordKind: "research_question_version",
+				recordId: pendingId,
+				expectedRecordRevision: 0,
+			},
+			headless,
+		);
+		expect(blocked).toMatchObject({
+			ok: false,
+			status: "PERMISSION_BLOCKED",
+			errors: [{ code: "DESIGN_USER_CONFIRMATION_REQUIRED" }],
+		});
+		expect(await readRecord(temporaryDirectory, "research_question_version", pendingId)).toMatchObject({
+			ok: true,
+			value: { status: "awaiting_confirmation", confirmation: { decision: null } },
+		});
+		await harness.commands.get("research-status")?.("", ctx);
+		expect(JSON.parse(String(harness.notify.mock.calls.at(-1)?.[0]))).toMatchObject({
+			ok: true,
+			value: { stage: "research_design", designByStatus: { rejected: 1, awaiting_confirmation: 1 } },
+		});
+		await harness.commands.get("research-resume")?.("", ctx);
+		expect(JSON.parse(String(harness.notify.mock.calls.at(-1)?.[0]))).toMatchObject({
+			ok: true,
+			value: {
+				designAwaitingConfirmation: [{ kind: "research_question_version", id: pendingId, revision: 1 }],
+			},
+		});
 	});
 });

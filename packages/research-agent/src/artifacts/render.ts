@@ -7,14 +7,19 @@ import { canonicalStringify } from "../contracts/canonical-json.ts";
 import type {
 	ArtifactKind,
 	ClaimRecord,
+	ConceptRecord,
 	ContributorName,
+	DesignDecision,
 	EvidenceCard,
 	JsonValue,
+	ProtocolRecord,
+	ResearchQuestionVersion,
 	SourceRecord,
+	TheoryRelation,
 } from "../contracts/schemas.ts";
 import type { ProjectRecord } from "../project/record-index.ts";
 
-export type ResearchArtifactType = "review" | "evidence-matrix" | "ris" | "bibtex" | "json";
+export type ResearchArtifactType = "review" | "evidence-matrix" | "research-design" | "ris" | "bibtex" | "json";
 
 export interface ArtifactFormatSpec {
 	artifactKind: ArtifactKind;
@@ -45,6 +50,14 @@ const FORMAT_SPECS: Record<ResearchArtifactType, ArtifactFormatSpec> = {
 		mediaType: "text/markdown",
 		title: "Evidence matrix",
 		directory: "artifacts/matrices",
+	},
+	"research-design": {
+		artifactKind: "markdown",
+		extension: "md",
+		generatorId: "research.design-markdown",
+		mediaType: "text/markdown",
+		title: "Research design",
+		directory: "artifacts/designs",
 	},
 	ris: {
 		artifactKind: "ris",
@@ -155,6 +168,113 @@ function renderEvidenceMatrix(records: readonly ProjectRecord[]): string {
 	return `${lines.join("\n")}\n`;
 }
 
+function listSection(lines: string[], title: string, values: readonly string[]): void {
+	lines.push(`- **${title}:** ${values.length === 0 ? "None recorded" : values.join("; ")}`);
+}
+
+function basisText(
+	record: ResearchQuestionVersion | ConceptRecord | TheoryRelation | DesignDecision | ProtocolRecord,
+): string {
+	return `${record.basis.summary} [evidenceGap=${record.basis.evidenceGap}; ${record.basis.provenance
+		.map(({ kind, id, revision }) => `${kind}:${id}@${revision}`)
+		.join(", ")}]`;
+}
+
+function renderResearchDesign(records: readonly ProjectRecord[]): string {
+	const questions = records
+		.filter((record): record is ResearchQuestionVersion => record.kind === "research_question_version")
+		.sort(
+			(left, right) =>
+				left.version - right.version ||
+				left.researchQuestionVersionId.localeCompare(right.researchQuestionVersionId),
+		);
+	const concepts = records
+		.filter((record): record is ConceptRecord => record.kind === "concept")
+		.sort((left, right) => left.conceptId.localeCompare(right.conceptId));
+	const relations = records
+		.filter((record): record is TheoryRelation => record.kind === "theory_relation")
+		.sort((left, right) => left.theoryRelationId.localeCompare(right.theoryRelationId));
+	const decisions = records
+		.filter((record): record is DesignDecision => record.kind === "design_decision")
+		.sort((left, right) => left.designDecisionId.localeCompare(right.designDecisionId));
+	const protocols = records
+		.filter((record): record is ProtocolRecord => record.kind === "protocol")
+		.sort((left, right) => left.protocolId.localeCompare(right.protocolId));
+	if (questions.length === 0 || protocols.length === 0) {
+		throw new TypeError("Research design export requires a question version and protocol");
+	}
+	const lines = ["# Research Design", "", "## Research Questions", ""];
+	for (const question of questions) {
+		lines.push(`### ${question.questionSeriesId} v${question.version} (${question.status})`, "", question.text, "");
+		listSection(lines, "Type", [question.questionType]);
+		listSection(lines, "Scope", [question.scope]);
+		listSection(lines, "Boundaries", question.boundaryConditions);
+		listSection(lines, "Basis", [basisText(question)]);
+		lines.push("");
+	}
+	lines.push("## Concepts", "");
+	for (const concept of concepts) {
+		lines.push(`### ${concept.name} (${concept.role}; ${concept.status})`, "", concept.definition, "");
+		listSection(lines, "Measurement", concept.measurementNotes);
+		listSection(lines, "Boundaries", concept.boundaryConditions);
+		listSection(lines, "Basis", [basisText(concept)]);
+		lines.push("");
+	}
+	lines.push("## Theory Relations", "");
+	for (const relation of relations) {
+		lines.push(`### ${relation.theoryRelationId} (${relation.status})`, "", relation.statement, "");
+		listSection(lines, "Concepts", [`${relation.fromConceptId} -> ${relation.toConceptId}`]);
+		listSection(lines, "Hypotheses or propositions", relation.hypothesesOrPropositions);
+		listSection(lines, "Alternative explanations", relation.alternativeExplanations);
+		listSection(lines, "Boundaries", relation.boundaryConditions);
+		listSection(lines, "Basis", [basisText(relation)]);
+		lines.push("");
+	}
+	lines.push("## Design Decisions", "");
+	for (const decision of decisions) {
+		const selected = decision.options.find(({ optionId }) => optionId === decision.selectedOptionId);
+		lines.push(`### ${decision.question} (${decision.status})`, "");
+		listSection(lines, "Selected", [selected?.label ?? "No option selected"]);
+		listSection(lines, "Rationale", decision.rationale === null ? [] : [decision.rationale]);
+		listSection(lines, "Alternatives", decision.alternativesConsidered);
+		listSection(lines, "Limitations", decision.limitations);
+		listSection(lines, "Basis", [basisText(decision)]);
+		lines.push("");
+	}
+	lines.push("## Protocols", "");
+	for (const protocol of protocols) {
+		lines.push(`### ${protocol.title} (${protocol.designType}; ${protocol.claimMode}; ${protocol.status})`, "");
+		listSection(lines, "Method", [protocol.method]);
+		listSection(lines, "Population and unit", [protocol.population, protocol.unitOfAnalysis]);
+		listSection(lines, "Timeframe", [protocol.timeframe]);
+		listSection(lines, "Sampling", [protocol.samplingPlan]);
+		listSection(lines, "Measurement", [protocol.measurementPlan]);
+		listSection(lines, "Data collection", [protocol.dataCollectionPlan]);
+		listSection(lines, "Analysis", [protocol.analysisPlan]);
+		listSection(
+			lines,
+			"Identification",
+			protocol.identificationStrategy === null ? [] : [protocol.identificationStrategy],
+		);
+		listSection(lines, "Identification assumptions", protocol.identificationAssumptions);
+		listSection(lines, "Inclusion criteria", protocol.inclusionCriteria);
+		listSection(lines, "Exclusion criteria", protocol.exclusionCriteria);
+		listSection(lines, "Alternative explanations", protocol.alternativeExplanations);
+		listSection(lines, "Boundaries", protocol.boundaryConditions);
+		listSection(lines, "Feasibility limits", protocol.feasibilityLimits);
+		listSection(
+			lines,
+			"Ethics checklist",
+			protocol.ethicsChecklist.map(
+				({ item, status, note }) => `${item}: ${status}${note === null ? "" : ` (${note})`}`,
+			),
+		);
+		listSection(lines, "Basis", [basisText(protocol)]);
+		lines.push("");
+	}
+	return `${lines.join("\n").trimEnd()}\n`;
+}
+
 function contributorValue(contributor: ContributorName): { [key: string]: JsonValue } | null {
 	const value: { [key: string]: JsonValue } = {};
 	if (contributor.family !== null) value.family = contributor.family;
@@ -257,6 +377,16 @@ function recordId(record: ProjectRecord): string {
 			return record.claimId;
 		case "citation_verification":
 			return record.verificationId;
+		case "research_question_version":
+			return record.researchQuestionVersionId;
+		case "concept":
+			return record.conceptId;
+		case "theory_relation":
+			return record.theoryRelationId;
+		case "design_decision":
+			return record.designDecisionId;
+		case "protocol":
+			return record.protocolId;
 		case "task":
 			return record.taskId;
 		case "operation":
@@ -281,8 +411,10 @@ export function renderArtifact(
 			? normalizedMarkdown(markdownContent ?? "")
 			: type === "evidence-matrix"
 				? renderEvidenceMatrix(records)
-				: type === "ris" || type === "bibtex"
-					? renderBibliography(type, records)
-					: renderJson(records);
+				: type === "research-design"
+					? renderResearchDesign(records)
+					: type === "ris" || type === "bibtex"
+						? renderBibliography(type, records)
+						: renderJson(records);
 	return { ...spec, content };
 }

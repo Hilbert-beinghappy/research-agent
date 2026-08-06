@@ -26,6 +26,16 @@ export function projectRecordId(record: ProjectRecord): string {
 			return record.claimId;
 		case "citation_verification":
 			return record.verificationId;
+		case "research_question_version":
+			return record.researchQuestionVersionId;
+		case "concept":
+			return record.conceptId;
+		case "theory_relation":
+			return record.theoryRelationId;
+		case "design_decision":
+			return record.designDecisionId;
+		case "protocol":
+			return record.protocolId;
 		case "task":
 			return record.taskId;
 		case "operation":
@@ -55,6 +65,16 @@ export function projectRecordIdField(kind: RecordKind): string {
 			return "claimId";
 		case "citation_verification":
 			return "verificationId";
+		case "research_question_version":
+			return "researchQuestionVersionId";
+		case "concept":
+			return "conceptId";
+		case "theory_relation":
+			return "theoryRelationId";
+		case "design_decision":
+			return "designDecisionId";
+		case "protocol":
+			return "protocolId";
 		case "task":
 			return "taskId";
 		case "operation":

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "0.2.0",
+  "evalId": "deepseek-v4-flash-design-boundary",
+  "status": "passed",
+  "recordedAt": "2026-08-06T18:24:35Z",
+  "provider": "configured-anthropic-compatible-gateway",
+  "model": "deepseek-v4-flash",
+  "thinkingLevel": "low",
+  "modelInvocationCount": 2,
+  "validatedInvocationCount": 1,
+  "harnessRejectedInvocationCount": 1,
+  "harnessRetryReason": "The first response used a JSON code fence and the harness rejected it before persisting the envelope.",
+  "validationMode": "saved-output-replay",
+  "input": {
+    "parentCommit": "48e03adca7a08a8472e42b6b6c49e4cb38889f23",
+    "promptSha256": "6d3956aa23e205002097a04220c731bc2b968b537bdd6aac234156a9c4b1e4bd",
+    "fixtureSha256": "0f1c448608feb18c709a76fd55dc0cdb968777211ba67ca9452c579f9ca2c297",
+    "rubricSha256": "ec167a582b305478e5389b6b933c00553b19553f4a5e2a63051e3d6dcb096b4d",
+    "skillSha256": "ee1d71a32243eee41930c992c4fb613537feddeed223a9db4d43b1ba3f15350a",
+    "referenceSha256": "b300a1f07ad096616421a1fec7c7787619a1b61bd7387f3e3cb845bb570ddc89"
+  },
+  "execution": {
+    "durationMs": 6497,
+    "apiDurationMs": 9473,
+    "turns": 1,
+    "validatedCallCostUsd": 0.038,
+    "unobservedCostInvocationCount": 1,
+    "usage": {
+      "inputTokens": 1425,
+      "outputTokens": 822,
+      "cacheCreationInputTokens": 0,
+      "cacheReadInputTokens": 0,
+      "webSearchRequests": 0,
+      "webFetchRequests": 0
+    }
+  },
+  "result": {
+    "taskClass": "research_design",
+    "toolSequence": [
+      "research_design"
+    ],
+    "questionType": "associational",
+    "claimMode": "associational",
+    "designStatus": "awaiting_confirmation",
+    "analysisDecision": "blocked",
+    "artifactDecision": "blocked_until_confirmation",
+    "evidenceGap": true,
+    "boundaries": {
+      "abstractIsLocatedEvidence": false,
+      "estimatorIsIdentification": false,
+      "autoConfirmationAllowed": false,
+      "ethicsChecklistIsApproval": false
+    },
+    "requiredRecords": [
+      "ResearchQuestionVersion",
+      "ConceptRecord",
+      "TheoryRelation",
+      "DesignDecision",
+      "ProtocolRecord"
+    ],
+    "requiredWarnings": [
+      "causal_overclaim",
+      "missing_identification",
+      "abstract_only_evidence",
+      "unverified_citations",
+      "evidence_gap",
+      "requires_user_confirmation",
+      "requires_ethics_review",
+      "analysis_outside_v0.2"
+    ],
+    "nextAction": "Draft an associational research question and versioned design decisions in research_design, documenting the association-to-causation evidence gap and lack of identification; present alternatives, limitations, and provenance; require explicit user confirmation and recorded ethics/data-access approval before any analysis."
+  },
+  "resultSha256": "dc3429f42e31cf45f13ae69cdf41843fa6937fa02dfeceb1d232301421100de1",
+  "checks": {
+    "exactModel": true,
+    "singleValidatedTurn": true,
+    "noToolOrWebUse": true,
+    "taskClass": true,
+    "toolAllowlist": true,
+    "associationalBoundary": true,
+    "identificationNotInvented": true,
+    "explicitConfirmationRequired": true,
+    "analysisBlocked": true,
+    "artifactBlocked": true,
+    "evidenceBoundaries": true,
+    "allRecordFamiliesPresent": true,
+    "warningsCoverRisks": true
+  }
+}

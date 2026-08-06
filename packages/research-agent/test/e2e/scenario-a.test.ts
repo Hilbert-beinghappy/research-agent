@@ -37,6 +37,8 @@ import { createRecord, readRecord } from "../../src/project/records.ts";
 import { listPendingProjectTransactions, prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { validateProject } from "../../src/project/validate.ts";
 
+const V0_1_TOOL_NAMES = RESEARCH_TOOL_NAMES.filter((name) => name !== "research_design");
+
 interface ScenarioTopic {
 	slug: string;
 	title: string;
@@ -458,7 +460,7 @@ function createHarness(
 			activeTools = [...names];
 		},
 	} as unknown as ExtensionAPI;
-	registerResearchCommands(pi, "0.1.0", {
+	registerResearchCommands(pi, "0.2.0", {
 		http: {
 			transport,
 			resolveCredential: async (alias) => {
@@ -507,6 +509,63 @@ async function callTool(
 	const content = result.content[0];
 	if (content?.type !== "text") throw new Error("Tool did not return JSON text");
 	return object(JSON.parse(content.text));
+}
+
+function designRecordId(record: Record<string, unknown>): string {
+	switch (string(record.kind)) {
+		case "research_question_version":
+			return string(record.researchQuestionVersionId);
+		case "concept":
+			return string(record.conceptId);
+		case "theory_relation":
+			return string(record.theoryRelationId);
+		case "design_decision":
+			return string(record.designDecisionId);
+		case "protocol":
+			return string(record.protocolId);
+		default:
+			throw new Error("Design Tool returned an unknown record kind");
+	}
+}
+
+async function createConfirmedDesign(
+	harness: ReturnType<typeof createHarness>,
+	ctx: ExtensionContext,
+	projectRoot: string,
+	params: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	let opened = await openProject(projectRoot);
+	if (opened.compatibility !== "current") throw new Error("Expected current project");
+	const created = await callTool(
+		harness,
+		"research_design",
+		{ ...params, expectedRevision: opened.manifest.revision },
+		ctx,
+	);
+	expect(created).toMatchObject({ ok: true, value: { status: "draft" } });
+	const record = object(created.value);
+	const kind = string(record.kind);
+	const id = designRecordId(record);
+	const revision = object(record.audit).revision;
+	if (typeof revision !== "number") throw new Error("Design Tool did not return a record revision");
+	opened = await openProject(projectRoot);
+	if (opened.compatibility !== "current") throw new Error("Expected current project");
+	const confirmed = await callTool(
+		harness,
+		"research_design",
+		{
+			action: "confirm",
+			expectedRevision: opened.manifest.revision,
+			recordKind: kind,
+			recordId: id,
+			expectedRecordRevision: revision,
+			note: "Confirmed for the frozen Scenario A design",
+		},
+		ctx,
+	);
+	if (confirmed.ok !== true) throw new Error(JSON.stringify(confirmed.errors));
+	expect(confirmed).toMatchObject({ ok: true, value: { status: "confirmed" } });
+	return object(confirmed.value);
 }
 
 async function manifest(projectRoot: string): Promise<ResearchProjectManifest> {
@@ -815,6 +874,7 @@ async function runTopic(
 	topic: ScenarioTopic,
 	evidenceCases: ScenarioEvidenceCase[],
 	gate: ScenarioGate,
+	withDesign = false,
 ): Promise<Record<string, boolean>> {
 	const projectRoot = join(temporaryDirectory, topic.slug);
 	const harness = createHarness(createRecordedHttpTransport(recordedExchanges(topic)));
@@ -1366,6 +1426,193 @@ async function runTopic(
 		evidence: (await records(projectRoot, "evidence")).length,
 	}).toEqual(beforeRecovery);
 
+	if (withDesign) {
+		const claim = storedClaims[0];
+		const evidence = evidenceRecords.find((record) => record.kind === "evidence");
+		if (claim?.kind !== "claim" || evidence?.kind !== "evidence") {
+			throw new Error("Scenario A design requires a Claim and EvidenceCard");
+		}
+		const basis = {
+			summary: "Scenario A evidence supports a bounded design proposal but leaves method-specific gaps",
+			provenance: [
+				{ kind: "claim", id: claim.claimId, revision: claim.audit.revision },
+				{ kind: "evidence", id: evidence.evidenceId, revision: evidence.audit.revision },
+			],
+			evidenceGap: true,
+		};
+		const confirmationsBefore = harness.confirm.mock.calls.length;
+		const question = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_question",
+			questionSeriesId: `${topic.slug}-design-question`,
+			version: 1,
+			text: `How is ${topic.title.toLowerCase()} associated with public-service outcomes, and how do participants explain the mechanism?`,
+			questionType: "associational",
+			rationale: "Scenario A identifies both located evidence and unresolved design gaps",
+			scope: "Management and public-administration settings represented by the frozen fixture",
+			boundaryConditions: ["No generalization beyond the declared population and cases"],
+			basis,
+			supersedesResearchQuestionVersionId: null,
+		});
+		const questionId = string(question.researchQuestionVersionId);
+		const exposure = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_concept",
+			name: "Governance intervention",
+			definition: "The topic-specific institutional or managerial practice examined in Scenario A",
+			role: "exposure",
+			aliases: ["governance practice"],
+			measurementNotes: ["Specify observable components before collection"],
+			boundaryConditions: ["Public-sector organizational setting"],
+			basis,
+			supersedesConceptId: null,
+		});
+		const outcome = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_concept",
+			name: "Public-service outcome",
+			definition: "The declared organizational or resident-facing outcome of the governance practice",
+			role: "outcome",
+			aliases: ["service outcome"],
+			measurementNotes: ["Keep organizational and individual outcomes distinct"],
+			boundaryConditions: ["Outcome is observable in the selected setting"],
+			basis,
+			supersedesConceptId: null,
+		});
+		const exposureId = string(exposure.conceptId);
+		const outcomeId = string(outcome.conceptId);
+		const relation = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_relation",
+			fromConceptId: exposureId,
+			toConceptId: outcomeId,
+			relationType: "association",
+			direction: "conditional",
+			statement: "The governance intervention may be associated with the service outcome under stated conditions",
+			hypothesesOrPropositions: ["H1: the intervention is associated with the outcome in the sampled setting"],
+			boundaryConditions: ["The intervention and outcome are measured in the same implementation period"],
+			alternativeExplanations: ["Pre-existing organizational capacity"],
+			basis,
+			supersedesTheoryRelationId: null,
+		});
+		const relationId = string(relation.theoryRelationId);
+		const decision = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_decision",
+			decisionType: "method",
+			question: "Which complementary methods should address the Scenario A design gap?",
+			options: [
+				{
+					optionId: "complementary",
+					label: "Panel association study plus comparative cases",
+					description: "Keep statistical association and participant explanation as separate targets",
+					tradeoffs: ["Requires two collection paths"],
+					risks: ["Findings may diverge across methods"],
+				},
+				{
+					optionId: "quantitative-only",
+					label: "Panel association study only",
+					description: "Estimate the association without a qualitative mechanism account",
+					tradeoffs: ["Lower collection burden"],
+					risks: ["Mechanism remains weakly observed"],
+				},
+			],
+			selectedOptionId: "complementary",
+			rationale: "The protocols answer distinct parts of the question without conflating claim modes",
+			alternativesConsidered: ["Panel association study only"],
+			limitations: ["Neither protocol automatically establishes a general causal effect"],
+			basis,
+			critical: true,
+			supersedesDesignDecisionId: null,
+		});
+		const decisionId = string(decision.designDecisionId);
+		const protocolCommon = {
+			researchQuestionVersionId: questionId,
+			population: "Organizations or participants represented by the Scenario A scope",
+			timeframe: "One declared implementation cycle",
+			samplingPlan: "Use documented eligibility and report coverage, nonresponse, and exclusions",
+			measurementPlan: "Freeze construct definitions and observable indicators before analysis",
+			dataCollectionPlan: "Collect only authorized records or consented research material",
+			inclusionCriteria: ["Falls within the confirmed topic, population, and timeframe"],
+			exclusionCriteria: ["Lacks a traceable link to the declared exposure or outcome"],
+			alternativeExplanations: ["Pre-existing organizational capacity"],
+			boundaryConditions: ["Frozen Scenario A management/public-administration scope"],
+			feasibilityLimits: ["No claim beyond accessible organizations or cases"],
+			ethicsChecklist: [
+				{ item: "Human-subject and data-protection review", status: "required", note: "Not an approval" },
+			],
+			decisionIds: [decisionId],
+			conceptIds: [exposureId, outcomeId],
+			theoryRelationIds: [relationId],
+			basis,
+			supersedesProtocolId: null,
+		};
+		const quantitative = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_protocol",
+			...protocolCommon,
+			title: `${topic.title}: quantitative protocol`,
+			designType: "quantitative",
+			claimMode: "associational",
+			method: "Panel association study",
+			unitOfAnalysis: "organization-period",
+			analysisPlan: "Estimate declared associations with robustness checks and non-causal wording",
+			identificationStrategy: null,
+			identificationAssumptions: [],
+			preanalysisPlan: "Freeze variables, exclusions, models, uncertainty, and robustness checks",
+			interviewPlan: null,
+			caseSelectionPlan: null,
+		});
+		const qualitative = await createConfirmedDesign(harness, ctx, projectRoot, {
+			action: "create_protocol",
+			...protocolCommon,
+			title: `${topic.title}: qualitative protocol`,
+			designType: "qualitative",
+			claimMode: "interpretive",
+			method: "Comparative case study with semi-structured interviews",
+			unitOfAnalysis: "implementation episode",
+			analysisPlan: "Use a versioned codebook, source locators, negative cases, and a cross-case matrix",
+			identificationStrategy: null,
+			identificationAssumptions: [],
+			preanalysisPlan: null,
+			interviewPlan: "Use a consented role-specific guide and document nonresponse and contradictions",
+			caseSelectionPlan: "Select contrasting cases using declared governance and capacity dimensions",
+		});
+		expect(harness.confirm.mock.calls.length - confirmationsBefore).toBe(7);
+		const designRefs = [quantitative, qualitative].map((record) => {
+			const revision = object(record.audit).revision;
+			if (typeof revision !== "number") throw new Error("Missing protocol revision");
+			return { kind: "protocol", id: string(record.protocolId), revision };
+		});
+		const designArtifact = await callTool(
+			harness,
+			"research_artifacts",
+			{
+				action: "generate_structured",
+				artifactType: "research-design",
+				sourceRefs: designRefs,
+				targetStatus: "exploratory",
+				outputPath: "artifacts/designs/scenario-a-design.md",
+			},
+			ctx,
+		);
+		await assertArtifact(projectRoot, designArtifact, "artifacts/designs/scenario-a-design.md");
+		const designMarkdown = await readFile(
+			await resolveProjectPath(projectRoot, "artifacts/designs/scenario-a-design.md"),
+			"utf8",
+		);
+		expect(designMarkdown).toContain("quantitative protocol");
+		expect(designMarkdown).toContain("qualitative protocol");
+		await harness.commands.get("research-status")?.("", ctx);
+		const statusNotification = harness.notify.mock.calls.at(-1)?.[0];
+		if (typeof statusNotification !== "string") throw new Error("Status command returned no result");
+		expect(JSON.parse(statusNotification)).toMatchObject({
+			ok: true,
+			value: { stage: "research_design", designByStatus: { confirmed: 7 } },
+		});
+		await harness.commands.get("research-resume")?.("", ctx);
+		const resumeNotification = harness.notify.mock.calls.at(-1)?.[0];
+		if (typeof resumeNotification !== "string") throw new Error("Resume command returned no result");
+		expect(JSON.parse(resumeNotification)).toMatchObject({
+			ok: true,
+			value: { designAwaitingConfirmation: [] },
+		});
+	}
+
 	const adapterSearchOperations = (await records(projectRoot, "operation")).filter(
 		(record): record is OperationRecord =>
 			record.kind === "operation" &&
@@ -1392,7 +1639,7 @@ async function runTopic(
 	expect(
 		JSON.stringify(await readFile(await resolveProjectPath(projectRoot, PROJECT_MANIFEST_PATH), "utf8")),
 	).not.toContain(openAlexKey);
-	expect(new Set(harness.toolCalls)).toEqual(new Set(RESEARCH_TOOL_NAMES));
+	expect(new Set(harness.toolCalls)).toEqual(new Set(withDesign ? RESEARCH_TOOL_NAMES : V0_1_TOOL_NAMES));
 
 	return {
 		L1: true,
@@ -1413,11 +1660,19 @@ describe("Scenario A release gate", () => {
 		const gate = await loadFixture<ScenarioGate>(gatePath);
 		expect(scenario.schemaVersion).toBe("0.1.0");
 		expect(scenario.topics).toHaveLength(gate.requiredTopicCount);
-		expect(scenario.scriptedToolSet).toEqual(RESEARCH_TOOL_NAMES);
+		expect(scenario.scriptedToolSet).toEqual(V0_1_TOOL_NAMES);
 		expect(Object.keys(gate.requiredAnomalies)).toHaveLength(10);
 		for (const topic of scenario.topics) {
 			const ladder = await runTopic(topic, scenario.evidenceCases, gate);
 			expect(ladder).toEqual(Object.fromEntries(gate.requiredEvidenceLevels.map((level) => [level, true])));
 		}
+	}, 120_000);
+
+	it("extends a Scenario A project into confirmed quantitative and qualitative designs", async () => {
+		const scenario = await loadFixture<ScenarioFixture>(scenarioPath);
+		const gate = await loadFixture<ScenarioGate>(gatePath);
+		const topic = scenario.topics[0];
+		if (topic === undefined) throw new Error("Scenario A has no topic");
+		await runTopic(topic, scenario.evidenceCases, gate, true);
 	}, 120_000);
 });

@@ -36,6 +36,11 @@ const RECORD_KINDS = new Set<RecordKind>([
 	"evidence",
 	"claim",
 	"citation_verification",
+	"research_question_version",
+	"concept",
+	"theory_relation",
+	"design_decision",
+	"protocol",
 	"task",
 	"operation",
 	"analysis_run",
@@ -131,6 +136,21 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 				code: projectRecordRevision(record) < revision ? "FUTURE_RECORD_REFERENCE" : "STALE_RECORD_REFERENCE",
 				path,
 				message: `Expected ${kind} ${id} revision ${revision}`,
+			});
+		}
+	};
+	const requireConfirmedDesign = (
+		kind: "research_question_version" | "concept" | "theory_relation" | "design_decision" | "protocol",
+		id: string,
+		path: string,
+	): void => {
+		requireRecord(kind, id, path);
+		const record = records.get(kind)?.get(id);
+		if (record !== undefined && "confirmation" in record && record.status !== "confirmed") {
+			issues.push({
+				code: "DESIGN_REFERENCE_NOT_CONFIRMED",
+				path,
+				message: `${kind} ${id} is ${record.status}, not confirmed`,
 			});
 		}
 	};
@@ -413,6 +433,83 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 							}
 						}
 					}
+					break;
+				case "research_question_version":
+					if (record.supersedesResearchQuestionVersionId !== null) {
+						requireRecord(
+							"research_question_version",
+							record.supersedesResearchQuestionVersionId,
+							`${path}#supersedesResearchQuestionVersionId`,
+						);
+						const previous = records
+							.get("research_question_version")
+							?.get(record.supersedesResearchQuestionVersionId);
+						if (
+							previous?.kind === "research_question_version" &&
+							(previous.questionSeriesId !== record.questionSeriesId || previous.version >= record.version)
+						) {
+							issues.push({
+								code: "INVALID_QUESTION_VERSION_CHAIN",
+								path: `${path}#supersedesResearchQuestionVersionId`,
+								message: "Question versions must advance within the same series",
+							});
+						}
+					}
+					break;
+				case "concept":
+					if (record.supersedesConceptId !== null)
+						requireRecord("concept", record.supersedesConceptId, `${path}#supersedesConceptId`);
+					break;
+				case "theory_relation":
+					if (record.status === "confirmed") {
+						requireConfirmedDesign("concept", record.fromConceptId, `${path}#fromConceptId`);
+						requireConfirmedDesign("concept", record.toConceptId, `${path}#toConceptId`);
+					} else {
+						requireRecord("concept", record.fromConceptId, `${path}#fromConceptId`);
+						requireRecord("concept", record.toConceptId, `${path}#toConceptId`);
+					}
+					if (record.supersedesTheoryRelationId !== null)
+						requireRecord(
+							"theory_relation",
+							record.supersedesTheoryRelationId,
+							`${path}#supersedesTheoryRelationId`,
+						);
+					break;
+				case "design_decision":
+					if (record.supersedesDesignDecisionId !== null)
+						requireRecord(
+							"design_decision",
+							record.supersedesDesignDecisionId,
+							`${path}#supersedesDesignDecisionId`,
+						);
+					break;
+				case "protocol":
+					if (record.status === "confirmed") {
+						requireConfirmedDesign(
+							"research_question_version",
+							record.researchQuestionVersionId,
+							`${path}#researchQuestionVersionId`,
+						);
+						for (const decisionId of record.decisionIds)
+							requireConfirmedDesign("design_decision", decisionId, `${path}#decisionIds`);
+						for (const conceptId of record.conceptIds)
+							requireConfirmedDesign("concept", conceptId, `${path}#conceptIds`);
+						for (const relationId of record.theoryRelationIds)
+							requireConfirmedDesign("theory_relation", relationId, `${path}#theoryRelationIds`);
+					} else {
+						requireRecord(
+							"research_question_version",
+							record.researchQuestionVersionId,
+							`${path}#researchQuestionVersionId`,
+						);
+						for (const decisionId of record.decisionIds)
+							requireRecord("design_decision", decisionId, `${path}#decisionIds`);
+						for (const conceptId of record.conceptIds) requireRecord("concept", conceptId, `${path}#conceptIds`);
+						for (const relationId of record.theoryRelationIds)
+							requireRecord("theory_relation", relationId, `${path}#theoryRelationIds`);
+					}
+					if (record.supersedesProtocolId !== null)
+						requireRecord("protocol", record.supersedesProtocolId, `${path}#supersedesProtocolId`);
 					break;
 				case "task":
 					for (const dependencyId of record.dependencyTaskIds)

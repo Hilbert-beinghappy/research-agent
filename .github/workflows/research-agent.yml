@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  v0-1-core:
-    name: v0.1 core (${{ matrix.os }})
+  v0-2-core:
+    name: v0.2 core (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -58,14 +58,21 @@ jobs:
           npm run test:e2e -w packages/research-agent -- scenario-a
           npm run eval -w packages/research-agent -- v0.1
 
-      - name: Benchmark v0.1
-        run: node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark.json
+      - name: Run v0.2 method-boundary gate
+        run: npm run eval:v0.2 -w packages/research-agent -- v0.2
+
+      - name: Benchmark v0.1 and v0.2
+        run: |
+          node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark-v0.1.json
+          node packages/research-agent/scripts/benchmark-v0.2.ts --output research-agent-benchmark-v0.2.json
 
       - name: Upload benchmark report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: research-agent-benchmark-${{ matrix.os }}
-          path: research-agent-benchmark.json
+          path: |
+            research-agent-benchmark-v0.1.json
+            research-agent-benchmark-v0.2.json
 
       - name: Qualify release package
         run: |

@@ -19,8 +19,9 @@ import { createOpaqueId } from "../kernel/identity.ts";
 import { operationTransitionPatch } from "../kernel/operations.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
 import { initializeProject } from "../project/init.ts";
+import { migrateProject, rollbackProjectMigration } from "../project/migrate.ts";
 import { type OpenedProject, openProject } from "../project/open.ts";
-import { listProjectRecordIds } from "../project/record-index.ts";
+import { listProjectRecordIds, projectRecordId } from "../project/record-index.ts";
 import { createRecord, readRecord, updateRecord } from "../project/records.ts";
 import {
 	commitPreparedTransaction,
@@ -30,6 +31,7 @@ import {
 } from "../project/transactions.ts";
 import { validateProject } from "../project/validate.ts";
 import { createActionRequest } from "../security/policy.ts";
+import { isDesignRecord } from "../tools/design.ts";
 import { RESEARCH_TOOL_NAMES, type RegisterResearchToolsOptions, registerResearchTools } from "./tools.ts";
 
 export const RESEARCH_SESSION_ENTRY_TYPE = "pi-research-agent.project-link";
@@ -257,12 +259,17 @@ function countValues(values: readonly string[]): Record<string, number> {
 }
 
 export async function projectStatus(project: CurrentProject): Promise<JsonValue> {
-	const [tasks, operations, documents, evidence, citations] = await Promise.all([
+	const [tasks, operations, documents, evidence, citations, design] = await Promise.all([
 		loadRecords(project, "task"),
 		loadRecords(project, "operation"),
 		loadRecords(project, "document"),
 		loadRecords(project, "evidence"),
 		loadRecords(project, "citation_verification"),
+		Promise.all(
+			(["research_question_version", "concept", "theory_relation", "design_decision", "protocol"] as const).map(
+				(kind) => loadRecords(project, kind),
+			),
+		).then((records) => records.flat()),
 	]);
 	const taskRecords = tasks.filter((record) => record.kind === "task");
 	const budgetActual: Record<string, number> = {};
@@ -290,6 +297,7 @@ export async function projectStatus(project: CurrentProject): Promise<JsonValue>
 		citationsByStatus: countValues(
 			citations.filter((record) => record.kind === "citation_verification").map(({ finalStatus }) => finalStatus),
 		),
+		designByStatus: countValues(design.filter(isDesignRecord).map(({ status }) => status)),
 		budgetActual,
 	});
 }
@@ -390,6 +398,95 @@ export function registerResearchCommands(
 		});
 	};
 
+	register(
+		"research-migrate",
+		"Migrate a v0.1 project to v0.2 or roll back an unchanged migration",
+		async (args, ctx) => {
+			const [action, migrationId] = args.split(/\s+/, 2);
+			if (action === "rollback") {
+				if (migrationId === undefined) throw new TypeError("Usage: /research-migrate rollback <migration-id>");
+				const project = await requireProject(ctx);
+				if (!ctx.hasUI) {
+					return failureResult(
+						"PERMISSION_BLOCKED",
+						"MIGRATION_ROLLBACK_CONFIRMATION_REQUIRED",
+						"permission",
+						"Migration rollback requires interactive confirmation",
+						null,
+					);
+				}
+				const confirmed = await ctx.ui.confirm(
+					"Roll back research project migration",
+					`Restore the v0.1 manifest snapshot from ${migrationId}? Rollback is refused if any v0.2 state was written.`,
+				);
+				if (!confirmed) {
+					return failureResult(
+						"PERMISSION_BLOCKED",
+						"MIGRATION_ROLLBACK_CANCELLED",
+						"cancelled",
+						"Migration rollback was cancelled",
+						null,
+					);
+				}
+				const rolledBack = await rollbackProjectMigration(project.root, migrationId);
+				activeProjectRoot = null;
+				activePolicy = null;
+				governanceBlocked = true;
+				ctx.ui.setStatus("research-agent", undefined);
+				return successResult(
+					asJson({
+						migrationId,
+						schemaVersion:
+							rolledBack.compatibility === "current" ? RESEARCH_SCHEMA_VERSION : rolledBack.schemaVersion,
+						compatibility: rolledBack.compatibility,
+					}),
+					null,
+				);
+			}
+
+			const linked = latestSessionProjectLink(ctx);
+			const target =
+				args.length > 0
+					? resolve(ctx.cwd, stripOuterQuotes(args))
+					: (activeProjectRoot ?? (linked === null ? ctx.cwd : dirname(linked.manifestPath)));
+			const opened = await openProject(target);
+			if (opened.compatibility === "current") {
+				const bound = await bindProject(ctx, opened.root, opened.manifest.projectId);
+				appendProjectLink(bound);
+				return successResult(
+					asJson({ schemaVersion: RESEARCH_SCHEMA_VERSION, revision: bound.manifest.revision, migrated: false }),
+					null,
+				);
+			}
+			if (!ctx.hasUI) {
+				return failureResult(
+					"PERMISSION_BLOCKED",
+					"MIGRATION_CONFIRMATION_REQUIRED",
+					"permission",
+					`Migration from schema ${opened.schemaVersion} requires interactive confirmation`,
+					null,
+				);
+			}
+			const confirmed = await ctx.ui.confirm(
+				"Migrate research project",
+				`Migrate schema ${opened.schemaVersion} to ${RESEARCH_SCHEMA_VERSION}? Existing records are not rewritten.`,
+			);
+			if (!confirmed) {
+				return failureResult(
+					"PERMISSION_BLOCKED",
+					"MIGRATION_CANCELLED",
+					"cancelled",
+					"Project migration was cancelled",
+					null,
+				);
+			}
+			const result = await migrateProject(opened.root);
+			const migrated = await bindProject(ctx, opened.root);
+			appendProjectLink(migrated);
+			return successResult(asJson({ ...result, migrated: result.migrationId !== null }), null);
+		},
+	);
+
 	register("research-init", "Initialize a governed research project in the current directory", async (args, ctx) => {
 		const title = stripOuterQuotes(args) || basename(ctx.cwd);
 		let project = await initializeProject(ctx.cwd, { title });
@@ -441,9 +538,14 @@ export function registerResearchCommands(
 
 	register("research-resume", "Show incomplete and blocked research tasks", async (_args, ctx) => {
 		const project = await requireProject(ctx);
-		const [taskRecords, operationRecords] = await Promise.all([
+		const [taskRecords, operationRecords, designRecords] = await Promise.all([
 			loadRecords(project, "task"),
 			loadRecords(project, "operation"),
+			Promise.all(
+				(["research_question_version", "concept", "theory_relation", "design_decision", "protocol"] as const).map(
+					(kind) => loadRecords(project, kind),
+				),
+			).then((records) => records.flat()),
 		]);
 		const tasks = taskRecords
 			.filter((record) => record.kind === "task")
@@ -465,8 +567,22 @@ export function registerResearchCommands(
 				({ status }) => !["succeeded", "partially_succeeded", "failed_permanent", "cancelled"].includes(status),
 			)
 			.map(({ operationId, taskId, name, status, error }) => ({ operationId, taskId, name, status, error }));
+		const designAwaitingConfirmation = designRecords
+			.filter(isDesignRecord)
+			.filter(({ status }) => status === "awaiting_confirmation")
+			.map((record) => ({
+				kind: record.kind,
+				id: projectRecordId(record),
+				revision: record.audit.revision,
+			}));
 		return successResult(
-			asJson({ projectId: project.manifest.projectId, revision: project.manifest.revision, tasks, operations }),
+			asJson({
+				projectId: project.manifest.projectId,
+				revision: project.manifest.revision,
+				tasks,
+				operations,
+				designAwaitingConfirmation,
+			}),
 			null,
 		);
 	});

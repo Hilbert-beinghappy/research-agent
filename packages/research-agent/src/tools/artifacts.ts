@@ -41,7 +41,7 @@ import {
 import { createRecord, readRecord } from "../project/records.ts";
 import { brokerProjectFile } from "../security/broker-files.ts";
 
-export const ARTIFACT_GENERATOR_VERSION = "0.1.0";
+export const ARTIFACT_GENERATOR_VERSION = "0.2.0";
 
 export interface GenerateArtifactRequest {
 	action: "generate_structured" | "commit_markdown";
@@ -82,6 +82,11 @@ const GENERATION_INPUT_KINDS = new Set<RecordKind>([
 	"evidence",
 	"claim",
 	"citation_verification",
+	"research_question_version",
+	"concept",
+	"theory_relation",
+	"design_decision",
+	"protocol",
 ]);
 
 function propagatedFailure<Value>(
@@ -127,6 +132,27 @@ function sourceFiles(records: readonly ProjectRecord[]): FileRef[] {
 }
 
 function enqueueDependencies(record: ProjectRecord, pending: RecordRef[]): void {
+	if (
+		record.kind === "research_question_version" ||
+		record.kind === "concept" ||
+		record.kind === "theory_relation" ||
+		record.kind === "design_decision" ||
+		record.kind === "protocol"
+	) {
+		pending.push(...record.basis.provenance.filter(({ kind }) => kind !== "operation"));
+	}
+	if (record.kind === "theory_relation") {
+		pending.push(
+			{ kind: "concept", id: record.fromConceptId, revision: null },
+			{ kind: "concept", id: record.toConceptId, revision: null },
+		);
+	}
+	if (record.kind === "protocol") {
+		pending.push({ kind: "research_question_version", id: record.researchQuestionVersionId, revision: null });
+		pending.push(...record.decisionIds.map((id) => ({ kind: "design_decision" as const, id, revision: null })));
+		pending.push(...record.conceptIds.map((id) => ({ kind: "concept" as const, id, revision: null })));
+		pending.push(...record.theoryRelationIds.map((id) => ({ kind: "theory_relation" as const, id, revision: null })));
+	}
 	if (record.kind === "claim") {
 		for (const evidenceId of new Set([
 			...record.evidenceLinks.map(({ evidenceId }) => evidenceId),

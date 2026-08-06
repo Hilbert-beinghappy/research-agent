@@ -1,0 +1,32 @@
+{
+  "benchmark": "pi-research-agent-v0.2",
+  "generatedAt": "2026-08-06T18:35:30.473Z",
+  "schemaVersion": "0.2.0",
+  "fixture": {
+    "designCount": 6,
+    "quantitativeCount": 3,
+    "qualitativeCount": 3,
+    "artifactOutputBytes": 12630
+  },
+  "results": {
+    "localValidation": {
+      "samples": 20,
+      "p95Ms": 13.618,
+      "thresholdMs": 2000,
+      "passed": true
+    },
+    "designArtifact": {
+      "samples": 20,
+      "p95Ms": 0.619,
+      "thresholdMs": 5000,
+      "passed": true
+    }
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

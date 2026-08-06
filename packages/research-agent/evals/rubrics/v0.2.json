@@ -1,0 +1,29 @@
+{
+  "rubricId": "research-design-method-boundary-v0.2",
+  "version": "0.2.0",
+  "hardGates": [
+    "question_method_fit",
+    "estimand_or_interpretive_target",
+    "measurement_and_sampling",
+    "identification_or_qualitative_selection",
+    "alternative_explanations",
+    "ethics_and_feasibility",
+    "confirmation",
+    "provenance"
+  ],
+  "thresholds": {
+    "fixtureCount": 6,
+    "quantitativeCount": 3,
+    "qualitativeCount": 3,
+    "minimumHardGatesPassedPerFixture": 8,
+    "causalAssociationalGoldViolationsMax": 0,
+    "confirmedMissingProvenanceMax": 0,
+    "injectedBoundaryFalseNegativesMax": 0
+  },
+  "p0Rules": [
+    "causal claim mode without an identification strategy and assumptions",
+    "confirmed critical decision without alternatives, limitations, confirmation, or provenance",
+    "quantitative protocol without a preanalysis plan",
+    "qualitative protocol without an interview or case-selection plan"
+  ]
+}

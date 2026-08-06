@@ -6,15 +6,16 @@ import { JsonResearchResultSchema, PersistedRecordSchema, RESEARCH_SCHEMA_VERSIO
 
 const schemaDir = fileURLToPath(new URL(`../schemas/v${RESEARCH_SCHEMA_VERSION.slice(0, 3)}/`, import.meta.url));
 const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
+const schemaLabel = `v${RESEARCH_SCHEMA_VERSION.slice(0, 3)}`;
 
 await mkdir(schemaDir, { recursive: true });
 await Promise.all([
 	writeFile(
 		`${schemaDir}persisted-record.schema.json`,
-		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent persisted record v0.1", ...PersistedRecordSchema }, null, 2)}\n`,
+		`${JSON.stringify({ $schema: jsonSchema, title: `Pi Research Agent persisted record ${schemaLabel}`, ...PersistedRecordSchema }, null, 2)}\n`,
 	),
 	writeFile(
 		`${schemaDir}research-result.schema.json`,
-		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent result v0.1", ...JsonResearchResultSchema }, null, 2)}\n`,
+		`${JSON.stringify({ $schema: jsonSchema, title: `Pi Research Agent result ${schemaLabel}`, ...JsonResearchResultSchema }, null, 2)}\n`,
 	),
 ]);

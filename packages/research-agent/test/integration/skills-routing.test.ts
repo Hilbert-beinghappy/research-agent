@@ -14,6 +14,7 @@ const allowedTools = new Set([
 	"research_commit_evidence",
 	"research_verify_citations",
 	"research_artifacts",
+	"research_design",
 ]);
 
 function researchTools(content: string): string[] {
@@ -21,7 +22,7 @@ function researchTools(content: string): string[] {
 }
 
 describe("research skill routing", () => {
-	it("loads three bounded workflow skills and two thin prompt templates", async () => {
+	it("loads four bounded workflow skills and two thin prompt templates", async () => {
 		const tempDir = await mkdtemp(join(tmpdir(), "pi-research-skills-"));
 		const cwd = join(tempDir, "project");
 		const agentDir = join(tempDir, "agent");
@@ -43,12 +44,14 @@ describe("research skill routing", () => {
 			expect(packageSkills.map(({ name }) => name).sort()).toEqual([
 				"literature-evidence",
 				"literature-review",
+				"research-design",
 				"research-project-intake",
 			]);
 			const descriptions = new Map(packageSkills.map(({ name, description }) => [name, description]));
 			expect(descriptions.get("research-project-intake")).toContain("选题");
 			expect(descriptions.get("literature-evidence")).toContain("证据卡");
 			expect(descriptions.get("literature-review")).toContain("文献综述");
+			expect(descriptions.get("research-design")).toContain("research question");
 
 			const skillText = new Map<string, string>();
 			for (const skill of packageSkills) {
@@ -63,6 +66,8 @@ describe("research skill routing", () => {
 			expect(skillText.get("literature-evidence")).toContain("fulltext_unlocated");
 			expect(skillText.get("literature-review")).toContain("unresolved conflict");
 			expect(skillText.get("literature-review")).toContain("smallest next action");
+			expect(skillText.get("research-design")).toContain('claimMode: "causal"');
+			expect(skillText.get("research-design")).toContain("Never infer confirmation from silence");
 
 			const evidenceRules = await readFile(
 				join(packageDir, "skills", "literature-review", "references", "evidence-rules.md"),

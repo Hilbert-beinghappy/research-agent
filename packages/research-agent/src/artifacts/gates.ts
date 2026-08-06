@@ -41,6 +41,20 @@ function recordRef(record: ProjectRecord): RecordRef {
 			return { kind: "claim", id: record.claimId, revision: record.audit.revision };
 		case "citation_verification":
 			return { kind: "citation_verification", id: record.verificationId, revision: record.audit.revision };
+		case "research_question_version":
+			return {
+				kind: "research_question_version",
+				id: record.researchQuestionVersionId,
+				revision: record.audit.revision,
+			};
+		case "concept":
+			return { kind: "concept", id: record.conceptId, revision: record.audit.revision };
+		case "theory_relation":
+			return { kind: "theory_relation", id: record.theoryRelationId, revision: record.audit.revision };
+		case "design_decision":
+			return { kind: "design_decision", id: record.designDecisionId, revision: record.audit.revision };
+		case "protocol":
+			return { kind: "protocol", id: record.protocolId, revision: record.audit.revision };
 		case "task":
 			return { kind: "task", id: record.taskId, revision: record.revision };
 		case "operation":

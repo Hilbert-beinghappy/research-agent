@@ -8,6 +8,8 @@ import {
 	type ArtifactRecord,
 	type CitationVerification,
 	type ClaimRecord,
+	type ConceptRecord,
+	type DesignDecision,
 	type DocumentRecord,
 	type EvidenceCard,
 	type FileRef,
@@ -16,9 +18,12 @@ import {
 	type OperationRecord,
 	type PersistedRecord,
 	PersistedRecordSchema,
+	type ProtocolRecord,
 	type ResearchProjectManifest,
+	type ResearchQuestionVersion,
 	type ResearchTask,
 	type SourceRecord,
+	type TheoryRelation,
 } from "./schemas.ts";
 
 export interface ContractIssue {
@@ -406,6 +411,180 @@ function citationIssues(record: CitationVerification): ContractIssue[] {
 	return issues;
 }
 
+type ReviewableDesignRecord =
+	| ResearchQuestionVersion
+	| ConceptRecord
+	| TheoryRelation
+	| DesignDecision
+	| ProtocolRecord;
+
+function designReviewIssues(record: ReviewableDesignRecord): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	const { confirmation } = record;
+	if (record.status === "draft" || record.status === "awaiting_confirmation") {
+		if (confirmation.decision !== null || confirmation.decidedAt !== null || confirmation.decidedBy !== null) {
+			issues.push(
+				issue(
+					"confirmation",
+					"design.premature_confirmation",
+					"draft or awaiting-confirmation records cannot carry a decision",
+				),
+			);
+		}
+		return issues;
+	}
+	if (record.status === "confirmed" || record.status === "rejected") {
+		if (
+			confirmation.decision !== record.status ||
+			confirmation.decidedAt === null ||
+			confirmation.decidedBy === null ||
+			!Number.isFinite(Date.parse(confirmation.decidedAt))
+		) {
+			issues.push(
+				issue(
+					"confirmation",
+					"design.confirmation_mismatch",
+					"confirmed and rejected records require a matching user decision and timestamp",
+				),
+			);
+		}
+	}
+	if (record.status === "confirmed") {
+		const hasOperation = record.basis.provenance.some(({ kind }) => kind === "operation");
+		const hasEvidence = record.basis.provenance.some(({ kind }) => kind === "evidence" || kind === "claim");
+		if (!hasOperation || (!record.basis.evidenceGap && !hasEvidence)) {
+			issues.push(
+				issue(
+					"basis.provenance",
+					"design.provenance_missing",
+					"confirmed design requires an Operation and either Evidence/Claim provenance or an explicit evidence gap",
+				),
+			);
+		}
+	}
+	return issues;
+}
+
+function researchQuestionVersionIssues(record: ResearchQuestionVersion): ContractIssue[] {
+	const issues = designReviewIssues(record);
+	if (
+		(record.version === 1 && record.supersedesResearchQuestionVersionId !== null) ||
+		(record.version > 1 && record.supersedesResearchQuestionVersionId === null)
+	) {
+		issues.push(
+			issue(
+				"supersedesResearchQuestionVersionId",
+				"question.version_chain_invalid",
+				"question version 1 cannot supersede another version and later versions must do so",
+			),
+		);
+	}
+	return issues;
+}
+
+function theoryRelationIssues(record: TheoryRelation): ContractIssue[] {
+	const issues = designReviewIssues(record);
+	if (
+		record.status === "confirmed" &&
+		(record.hypothesesOrPropositions.length === 0 ||
+			record.alternativeExplanations.length === 0 ||
+			record.boundaryConditions.length === 0)
+	) {
+		issues.push(
+			issue(
+				"hypothesesOrPropositions",
+				"theory.confirmed_incomplete",
+				"confirmed theory relations require a hypothesis or proposition, an alternative, and a boundary",
+			),
+		);
+	}
+	return issues;
+}
+
+function designDecisionIssues(record: DesignDecision): ContractIssue[] {
+	const issues = designReviewIssues(record);
+	const optionIds = record.options.map(({ optionId }) => optionId);
+	if (new Set(optionIds).size !== optionIds.length) {
+		issues.push(issue("options", "decision.duplicate_option", "decision option IDs must be unique"));
+	}
+	if (record.selectedOptionId !== null && !optionIds.includes(record.selectedOptionId)) {
+		issues.push(issue("selectedOptionId", "decision.option_missing", "selected option must exist"));
+	}
+	if (
+		record.status === "confirmed" &&
+		(record.selectedOptionId === null ||
+			record.rationale === null ||
+			record.rationale.trim().length === 0 ||
+			(record.critical &&
+				(record.options.length < 2 ||
+					record.alternativesConsidered.length === 0 ||
+					record.limitations.length === 0)))
+	) {
+		issues.push(
+			issue(
+				"selectedOptionId",
+				"decision.confirmed_incomplete",
+				"confirmed decisions require a selected option and rationale; critical decisions also require alternatives and limitations",
+			),
+		);
+	}
+	return issues;
+}
+
+function protocolIssues(record: ProtocolRecord): ContractIssue[] {
+	const issues = designReviewIssues(record);
+	if (
+		record.claimMode === "causal" &&
+		(record.identificationStrategy === null || record.identificationAssumptions.length === 0)
+	) {
+		issues.push(
+			issue(
+				"identificationStrategy",
+				"protocol.causal_identification_missing",
+				"causal protocols require an identification strategy and explicit assumptions",
+			),
+		);
+	}
+	if (record.designType === "quantitative" && record.preanalysisPlan === null) {
+		issues.push(
+			issue(
+				"preanalysisPlan",
+				"protocol.quantitative_plan_missing",
+				"quantitative protocols require a preanalysis plan",
+			),
+		);
+	}
+	if (record.designType === "qualitative" && record.interviewPlan === null && record.caseSelectionPlan === null) {
+		issues.push(
+			issue(
+				"interviewPlan",
+				"protocol.qualitative_plan_missing",
+				"qualitative protocols require an interview or case-selection plan",
+			),
+		);
+	}
+	if (
+		record.status === "confirmed" &&
+		(record.decisionIds.length === 0 ||
+			record.conceptIds.length === 0 ||
+			record.inclusionCriteria.length === 0 ||
+			record.exclusionCriteria.length === 0 ||
+			record.alternativeExplanations.length === 0 ||
+			record.boundaryConditions.length === 0 ||
+			record.feasibilityLimits.length === 0 ||
+			record.ethicsChecklist.length === 0)
+	) {
+		issues.push(
+			issue(
+				"status",
+				"protocol.confirmed_incomplete",
+				"confirmed protocols require decisions, concepts, criteria, alternatives, boundaries, feasibility limits, and ethics checks",
+			),
+		);
+	}
+	return issues;
+}
+
 function taskIssues(record: ResearchTask): ContractIssue[] {
 	const issues: ContractIssue[] = [];
 	if (record.attemptCount > record.maxAttempts) {
@@ -574,6 +753,16 @@ function invariantIssues(record: PersistedRecord): ContractIssue[] {
 			return claimIssues(record);
 		case "citation_verification":
 			return citationIssues(record);
+		case "research_question_version":
+			return researchQuestionVersionIssues(record);
+		case "concept":
+			return designReviewIssues(record);
+		case "theory_relation":
+			return theoryRelationIssues(record);
+		case "design_decision":
+			return designDecisionIssues(record);
+		case "protocol":
+			return protocolIssues(record);
 		case "task":
 			return taskIssues(record);
 		case "operation":
