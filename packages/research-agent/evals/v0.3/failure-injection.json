@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "0.3.0",
+  "status": "passed",
+  "cases": [
+    { "case": "missing_package", "expectedRunStatus": "failed", "falseSuccess": false },
+    { "case": "missing_variable", "expectedRunStatus": "failed", "falseSuccess": false },
+    { "case": "runtime_crash", "expectedRunStatus": "failed", "falseSuccess": false },
+    { "case": "timeout", "expectedRunStatus": "aborted", "falseSuccess": false },
+    { "case": "non_convergence", "expectedRunStatus": "non_converged", "falseSuccess": false },
+    { "case": "raw_input_mutation", "expectedRunStatus": "failed", "falseSuccess": false, "rawHashRestored": true },
+    { "case": "stata_batch_contract", "expectedRunStatus": "succeeded", "falseSuccess": false, "licenseContentInspected": false }
+  ],
+  "sourceTest": "test/integration/analysis-workbench.test.ts"
+}

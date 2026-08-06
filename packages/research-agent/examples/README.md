@@ -9,3 +9,5 @@ Use the attached request.json as a proposal. Ask me to confirm its scope and sea
 ```
 
 The public E2E replay uses synthetic recorded provider/PDF fixtures. A live run may return different literature, costs, or availability and must retain those observed states.
+
+`research-design` contains the v0.2 quantitative and qualitative design plans. `quantitative-synthetic` and `qualitative-synthetic` contain the public v0.3 method-workbench inputs. Generated project IDs, runtime paths, and local logs are intentionally not committed.

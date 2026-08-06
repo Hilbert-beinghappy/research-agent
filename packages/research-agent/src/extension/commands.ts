@@ -400,7 +400,7 @@ export function registerResearchCommands(
 
 	register(
 		"research-migrate",
-		"Migrate a v0.1 project to v0.2 or roll back an unchanged migration",
+		"Migrate a v0.2 project to v0.3 or roll back an unchanged migration",
 		async (args, ctx) => {
 			const [action, migrationId] = args.split(/\s+/, 2);
 			if (action === "rollback") {
@@ -417,7 +417,7 @@ export function registerResearchCommands(
 				}
 				const confirmed = await ctx.ui.confirm(
 					"Roll back research project migration",
-					`Restore the v0.1 manifest snapshot from ${migrationId}? Rollback is refused if any v0.2 state was written.`,
+					`Restore the v0.2 manifest snapshot from ${migrationId}? Rollback is refused if any v0.3 state was written.`,
 				);
 				if (!confirmed) {
 					return failureResult(

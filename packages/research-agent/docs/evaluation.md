@@ -44,3 +44,18 @@ The public fixture at `evals/v0.2/design-fixtures.json` contains three quantitat
 Release thresholds are 6/6 fixtures, 8/8 hard gates per fixture, zero causal/associational gold violations, zero confirmed records missing Operation provenance, and zero false negatives for three injected P0 boundaries: causal mode without identification, quantitative design without a preanalysis plan, and qualitative design without an interview or case-selection plan. The recorded model result must preserve association rather than invent identification, stop at explicit confirmation, block analysis, distinguish abstracts from located evidence, and cover all declared risks. The evaluator itself uses no model or provider call and does not claim external method validity beyond the frozen cases.
 
 The authorized release-candidate check made two `deepseek-v4-flash` invocations. The first returned fenced JSON that the initial harness rejected before saving cost metadata; the corrected harness validated the second one-turn response at USD 0.038. The public baseline reports the unobserved first-call cost instead of estimating it and contains no credential, gateway URL, session identifier, or local path.
+
+## v0.3 data-and-methods evaluation
+
+Run the frozen release gate and local performance benchmark from the repository root:
+
+```sh
+npm run eval:v0.3 -w packages/research-agent -- v0.3
+npm run benchmark:v0.3 -w packages/research-agent
+```
+
+The gate checks the public v0.3 rubric, actual Python/R clean-room report, failure-injection results, qualitative audit decisions, 1,000-row/segment baseline, and one authorized `deepseek-v4-flash` method-boundary result. It requires Python and R to retain three successful run records each with one output hash per runtime, false-success and raw mutation to remain zero, every segment locator to be traceable, model suggestions to remain distinct from human accept/edit/reject decisions, superseded decisions and negative cases to remain visible, and both local p95 measurements to stay under 5 seconds with zero benchmark model/API calls.
+
+The real-model check used JSON Schema structured output, which required two provider turns and cost USD 0.063315. It selected `research_analysis` and `research_qualitative`, stopped at imports because no specification/codebook was confirmed, preserved the associational claim boundary, rejected significance selection and automatic coding, and listed all eight required warnings. The deterministic evaluator replays only the sanitized baseline and makes no provider call.
+
+`npm run qualify:runtimes:v0.3 -w packages/research-agent` is an explicit local release-candidate check, not default CI. It runs the public standard-library Python/R scripts and fails when either runtime is missing; it never installs a runtime or package. Stata is covered by a mock batch-contract test because the project neither bundles nor licenses commercial software.

@@ -41,7 +41,7 @@ import {
 import { createRecord, readRecord } from "../project/records.ts";
 import { brokerProjectFile } from "../security/broker-files.ts";
 
-export const ARTIFACT_GENERATOR_VERSION = "0.2.0";
+export const ARTIFACT_GENERATOR_VERSION = "0.3.0";
 
 export interface GenerateArtifactRequest {
 	action: "generate_structured" | "commit_markdown";

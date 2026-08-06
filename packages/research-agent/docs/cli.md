@@ -2,21 +2,21 @@
 
 ## Pi commands
 
-| Command | Actual v0.2 behavior | State change |
+| Command | Actual v0.3 behavior | State change |
 |---|---|---|
 | `/research-version` | Show the loaded package version. | None |
 | `/research-init [title]` | Initialize the current empty directory, create the bootstrap task and operation, and link the Pi Session. | Adds a project; no overwrite |
 | `/research-open [path]` | Validate and link an existing current-schema project. | Session link only |
-| `/research-migrate [path]` | Prepare and commit the v0.1-to-v0.2 manifest migration after confirmation. `/research-migrate rollback <id>` restores the snapshot only when no v0.2 manifest write occurred. | Confirmed migration or unchanged rollback |
-| `/research-status` | Return stage, revision, record counts, task/operation/full-text/evidence/citation/design status, and recorded budget totals. | None |
-| `/research-resume` | Return incomplete or blocked tasks and operations plus design records awaiting confirmation. | None |
+| `/research-migrate [path]` | Prepare and commit the v0.2-to-v0.3 manifest migration after confirmation. `/research-migrate rollback <id>` restores the snapshot only when no v0.3 manifest write occurred. | Confirmed migration or unchanged rollback |
+| `/research-status` | Return stage, revision, record counts, task/operation/full-text/evidence/citation/design/analysis status, and recorded budget totals. | None |
+| `/research-resume` | Return incomplete or blocked tasks and operations plus design, analysis, codebook, and theme records awaiting confirmation. | None |
 | `/research-validate` | Validate schemas, hashes, references, portable paths, and pending transactions. | None |
 | `/research-recover [commit|rollback] [transaction-id]` | Commit or roll back one pending transaction after interactive confirmation. | Confirmed recovery only |
 | `/research-policy` | Show policy. `/research-policy set {"sensitivity":"internal"}` proposes a validated patch and records the decision. | Policy changes require confirmation |
 
 All commands except the version notification return a canonical `ResearchResult` as JSON. In non-interactive mode, actions requiring confirmation return `PERMISSION_BLOCKED`; they do not infer consent.
 
-There is no `/research-export` command in v0.2. Deterministic export is the `research_artifacts` Tool so that source references, operation state, output hashes, and gates remain in one path.
+There is no `/research-export` command in v0.3. Deterministic export is the `research_artifacts` Tool so that source references, operation state, output hashes, and gates remain in one path.
 
 ## Skills and prompts
 
@@ -26,6 +26,8 @@ There is no `/research-export` command in v0.2. Deterministic export is the `res
 | `/skill:literature-evidence` | Plan discovery, imports, full-text checks, corpus queries, evidence cards, and citation verification. |
 | `/skill:literature-review` | Synthesize claims, conflicts, evidence gaps, a matrix, and a bounded review. |
 | `/skill:research-design` | Turn canonical evidence or an explicit gap into versioned questions, concepts, relations, decisions, and protocols that require user confirmation. |
+| `/skill:quantitative-research` | Import a CSV, inspect its dictionary, confirm a Python/R/Stata specification, and audit immutable inputs, logs, output hashes, and failures. |
+| `/skill:qualitative-research` | Import de-identified text, preserve stable locators, separate model suggestions from human coding, retain negative cases, and render an audit trail. |
 | `/scope-review` | Expand the topic/scope review prompt. |
 | `/integrity-review` | Expand the evidence and citation integrity prompt. |
 
@@ -43,6 +45,8 @@ Skills orchestrate model judgment. They do not parse PDFs, decide dedup matches,
 | `research_verify_citations` | Source IDs, Crossref/OpenAlex providers, refresh rule, field thresholds. | Existence, metadata, publication-status checks and final verification state. |
 | `research_artifacts` | Structured export or Markdown commit, source record refs, target status, optional portable output path. | Markdown research design/evidence matrix, JSON/RIS/BibTeX output, hash, ArtifactRecord, warnings and blockers. |
 | `research_design` | Create a question, concept, relation, critical decision, or protocol; or confirm/reject an exact record revision. | Versioned design record, explicit confirmation state, Operation provenance, or a method/dependency/revision failure. |
+| `research_analysis` | Import UTF-8 CSV, create/decide a frozen specification, detect Python/R/Stata, or run an approved local script. | Dataset/variable/specification records, terminal Task and AnalysisRun, command/cwd/runtime, logs, output hashes, raw-integrity checks, or explicit failure. |
+| `research_qualitative` | Import UTF-8 text, segment, version/decide a codebook or theme, record a model suggestion or human coding decision, or render an audit. | Stable segment locators, immutable suggestions, human decisions/supersession, themes/negative cases, and Markdown/JSON audit output. |
 
 Tool parameter schemas are registered with Pi from `src/extension/tools.ts`. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
 
@@ -58,4 +62,8 @@ Execute the confirmed plan, report duplicate and full-text states, then create l
 Build the evidence matrix, verify cited sources, show contradictions and gaps, and produce an evidence-checked review. Do not mark it submission-ready if any gate fails.
 /skill:research-design
 Turn the confirmed review and gaps into one quantitative and one qualitative design. Keep associational and causal wording separate, show alternatives and limitations, and ask me to confirm every critical record.
+/skill:quantitative-research
+Import my authorized CSV, show the inferred dictionary, freeze an associational Python or R specification, and do not run it until I confirm the exact command and inputs.
+/skill:qualitative-research
+Import my de-identified text, segment it once, propose a codebook, and keep every model suggestion separate until I explicitly accept, edit, or reject each coding decision.
 ```

@@ -1,0 +1,26 @@
+{
+  "version": "0.3.0",
+  "hardGates": [
+    "python_and_r_each_reproduce_three_runs",
+    "failure_injection_false_success_zero",
+    "raw_input_restored_after_mutation_attempt",
+    "qualitative_locator_traceability_complete",
+    "model_suggestions_never_replace_human_decisions",
+    "human_edit_and_supersession_retained",
+    "negative_case_retained",
+    "thousand_row_and_segment_p95_under_five_seconds",
+    "default_per_item_model_calls_zero"
+  ],
+  "thresholds": {
+    "runtimeKinds": 2,
+    "runsPerRuntime": 3,
+    "runtimeHashConsistency": 1,
+    "failureFalseSuccessMax": 0,
+    "rawMutationAfterRecoveryMax": 0,
+    "locatorTraceability": 1,
+    "humanDecisionRetention": 1,
+    "performanceP95Ms": 5000,
+    "defaultPerItemModelCalls": 0,
+    "modelInvocationCountMax": 10
+  }
+}

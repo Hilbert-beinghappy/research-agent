@@ -17,7 +17,7 @@ import type {
 	SourceRecord,
 	TheoryRelation,
 } from "../contracts/schemas.ts";
-import type { ProjectRecord } from "../project/record-index.ts";
+import { type ProjectRecord, projectRecordId } from "../project/record-index.ts";
 
 export type ResearchArtifactType = "review" | "evidence-matrix" | "research-design" | "ris" | "bibtex" | "json";
 
@@ -360,44 +360,11 @@ function renderJson(records: readonly ProjectRecord[]): string {
 		format: "pi-research-record-export",
 		version: 1,
 		records: [...records]
-			.sort((left, right) => `${left.kind}:${recordId(left)}`.localeCompare(`${right.kind}:${recordId(right)}`))
+			.sort((left, right) =>
+				`${left.kind}:${projectRecordId(left)}`.localeCompare(`${right.kind}:${projectRecordId(right)}`),
+			)
 			.map(exportRecord),
 	})}\n`;
-}
-
-function recordId(record: ProjectRecord): string {
-	switch (record.kind) {
-		case "source":
-			return record.sourceId;
-		case "document":
-			return record.documentId;
-		case "evidence":
-			return record.evidenceId;
-		case "claim":
-			return record.claimId;
-		case "citation_verification":
-			return record.verificationId;
-		case "research_question_version":
-			return record.researchQuestionVersionId;
-		case "concept":
-			return record.conceptId;
-		case "theory_relation":
-			return record.theoryRelationId;
-		case "design_decision":
-			return record.designDecisionId;
-		case "protocol":
-			return record.protocolId;
-		case "task":
-			return record.taskId;
-		case "operation":
-			return record.operationId;
-		case "analysis_run":
-			return record.analysisRunId;
-		case "artifact":
-			return record.artifactId;
-		case "approval":
-			return record.approvalId;
-	}
 }
 
 export function renderArtifact(

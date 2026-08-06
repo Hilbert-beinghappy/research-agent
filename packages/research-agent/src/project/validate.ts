@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import type { FileRef, OperationRecord, RecordKind, RecordRef } from "../contracts/schemas.ts";
 import { readParsedPdfDocument, resolveParsedPdfLocator } from "../evidence/query.ts";
-import { hashFile } from "../kernel/integrity.ts";
+import { hashBytes, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { openProject } from "./open.ts";
 import {
@@ -41,6 +41,15 @@ const RECORD_KINDS = new Set<RecordKind>([
 	"theory_relation",
 	"design_decision",
 	"protocol",
+	"dataset",
+	"variable",
+	"analysis_specification",
+	"qualitative_material",
+	"qualitative_segment",
+	"codebook_version",
+	"model_suggestion",
+	"coding_decision",
+	"theme_synthesis",
 	"task",
 	"operation",
 	"analysis_run",
@@ -154,6 +163,27 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 			});
 		}
 	};
+	const requireFile = async (file: FileRef, path: string): Promise<void> => {
+		try {
+			const filePath = await resolveProjectPath(opened.root, file.path);
+			const fileStat = await stat(filePath);
+			const fileHash = await hashFile(filePath);
+			if (
+				file.hash === null ||
+				file.bytes === null ||
+				fileStat.size !== file.bytes ||
+				fileHash.value !== file.hash.value
+			) {
+				throw new TypeError("file does not match its FileRef");
+			}
+		} catch (error) {
+			issues.push({
+				code: "INVALID_FILE_REFERENCE",
+				path,
+				message: error instanceof Error ? error.message : "File reference is invalid",
+			});
+		}
+	};
 
 	for (const taskId of opened.manifest.activeTaskIds)
 		requireRecord("task", taskId, "research-project.json#activeTaskIds");
@@ -177,6 +207,7 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 			.filter((id): id is string => id !== null),
 	);
 	const parsedDocuments = new Map<string, Awaited<ReturnType<typeof readParsedPdfDocument>>>();
+	const materialTexts = new Map<string, string>();
 
 	for (const [kind, kindRecords] of records) {
 		for (const [id, record] of kindRecords) {
@@ -511,6 +542,220 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 					if (record.supersedesProtocolId !== null)
 						requireRecord("protocol", record.supersedesProtocolId, `${path}#supersedesProtocolId`);
 					break;
+				case "dataset":
+					await requireFile(record.sourceFile, `${path}#sourceFile`);
+					for (const [position, variableId] of record.variableIds.entries()) {
+						requireRecord("variable", variableId, `${path}#variableIds`);
+						const variable = records.get("variable")?.get(variableId);
+						if (
+							variable?.kind === "variable" &&
+							(variable.datasetId !== record.datasetId || variable.position !== position)
+						) {
+							issues.push({
+								code: "DATASET_VARIABLE_MISMATCH",
+								path: `${path}#variableIds`,
+								message: `Variable ${variableId} does not match dataset column ${position}`,
+							});
+						}
+					}
+					break;
+				case "variable": {
+					requireRecord("dataset", record.datasetId, `${path}#datasetId`);
+					const dataset = records.get("dataset")?.get(record.datasetId);
+					if (dataset?.kind === "dataset" && dataset.variableIds[record.position] !== record.variableId) {
+						issues.push({
+							code: "VARIABLE_DATASET_MISMATCH",
+							path: `${path}#datasetId`,
+							message: "Variable is not indexed at its declared dataset position",
+						});
+					}
+					break;
+				}
+				case "analysis_specification":
+					if (record.protocolId !== null) {
+						if (record.status === "confirmed")
+							requireConfirmedDesign("protocol", record.protocolId, `${path}#protocolId`);
+						else requireRecord("protocol", record.protocolId, `${path}#protocolId`);
+					}
+					for (const datasetId of record.inputDatasetIds)
+						requireRecord("dataset", datasetId, `${path}#inputDatasetIds`);
+					await requireFile(record.script, `${path}#script`);
+					if (record.environmentFile !== null)
+						await requireFile(record.environmentFile, `${path}#environmentFile`);
+					for (const inputFile of record.inputFiles) await requireFile(inputFile, `${path}#inputFiles`);
+					break;
+				case "qualitative_material":
+					await requireFile(record.sourceFile, `${path}#sourceFile`);
+					break;
+				case "qualitative_segment": {
+					requireRecord("qualitative_material", record.qualitativeMaterialId, `${path}#qualitativeMaterialId`);
+					const material = records.get("qualitative_material")?.get(record.qualitativeMaterialId);
+					if (material?.kind === "qualitative_material") {
+						try {
+							let text = materialTexts.get(material.qualitativeMaterialId);
+							if (text === undefined) {
+								text = await readFile(await resolveProjectPath(opened.root, material.sourceFile.path), "utf8");
+								materialTexts.set(material.qualitativeMaterialId, text);
+							}
+							if (
+								text.slice(record.locator.charStart, record.locator.charEnd) !== record.text ||
+								hashBytes(record.text).value !== record.locator.anchorHash.value
+							) {
+								throw new TypeError("segment text or anchor no longer matches the source material");
+							}
+						} catch (error) {
+							issues.push({
+								code: "INVALID_QUALITATIVE_LOCATOR",
+								path: `${path}#locator`,
+								message: error instanceof Error ? error.message : "Qualitative locator is invalid",
+							});
+						}
+					}
+					break;
+				}
+				case "codebook_version":
+					if (record.supersedesCodebookVersionId !== null) {
+						requireRecord(
+							"codebook_version",
+							record.supersedesCodebookVersionId,
+							`${path}#supersedesCodebookVersionId`,
+						);
+						const previous = records.get("codebook_version")?.get(record.supersedesCodebookVersionId);
+						if (
+							previous?.kind === "codebook_version" &&
+							(previous.codebookSeriesId !== record.codebookSeriesId || previous.version + 1 !== record.version)
+						) {
+							issues.push({
+								code: "INVALID_CODEBOOK_VERSION_CHAIN",
+								path: `${path}#supersedesCodebookVersionId`,
+								message: "Codebook versions must advance by one within the same series",
+							});
+						}
+					}
+					break;
+				case "model_suggestion": {
+					requireRecord("qualitative_segment", record.qualitativeSegmentId, `${path}#qualitativeSegmentId`);
+					requireRecord("codebook_version", record.codebookVersionId, `${path}#codebookVersionId`);
+					requireRecord("operation", record.provenance.operationId, `${path}#provenance.operationId`);
+					const codebook = records.get("codebook_version")?.get(record.codebookVersionId);
+					if (
+						codebook?.kind === "codebook_version" &&
+						record.suggestedCodeIds.some((id) => !codebook.codes.some(({ codeId }) => codeId === id))
+					) {
+						issues.push({
+							code: "UNKNOWN_SUGGESTED_CODE",
+							path: `${path}#suggestedCodeIds`,
+							message: "Model suggestion references a code outside its codebook version",
+						});
+					}
+					break;
+				}
+				case "coding_decision": {
+					requireRecord("qualitative_segment", record.qualitativeSegmentId, `${path}#qualitativeSegmentId`);
+					requireRecord("codebook_version", record.codebookVersionId, `${path}#codebookVersionId`);
+					if (record.modelSuggestionId !== null)
+						requireRecord("model_suggestion", record.modelSuggestionId, `${path}#modelSuggestionId`);
+					if (record.supersedesCodingDecisionId !== null)
+						requireRecord(
+							"coding_decision",
+							record.supersedesCodingDecisionId,
+							`${path}#supersedesCodingDecisionId`,
+						);
+					const codebook = records.get("codebook_version")?.get(record.codebookVersionId);
+					if (
+						codebook?.kind === "codebook_version" &&
+						record.assignedCodeIds.some((id) => !codebook.codes.some(({ codeId }) => codeId === id))
+					) {
+						issues.push({
+							code: "UNKNOWN_ASSIGNED_CODE",
+							path: `${path}#assignedCodeIds`,
+							message: "Coding decision references a code outside its codebook version",
+						});
+					}
+					if (record.modelSuggestionId !== null) {
+						const suggestion = records.get("model_suggestion")?.get(record.modelSuggestionId);
+						if (
+							suggestion?.kind === "model_suggestion" &&
+							(suggestion.qualitativeSegmentId !== record.qualitativeSegmentId ||
+								suggestion.codebookVersionId !== record.codebookVersionId)
+						) {
+							issues.push({
+								code: "CODING_SUGGESTION_MISMATCH",
+								path: `${path}#modelSuggestionId`,
+								message: "Coding decision and model suggestion use different segment or codebook versions",
+							});
+						}
+					}
+					if (record.supersedesCodingDecisionId !== null) {
+						const previous = records.get("coding_decision")?.get(record.supersedesCodingDecisionId);
+						if (
+							previous?.kind === "coding_decision" &&
+							(previous.qualitativeSegmentId !== record.qualitativeSegmentId ||
+								previous.codebookVersionId !== record.codebookVersionId)
+						) {
+							issues.push({
+								code: "CODING_DECISION_SUCCESSION_MISMATCH",
+								path: `${path}#supersedesCodingDecisionId`,
+								message: "Coding decision revisions must retain the segment and codebook version",
+							});
+						}
+					}
+					break;
+				}
+				case "theme_synthesis": {
+					requireRecord("codebook_version", record.codebookVersionId, `${path}#codebookVersionId`);
+					for (const decisionId of record.codingDecisionIds)
+						requireRecord("coding_decision", decisionId, `${path}#codingDecisionIds`);
+					for (const theme of record.themes)
+						for (const segmentId of theme.qualitativeSegmentIds)
+							requireRecord("qualitative_segment", segmentId, `${path}#themes`);
+					if (record.supersedesThemeSynthesisId !== null)
+						requireRecord(
+							"theme_synthesis",
+							record.supersedesThemeSynthesisId,
+							`${path}#supersedesThemeSynthesisId`,
+						);
+					const themeCodebook = records.get("codebook_version")?.get(record.codebookVersionId);
+					const availableCodes = new Set(
+						themeCodebook?.kind === "codebook_version" ? themeCodebook.codes.map(({ codeId }) => codeId) : [],
+					);
+					const linkedSegments = new Set<string>();
+					for (const decisionId of record.codingDecisionIds) {
+						const decision = records.get("coding_decision")?.get(decisionId);
+						if (decision?.kind !== "coding_decision") continue;
+						linkedSegments.add(decision.qualitativeSegmentId);
+						if (decision.codebookVersionId !== record.codebookVersionId) {
+							issues.push({
+								code: "THEME_CODING_VERSION_MISMATCH",
+								path: `${path}#codingDecisionIds`,
+								message: "Theme synthesis and coding decisions must use the same codebook version",
+							});
+						}
+					}
+					for (const theme of record.themes) {
+						if (
+							theme.codeIds.some((id) => !availableCodes.has(id)) ||
+							theme.qualitativeSegmentIds.some((id) => !linkedSegments.has(id))
+						) {
+							issues.push({
+								code: "THEME_EVIDENCE_LINK_MISMATCH",
+								path: `${path}#themes`,
+								message: "Themes must use declared codes and segments with human coding decisions",
+							});
+						}
+					}
+					if (record.supersedesThemeSynthesisId !== null) {
+						const previous = records.get("theme_synthesis")?.get(record.supersedesThemeSynthesisId);
+						if (previous?.kind === "theme_synthesis" && previous.codebookVersionId !== record.codebookVersionId) {
+							issues.push({
+								code: "THEME_SUCCESSION_MISMATCH",
+								path: `${path}#supersedesThemeSynthesisId`,
+								message: "Theme synthesis revisions must retain the codebook version",
+							});
+						}
+					}
+					break;
+				}
 				case "task":
 					for (const dependencyId of record.dependencyTaskIds)
 						requireRecord("task", dependencyId, `${path}#dependencyTaskIds`);
@@ -524,6 +769,28 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 					break;
 				case "analysis_run":
 					requireRecord("task", record.taskId, `${path}#taskId`);
+					requireRecord(
+						"analysis_specification",
+						record.analysisSpecificationId,
+						`${path}#analysisSpecificationId`,
+					);
+					for (const input of record.inputs) await requireFile(input, `${path}#inputs`);
+					for (const output of record.outputs) await requireFile(output, `${path}#outputs`);
+					for (const log of record.logs) await requireFile(log, `${path}#logs`);
+					{
+						const specification = records.get("analysis_specification")?.get(record.analysisSpecificationId);
+						if (
+							specification?.kind === "analysis_specification" &&
+							(specification.runtime !== record.runtime.kind ||
+								!fileMatches(specification.script, record.script))
+						) {
+							issues.push({
+								code: "ANALYSIS_SPECIFICATION_MISMATCH",
+								path: `${path}#analysisSpecificationId`,
+								message: "Analysis run runtime or script differs from its specification",
+							});
+						}
+					}
 					break;
 				case "artifact": {
 					requireRecord("operation", record.generator.operationId, `${path}#generator.operationId`);

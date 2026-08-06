@@ -1,0 +1,52 @@
+{
+  "status": "passed",
+  "model": "deepseek-v4-flash",
+  "thinkingLevel": "low",
+  "modelInvocationCount": 2,
+  "input": {
+    "promptSha256": "6247a3fd59c93bf014a7a83e872d9f106b6c659c8ac13813ee476cee32d5b4bc",
+    "rubricSha256": "f6c8afa4ca5a0ccd81d1a9076e337c0c0b68d3fa3cb0ef84e6b4a28a378327d8",
+    "quantitativeSkillSha256": "9f9366ee7dc54a409a6a380bd266b4d1e15d9ee74698a79f52cc6bd76c66d677",
+    "qualitativeSkillSha256": "395a932f50b7cf1ffb63ed36498d801b4352df64b0dd5d2c31a5f85910e4dec7"
+  },
+  "execution": {
+    "turns": 2,
+    "totalCostUsd": 0.063315,
+    "inputTokens": 2195,
+    "outputTokens": 1212,
+    "webSearchRequests": 0,
+    "webFetchRequests": 0
+  },
+  "result": {
+    "taskClass": "data_and_methods",
+    "quantitativeTool": "research_analysis",
+    "qualitativeTool": "research_qualitative",
+    "nextQuantitativeAction": "import_dataset",
+    "nextQualitativeAction": "import_material",
+    "claimMode": "associational",
+    "analysisMayRunNow": false,
+    "codingMayBeAcceptedAutomatically": false,
+    "requiredWarnings": [
+      "Choosing a model solely because it yields a significant coefficient is specification search (p-hacking); the specification must be selected on a priori, protocol-aligned grounds.",
+      "The confirmed protocol is associational; findings may not be written, framed, or described as causal without an explicitly justified identification strategy and assumptions.",
+      "No analysis specification or codebook is confirmed; nothing may execute until the user explicitly confirms the frozen specification and codebook.",
+      "The exact executable, arguments, working directory, inputs, and approval boundary must be shown and approved before any run; Stata additionally requires commercial-runtime approval.",
+      "Model coding suggestions are proposals only, never automatic decisions; every coding decision and theme requires explicit human acceptance, editing, or rejection.",
+      "Raw inputs (the synthetic CSV and de-identified interview text) are immutable and must never be edited, overwritten, or silently resegmented; only copied inputs are used.",
+      "Missing packages, runtimes, or dependencies must be reported as failures and never installed or substituted silently.",
+      "Confirm the material is authorized for local research use and de-identified, and do not send confidential or restricted material to a model where project policy forbids egress."
+    ],
+    "stopCondition": "Stop until the analysis specification and codebook are explicitly confirmed, execution and human coding approvals are granted, and no claims are written as causal."
+  },
+  "resultSha256": "3304a98a965bf9109a8ed797caeb0a8b6a9b54fd20e1e5b9a8a63fa0173d440a",
+  "checks": {
+    "exactModelRequested": true,
+    "boundedStructuredOutputTurns": true,
+    "correctRouting": true,
+    "importsFirst": true,
+    "associationalBoundary": true,
+    "confirmationStopsRun": true,
+    "humanDecisionRequired": true,
+    "warningInventory": true
+  }
+}

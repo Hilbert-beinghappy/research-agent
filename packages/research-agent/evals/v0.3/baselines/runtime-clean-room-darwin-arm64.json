@@ -1,0 +1,46 @@
+{
+  "qualification": "pi-research-agent-v0.3-runtime-clean-room",
+  "generatedAt": "2026-08-06T19:39:48.730Z",
+  "schemaVersion": "0.3.0",
+  "platform": "darwin-arm64",
+  "node": "v24.14.0",
+  "runtimes": [
+    {
+      "runtime": "python",
+      "executable": "/usr/bin/python3",
+      "runtimeVersion": "Python 3.9.6",
+      "runs": 3,
+      "outputHashes": [
+        "6a0983a9f8a3201bd59a0bb55b5f20d2e238265bce344787b82f44f176f4881a",
+        "6a0983a9f8a3201bd59a0bb55b5f20d2e238265bce344787b82f44f176f4881a",
+        "6a0983a9f8a3201bd59a0bb55b5f20d2e238265bce344787b82f44f176f4881a"
+      ],
+      "uniqueOutputHashes": 1,
+      "runIdsRetained": 3,
+      "inputMutations": 0,
+      "projectValid": true
+    },
+    {
+      "runtime": "r",
+      "executable": "/opt/homebrew/bin/Rscript",
+      "runtimeVersion": "Rscript (R) version 4.5.3 (2026-03-11)",
+      "runs": 3,
+      "outputHashes": [
+        "6a0983a9f8a3201bd59a0bb55b5f20d2e238265bce344787b82f44f176f4881a",
+        "6a0983a9f8a3201bd59a0bb55b5f20d2e238265bce344787b82f44f176f4881a",
+        "6a0983a9f8a3201bd59a0bb55b5f20d2e238265bce344787b82f44f176f4881a"
+      ],
+      "uniqueOutputHashes": 1,
+      "runIdsRetained": 3,
+      "inputMutations": 0,
+      "projectValid": true
+    }
+  ],
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

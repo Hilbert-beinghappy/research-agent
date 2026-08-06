@@ -156,6 +156,25 @@ function updatedRecord(
 	return validation.value;
 }
 
+function validatedNewRecord(record: ProjectRecord, operationId: string): ProjectRecord {
+	const validation = validatePersistedRecord(record);
+	if (!validation.ok || validation.value.kind === "research_project_manifest") {
+		throw new TypeError("Record does not satisfy the persisted contract");
+	}
+	const created = validation.value;
+	if (projectRecordRevision(created) !== 0) throw new TypeError("New record must start at revision 0");
+	if (
+		created.kind !== "task" &&
+		(created.audit.createdByOperationId !== operationId || created.audit.updatedByOperationId !== operationId)
+	) {
+		throw new TypeError("New record audit must reference the creating operation");
+	}
+	if (created.kind === "task" && !created.operationIds.includes(operationId)) {
+		throw new TypeError("New task must reference the creating operation");
+	}
+	return created;
+}
+
 async function commitRecordChanges(
 	projectRoot: string,
 	manifest: ResearchProjectManifest,
@@ -217,26 +236,9 @@ export async function createRecord(
 		if (!isOpaqueId(input.operationId, "operation"))
 			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
-		const validation = validatePersistedRecord(record);
-		if (!validation.ok || validation.value.kind === "research_project_manifest") {
-			throw new TypeError("Record does not satisfy the persisted contract");
-		}
-		const validatedRecord = validation.value;
+		const validatedRecord = validatedNewRecord(record, input.operationId);
 		const id = projectRecordId(validatedRecord);
 		projectRecordPath(manifest, validatedRecord.kind, id);
-		if (projectRecordRevision(validatedRecord) !== 0) {
-			throw new TypeError("New record must start at revision 0");
-		}
-		if (
-			validatedRecord.kind !== "task" &&
-			(validatedRecord.audit.createdByOperationId !== input.operationId ||
-				validatedRecord.audit.updatedByOperationId !== input.operationId)
-		) {
-			throw new TypeError("New record audit must start at revision 0 and reference the creating operation");
-		}
-		if (validatedRecord.kind === "task" && !validatedRecord.operationIds.includes(input.operationId)) {
-			throw new TypeError("New task must reference the creating operation");
-		}
 		const content = `${canonicalStringify(validatedRecord)}\n`;
 		await commitRecordChanges(
 			projectRoot,
@@ -253,6 +255,38 @@ export async function createRecord(
 			input.operationId,
 		);
 		return successResult({ kind: validatedRecord.kind, id, revision: 0 }, input.operationId);
+	} catch (error) {
+		return failureFromError(error, input.operationId);
+	}
+}
+
+export async function createRecords(
+	projectRoot: string,
+	records: readonly ProjectRecord[],
+	input: RecordMutationInput,
+): Promise<ResearchResult<RecordRef[]>> {
+	try {
+		if (!isOpaqueId(input.operationId, "operation"))
+			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+		if (records.length === 0) throw new TypeError("Record transaction cannot be empty");
+		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
+		const created = records.map((record) => validatedNewRecord(record, input.operationId));
+		const changes = created.map((record) => {
+			const id = projectRecordId(record);
+			projectRecordPath(manifest, record.kind, id);
+			return {
+				record,
+				kind: record.kind,
+				id,
+				content: `${canonicalStringify(record)}\n`,
+				expectedHash: null,
+			};
+		});
+		await commitRecordChanges(projectRoot, manifest, changes, input.operationId);
+		return successResult(
+			created.map((record) => ({ kind: record.kind, id: projectRecordId(record), revision: 0 })),
+			input.operationId,
+		);
 	} catch (error) {
 		return failureFromError(error, input.operationId);
 	}
@@ -350,23 +384,8 @@ export async function createRecordWithUpdate(
 		if (!isOpaqueId(input.operationId, "operation"))
 			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
-		const validation = validatePersistedRecord(record);
-		if (!validation.ok || validation.value.kind === "research_project_manifest") {
-			throw new TypeError("Record does not satisfy the persisted contract");
-		}
-		const created = validation.value;
+		const created = validatedNewRecord(record, input.operationId);
 		const createdId = projectRecordId(created);
-		if (projectRecordRevision(created) !== 0) throw new TypeError("New record must start at revision 0");
-		if (
-			created.kind !== "task" &&
-			(created.audit.createdByOperationId !== input.operationId ||
-				created.audit.updatedByOperationId !== input.operationId)
-		) {
-			throw new TypeError("New record audit must reference the creating operation");
-		}
-		if (created.kind === "task" && !created.operationIds.includes(input.operationId)) {
-			throw new TypeError("New task must reference the creating operation");
-		}
 		const loaded = await loadRecord(projectRoot, manifest, update.kind, update.id);
 		const currentRevision = projectRecordRevision(loaded.record);
 		if (currentRevision !== update.expectedRecordRevision) {

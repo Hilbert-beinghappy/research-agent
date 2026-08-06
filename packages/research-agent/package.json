@@ -1,6 +1,6 @@
 {
 	"name": "pi-research-agent",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Local-first, evidence-first research workflows for Pi",
 	"type": "module",
 	"exports": {
@@ -36,11 +36,14 @@
 	"scripts": {
 		"benchmark:v0.1": "node scripts/benchmark-v0.1.ts",
 		"benchmark:v0.2": "node scripts/benchmark-v0.2.ts",
+		"benchmark:v0.3": "node scripts/benchmark-v0.3.ts",
 		"check": "biome check extensions src scripts test vitest.config.ts && tsgo --noEmit -p tsconfig.json",
 		"generate:release-metadata": "node scripts/generate-release-metadata.ts",
 		"generate:schemas": "node scripts/generate-schemas.ts",
 		"eval": "node scripts/evaluate-v0.1.ts",
 		"eval:v0.2": "node scripts/evaluate-v0.2.ts",
+		"eval:v0.3": "node scripts/evaluate-v0.3.ts",
+		"qualify:runtimes:v0.3": "node scripts/qualify-v0.3-runtimes.ts",
 		"test:unit": "vitest run test/unit test/contracts",
 		"test:integration": "vitest run --dir test/integration",
 		"test:e2e": "vitest run --dir test/e2e",

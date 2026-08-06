@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomUUID } from "node:crypto";
-import { copyFile, mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
+import { copyFile, lstat, mkdir, open, readdir, readFile, realpath, rename, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import type { HashValue, JsonValue, ResearchProjectManifest } from "../contracts/schemas.ts";
 import { validatePersistedRecord } from "../contracts/validators.ts";
@@ -42,6 +43,24 @@ type TransactionFileState = "old" | "new" | "other";
 const PENDING_DIRECTORY = ".research/transactions/pending";
 const COMMITTED_DIRECTORY = ".research/transactions/committed";
 const FAILED_DIRECTORY = ".research/transactions/failed";
+const TRANSACTION_IO_BATCH_SIZE = 512;
+
+async function transactionPathResolver(projectRoot: string): Promise<(path: string) => Promise<string>> {
+	const canonicalRoot = await realpath(projectRoot);
+	const directories = new Map<string, Promise<string>>([["", Promise.resolve(canonicalRoot)]]);
+	return async (path) => {
+		const segments = validateProjectRelativePath(path).split("/");
+		const fileName = segments.pop();
+		if (fileName === undefined) throw new TypeError(`Invalid transaction path: ${path}`);
+		const parentPath = segments.join("/");
+		let parent = directories.get(parentPath);
+		if (parent === undefined) {
+			parent = resolveProjectPath(canonicalRoot, parentPath);
+			directories.set(parentPath, parent);
+		}
+		return join(await parent, fileName);
+	};
+}
 
 export async function listPendingProjectTransactions(projectRoot: string): Promise<string[]> {
 	const entries = await readdir(await resolveProjectPath(projectRoot, PENDING_DIRECTORY), { withFileTypes: true });
@@ -75,8 +94,11 @@ function hashFromJson(value: JsonValue | undefined): HashValue | null | undefine
 	return { algorithm: "sha256", value: value.value };
 }
 
-async function existingHash(path: string): Promise<HashValue | null> {
+async function existingHash(path: string, rejectSymbolicLink = true): Promise<HashValue | null> {
 	try {
+		if (rejectSymbolicLink && (await lstat(path)).isSymbolicLink()) {
+			throw new TypeError(`Transaction target is a symbolic link: ${path}`);
+		}
 		return await hashFile(path);
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
@@ -84,8 +106,12 @@ async function existingHash(path: string): Promise<HashValue | null> {
 	}
 }
 
-async function fileState(path: string, entry: TransactionEntry): Promise<TransactionFileState> {
-	const currentHash = await existingHash(path);
+async function fileState(
+	path: string,
+	entry: TransactionEntry,
+	alreadyValidatedRegularFile = false,
+): Promise<TransactionFileState> {
+	const currentHash = await existingHash(path, !alreadyValidatedRegularFile);
 	if ((currentHash === null && entry.newHash === null) || currentHash?.value === entry.newHash?.value) return "new";
 	if (currentHash?.value === entry.oldHash?.value || (currentHash === null && entry.oldHash === null)) return "old";
 	return "other";
@@ -173,12 +199,19 @@ export async function prepareProjectTransaction(projectRoot: string, input: Proj
 		throw new TypeError("Transaction writes cannot target the manifest or transaction workspace directly");
 	}
 	validatePortablePathSet([...paths, PROJECT_MANIFEST_PATH]);
-	for (const write of input.writes) {
-		if (write.expectedHash === undefined) continue;
-		const oldHash = await existingHash(await resolveProjectPath(projectRoot, write.path));
-		if (write.expectedHash?.value !== oldHash?.value) {
-			throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
-		}
+	const resolveTransactionPath = await transactionPathResolver(projectRoot);
+	const preflightHashes = new Map<string, HashValue | null>();
+	for (let offset = 0; offset < input.writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
+		await Promise.all(
+			input.writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE).map(async (write) => {
+				if (write.expectedHash === undefined) return;
+				const oldHash = await existingHash(await resolveTransactionPath(write.path));
+				preflightHashes.set(write.path, oldHash);
+				if (write.expectedHash?.value !== oldHash?.value) {
+					throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
+				}
+			}),
+		);
 	}
 
 	const transactionId = `tx_${randomUUID()}`;
@@ -190,31 +223,43 @@ export async function prepareProjectTransaction(projectRoot: string, input: Proj
 		{ path: PROJECT_MANIFEST_PATH, content: `${canonicalStringify(input.manifest)}\n` },
 	];
 	const entries: TransactionEntry[] = [];
-
-	for (const [index, write] of writes.entries()) {
-		const target = await resolveProjectPath(projectRoot, write.path);
-		const oldHash = await existingHash(target);
-		if (write.expectedHash !== undefined && write.expectedHash?.value !== oldHash?.value) {
-			throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
-		}
-		if (oldHash !== null) {
-			const backup = await resolveProjectPath(projectRoot, `${directory}/backups/${index}.bin`);
-			await copyFile(target, backup);
-			const backupFile = await open(backup, "r+");
-			try {
-				await backupFile.sync();
-			} finally {
-				await backupFile.close();
-			}
-			if ((await hashFile(backup)).value !== oldHash.value) throw new Error(`Backup hash mismatch: ${write.path}`);
-		}
-		let newHash: HashValue | null = null;
-		if (write.content !== null) {
-			const staged = await resolveProjectPath(projectRoot, `${directory}/staged/${index}.bin`);
-			await atomicWriteFile(staged, write.content);
-			newHash = await hashFile(staged);
-		}
-		entries.push({ path: write.path, oldHash, newHash });
+	for (let offset = 0; offset < writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
+		const batch = writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
+		entries.push(
+			...(await Promise.all(
+				batch.map(async (write, batchIndex): Promise<TransactionEntry> => {
+					const index = offset + batchIndex;
+					const target = await resolveTransactionPath(write.path);
+					const oldHash =
+						write.expectedHash === null && preflightHashes.has(write.path)
+							? (preflightHashes.get(write.path) ?? null)
+							: await existingHash(target);
+					if (write.expectedHash !== undefined && write.expectedHash?.value !== oldHash?.value) {
+						throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
+					}
+					if (oldHash !== null) {
+						const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
+						await copyFile(target, backup);
+						const backupFile = await open(backup, "r+");
+						try {
+							await backupFile.sync();
+						} finally {
+							await backupFile.close();
+						}
+						if ((await hashFile(backup)).value !== oldHash.value) {
+							throw new Error(`Backup hash mismatch: ${write.path}`);
+						}
+					}
+					let newHash: HashValue | null = null;
+					if (write.content !== null) {
+						const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+						await atomicWriteFile(staged, write.content);
+						newHash = await hashFile(staged);
+					}
+					return { path: write.path, oldHash, newHash };
+				}),
+			)),
+		);
 	}
 
 	const journal: TransactionJournal = {
@@ -234,8 +279,9 @@ export async function prepareProjectTransaction(projectRoot: string, input: Proj
 export async function commitPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
+	const resolveTransactionPath = await transactionPathResolver(projectRoot);
 	const states = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveProjectPath(projectRoot, entry.path), entry)),
+		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
 	if (states.at(-1) === "new") {
@@ -246,21 +292,39 @@ export async function commitPreparedTransaction(projectRoot: string, transaction
 	}
 	await openProject(projectRoot, journal.expectedRevision);
 
-	for (const [index, entry] of journal.entries.entries()) {
-		if (states[index] === "new") continue;
-		const target = await resolveProjectPath(projectRoot, entry.path);
-		if (entry.newHash === null) {
-			await rm(target, { force: true });
-			continue;
-		}
-		const staged = await resolveProjectPath(projectRoot, `${directory}/staged/${index}.bin`);
-		if ((await hashFile(staged)).value !== entry.newHash.value) {
-			throw new Error(`Staged hash mismatch: ${entry.path}`);
+	const manifestIndex = journal.entries.length - 1;
+	for (let offset = 0; offset < manifestIndex; offset += TRANSACTION_IO_BATCH_SIZE) {
+		const batch = journal.entries.slice(offset, Math.min(offset + TRANSACTION_IO_BATCH_SIZE, manifestIndex));
+		await Promise.all(
+			batch.map(async (entry, batchIndex) => {
+				const index = offset + batchIndex;
+				if (states[index] === "new") return;
+				const target = await resolveTransactionPath(entry.path);
+				if (entry.newHash === null) {
+					await rm(target, { force: true });
+					return;
+				}
+				const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+				if ((await hashFile(staged)).value !== entry.newHash.value) {
+					throw new Error(`Staged hash mismatch: ${entry.path}`);
+				}
+				await atomicWriteFile(target, await readFile(staged));
+			}),
+		);
+	}
+	const manifestEntry = journal.entries[manifestIndex];
+	if (manifestEntry === undefined) throw new Error(`Transaction manifest is missing: ${transactionId}`);
+	if (states[manifestIndex] !== "new") {
+		if (manifestEntry.newHash === null) throw new Error(`Transaction manifest cannot be deleted: ${transactionId}`);
+		const target = await resolveTransactionPath(manifestEntry.path);
+		const staged = await resolveTransactionPath(`${directory}/staged/${manifestIndex}.bin`);
+		if ((await hashFile(staged)).value !== manifestEntry.newHash.value) {
+			throw new Error(`Staged hash mismatch: ${manifestEntry.path}`);
 		}
 		await atomicWriteFile(target, await readFile(staged));
 	}
 	const finalStates = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveProjectPath(projectRoot, entry.path), entry)),
+		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry, true)),
 	);
 	if (finalStates.some((state) => state !== "new"))
 		throw new Error(`Transaction commit verification failed: ${transactionId}`);
@@ -270,8 +334,9 @@ export async function commitPreparedTransaction(projectRoot: string, transaction
 export async function rollbackPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
+	const resolveTransactionPath = await transactionPathResolver(projectRoot);
 	const states = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveProjectPath(projectRoot, entry.path), entry)),
+		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
 	if (states.at(-1) === "new") throw new Error(`Cannot roll back committed transaction: ${transactionId}`);
@@ -280,11 +345,11 @@ export async function rollbackPreparedTransaction(projectRoot: string, transacti
 		if (states[index] === "old") continue;
 		const entry = journal.entries[index];
 		if (entry === undefined) throw new Error(`Transaction entry missing: ${transactionId}`);
-		const target = await resolveProjectPath(projectRoot, entry.path);
+		const target = await resolveTransactionPath(entry.path);
 		if (entry.oldHash === null) {
 			await rm(target, { force: true });
 		} else {
-			const backup = await resolveProjectPath(projectRoot, `${directory}/backups/${index}.bin`);
+			const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
 			if ((await hashFile(backup)).value !== entry.oldHash.value) {
 				throw new Error(`Backup hash mismatch: ${entry.path}`);
 			}
@@ -292,7 +357,7 @@ export async function rollbackPreparedTransaction(projectRoot: string, transacti
 		}
 	}
 	const finalStates = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveProjectPath(projectRoot, entry.path), entry)),
+		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry, true)),
 	);
 	if (finalStates.some((state) => state !== "old"))
 		throw new Error(`Transaction rollback verification failed: ${transactionId}`);

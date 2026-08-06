@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "0.3.0",
+  "status": "passed",
+  "segments": 3,
+  "stableLocators": 3,
+  "modelSuggestions": 3,
+  "humanDecisions": {
+    "accepted": 1,
+    "edited": 2,
+    "rejected": 1,
+    "supersededRetained": 1
+  },
+  "negativeCases": 1,
+  "themeVersionsRetained": 2,
+  "modelOverwroteHumanDecision": false,
+  "sourceTest": "test/integration/qualitative-workbench.test.ts"
+}

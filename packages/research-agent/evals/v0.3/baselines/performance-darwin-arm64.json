@@ -1,0 +1,47 @@
+{
+  "benchmark": "pi-research-agent-v0.3",
+  "generatedAt": "2026-08-06T20:15:39.722Z",
+  "schemaVersion": "0.3.0",
+  "platform": "darwin-arm64",
+  "node": "v24.14.0",
+  "fixture": {
+    "rows": 1000,
+    "variables": 8,
+    "segments": 1000
+  },
+  "results": {
+    "dataImportAndDictionary": {
+      "samples": 5,
+      "measurementsMs": [
+        96.065,
+        91.307,
+        92.816,
+        90.218,
+        92.868
+      ],
+      "p95Ms": 96.065,
+      "thresholdMs": 5000,
+      "passed": true
+    },
+    "qualitativeSegmentIndex": {
+      "samples": 5,
+      "measurementsMs": [
+        4302.716,
+        4255.877,
+        4255.422,
+        4309.39,
+        4291.245
+      ],
+      "p95Ms": 4309.39,
+      "thresholdMs": 5000,
+      "passed": true
+    }
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

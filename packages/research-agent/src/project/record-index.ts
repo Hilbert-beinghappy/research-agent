@@ -36,6 +36,24 @@ export function projectRecordId(record: ProjectRecord): string {
 			return record.designDecisionId;
 		case "protocol":
 			return record.protocolId;
+		case "dataset":
+			return record.datasetId;
+		case "variable":
+			return record.variableId;
+		case "analysis_specification":
+			return record.analysisSpecificationId;
+		case "qualitative_material":
+			return record.qualitativeMaterialId;
+		case "qualitative_segment":
+			return record.qualitativeSegmentId;
+		case "codebook_version":
+			return record.codebookVersionId;
+		case "model_suggestion":
+			return record.modelSuggestionId;
+		case "coding_decision":
+			return record.codingDecisionId;
+		case "theme_synthesis":
+			return record.themeSynthesisId;
 		case "task":
 			return record.taskId;
 		case "operation":
@@ -75,6 +93,24 @@ export function projectRecordIdField(kind: RecordKind): string {
 			return "designDecisionId";
 		case "protocol":
 			return "protocolId";
+		case "dataset":
+			return "datasetId";
+		case "variable":
+			return "variableId";
+		case "analysis_specification":
+			return "analysisSpecificationId";
+		case "qualitative_material":
+			return "qualitativeMaterialId";
+		case "qualitative_segment":
+			return "qualitativeSegmentId";
+		case "codebook_version":
+			return "codebookVersionId";
+		case "model_suggestion":
+			return "modelSuggestionId";
+		case "coding_decision":
+			return "codingDecisionId";
+		case "theme_synthesis":
+			return "themeSynthesisId";
 		case "task":
 			return "taskId";
 		case "operation":

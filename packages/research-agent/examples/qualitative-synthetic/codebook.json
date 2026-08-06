@@ -1,0 +1,19 @@
+{
+  "title": "Explanation and trust codebook",
+  "codes": [
+    {
+      "codeId": "trust",
+      "label": "Trust",
+      "definition": "The participant explicitly links an explanation to increased institutional trust.",
+      "inclusionCriteria": ["Explicit positive trust statement"],
+      "exclusionCriteria": ["Visibility or comprehension without a trust statement"]
+    },
+    {
+      "codeId": "skepticism",
+      "label": "Skepticism",
+      "definition": "The participant doubts the adequacy, fairness, or usefulness of the explanation or decision.",
+      "inclusionCriteria": ["Explicit doubt, dissatisfaction, or rejection"],
+      "exclusionCriteria": ["Unqualified positive trust"]
+    }
+  ]
+}

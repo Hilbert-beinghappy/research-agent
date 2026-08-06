@@ -1,4 +1,4 @@
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -223,6 +223,7 @@ function createHarness(
 			cwd,
 			hasUI: true,
 			mode: "tui",
+			model: { provider: "deepseek", id: "deepseek-v4-flash" },
 			signal: new AbortController().signal,
 			ui: {
 				notify,
@@ -874,5 +875,54 @@ describe("research tools", () => {
 				designAwaitingConfirmation: [{ kind: "research_question_version", id: pendingId, revision: 1 }],
 			},
 		});
+	});
+
+	it("blocks qualitative source text before model egress", async () => {
+		temporaryDirectory = join(tmpdir(), `pi-research-tools-qualitative-policy-${crypto.randomUUID()}`);
+		const sourceText = "Confidential participant statement.\n\nA second confidential statement.";
+		const sourcePath = join(temporaryDirectory, "interview.txt");
+		const harness = createHarness(createRecordedHttpTransport([]));
+		const ctx = harness.context(temporaryDirectory);
+		await harness.commands.get("research-init")?.("Qualitative Policy Fixture", ctx);
+		await writeFile(sourcePath, sourceText, "utf8");
+		await harness.commands.get("research-policy")?.(
+			'set {"allowedDataClassesForModelEgress":["bibliographic_metadata"]}',
+			ctx,
+		);
+
+		let opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const imported = await callTool(
+			harness,
+			"research_qualitative",
+			{
+				action: "import_material",
+				expectedRevision: opened.manifest.revision,
+				path: sourcePath,
+				title: "Restricted interview",
+				sensitivity: "confidential",
+				deidentified: false,
+			},
+			ctx,
+		);
+		expect(imported).toMatchObject({ ok: true });
+		const qualitativeMaterialId = object(imported.value).qualitativeMaterialId;
+		if (typeof qualitativeMaterialId !== "string") throw new Error("Missing qualitative material ID");
+
+		opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		for (const params of [
+			{ action: "segment_material", expectedRevision: opened.manifest.revision, qualitativeMaterialId },
+			{ action: "audit", expectedRevision: opened.manifest.revision },
+		]) {
+			const blocked = await callTool(harness, "research_qualitative", params, ctx);
+			expect(blocked).toMatchObject({
+				ok: false,
+				status: "PERMISSION_BLOCKED",
+				errors: [{ code: "MODEL_EGRESS_DENIED" }],
+			});
+			expect(JSON.stringify(blocked)).not.toContain("Confidential participant statement");
+		}
+		expect(await listProjectRecordIds(opened.root, opened.manifest, "qualitative_segment")).toEqual([]);
 	});
 });

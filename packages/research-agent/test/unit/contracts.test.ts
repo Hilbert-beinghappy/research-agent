@@ -288,6 +288,7 @@ const analysis = {
 	kind: "analysis_run",
 	schemaVersion: RESEARCH_SCHEMA_VERSION,
 	analysisRunId: "run_1",
+	analysisSpecificationId: "spec_1",
 	taskId: "task_1",
 	runtime: {
 		kind: "python",
@@ -304,6 +305,8 @@ const analysis = {
 	parameters: null,
 	randomSeed: null,
 	commandArguments: [],
+	workingDirectory: ".research/runs/run_1",
+	inputIntegrity: [],
 	outputs: [],
 	logs: [],
 	status: "planned",
@@ -384,7 +387,7 @@ function expectIssue(value: unknown, code: string): void {
 	if (!result.ok) expect(result.issues.map((entry) => entry.code)).toContain(code);
 }
 
-describe("v0.2 persisted contracts", () => {
+describe("v0.3 persisted contracts", () => {
 	it.each(validRecords.map((record) => [record.kind, record]))("validates %s", (_kind, record) => {
 		expect(validatePersistedRecord(record)).toMatchObject({ ok: true, value: record, issues: [] });
 	});
@@ -551,7 +554,7 @@ describe("v0.2 persisted contracts", () => {
 	});
 
 	it("keeps committed JSON schemas generated from TypeBox", async () => {
-		const schemaDir = fileURLToPath(new URL("../../schemas/v0.2/", import.meta.url));
+		const schemaDir = fileURLToPath(new URL("../../schemas/v0.3/", import.meta.url));
 		const persisted = JSON.parse(await readFile(`${schemaDir}persisted-record.schema.json`, "utf8"));
 		const result = JSON.parse(await readFile(`${schemaDir}research-result.schema.json`, "utf8"));
 		const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
@@ -560,7 +563,7 @@ describe("v0.2 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent persisted record v0.2",
+					title: "Pi Research Agent persisted record v0.3",
 					...PersistedRecordSchema,
 				}),
 			),
@@ -569,7 +572,7 @@ describe("v0.2 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent result v0.2",
+					title: "Pi Research Agent result v0.3",
 					...JsonResearchResultSchema,
 				}),
 			),

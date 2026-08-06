@@ -4,25 +4,33 @@ import { Compile } from "typebox/compile";
 import { canonicalizeJson } from "./canonical-json.ts";
 import {
 	type AnalysisRun,
+	type AnalysisSpecification,
 	type ApprovalRecord,
 	type ArtifactRecord,
 	type CitationVerification,
 	type ClaimRecord,
+	type CodebookVersion,
+	type CodingDecision,
 	type ConceptRecord,
+	type DatasetRecord,
 	type DesignDecision,
 	type DocumentRecord,
 	type EvidenceCard,
 	type FileRef,
 	type JsonResearchResult,
 	JsonResearchResultSchema,
+	type ModelSuggestion,
 	type OperationRecord,
 	type PersistedRecord,
 	PersistedRecordSchema,
 	type ProtocolRecord,
+	type QualitativeMaterial,
+	type QualitativeSegment,
 	type ResearchProjectManifest,
 	type ResearchQuestionVersion,
 	type ResearchTask,
 	type SourceRecord,
+	type ThemeSynthesis,
 	type TheoryRelation,
 } from "./schemas.ts";
 
@@ -418,7 +426,9 @@ type ReviewableDesignRecord =
 	| DesignDecision
 	| ProtocolRecord;
 
-function designReviewIssues(record: ReviewableDesignRecord): ContractIssue[] {
+type ConfirmableRecord = Pick<ReviewableDesignRecord, "status" | "confirmation">;
+
+function confirmationIssues(record: ConfirmableRecord): ContractIssue[] {
 	const issues: ContractIssue[] = [];
 	const { confirmation } = record;
 	if (record.status === "draft" || record.status === "awaiting_confirmation") {
@@ -449,6 +459,11 @@ function designReviewIssues(record: ReviewableDesignRecord): ContractIssue[] {
 			);
 		}
 	}
+	return issues;
+}
+
+function designReviewIssues(record: ReviewableDesignRecord): ContractIssue[] {
+	const issues = confirmationIssues(record);
 	if (record.status === "confirmed") {
 		const hasOperation = record.basis.provenance.some(({ kind }) => kind === "operation");
 		const hasEvidence = record.basis.provenance.some(({ kind }) => kind === "evidence" || kind === "claim");
@@ -585,6 +600,169 @@ function protocolIssues(record: ProtocolRecord): ContractIssue[] {
 	return issues;
 }
 
+function datasetIssues(record: DatasetRecord): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (!completeFile(record.sourceFile)) {
+		issues.push(
+			issue("sourceFile", "dataset.source_incomplete", "dataset source requires hash, media type, and byte size"),
+		);
+	}
+	if (!record.immutableOriginal) {
+		issues.push(issue("immutableOriginal", "dataset.mutable_original", "imported dataset must be immutable"));
+	}
+	if (
+		record.columnCount !== record.variableIds.length ||
+		new Set(record.variableIds).size !== record.variableIds.length
+	) {
+		issues.push(
+			issue("variableIds", "dataset.variable_index_invalid", "dataset columns require one unique variable ID each"),
+		);
+	}
+	if (!Number.isFinite(Date.parse(record.importedAt))) {
+		issues.push(issue("importedAt", "dataset.import_time_invalid", "dataset import time must be an ISO date-time"));
+	}
+	return issues;
+}
+
+function analysisSpecificationIssues(record: AnalysisSpecification): ContractIssue[] {
+	const issues = confirmationIssues(record);
+	if (
+		!completeFile(record.script) ||
+		(record.environmentFile !== null && !completeFile(record.environmentFile)) ||
+		record.inputFiles.some((file) => !completeFile(file))
+	) {
+		issues.push(
+			issue(
+				"inputFiles",
+				"analysis_specification.file_integrity_missing",
+				"analysis specifications require hashed script and input files",
+			),
+		);
+	}
+	if (new Set(record.expectedOutputs).size !== record.expectedOutputs.length) {
+		issues.push(
+			issue("expectedOutputs", "analysis_specification.duplicate_output", "expected output paths must be unique"),
+		);
+	}
+	if (
+		new Set(record.inputDatasetIds).size !== record.inputDatasetIds.length ||
+		new Set(record.inputFiles.map(({ path }) => path)).size !== record.inputFiles.length
+	) {
+		issues.push(
+			issue(
+				"inputDatasetIds",
+				"analysis_specification.duplicate_input",
+				"analysis dataset and file inputs must be unique",
+			),
+		);
+	}
+	return issues;
+}
+
+function qualitativeMaterialIssues(record: QualitativeMaterial): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (!completeFile(record.sourceFile)) {
+		issues.push(
+			issue(
+				"sourceFile",
+				"qualitative_material.source_incomplete",
+				"material source requires complete file metadata",
+			),
+		);
+	}
+	if (!record.immutableOriginal) {
+		issues.push(
+			issue("immutableOriginal", "qualitative_material.mutable_original", "imported material must be immutable"),
+		);
+	}
+	return issues;
+}
+
+function qualitativeSegmentIssues(record: QualitativeSegment): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (
+		record.locator.charEnd <= record.locator.charStart ||
+		record.locator.charEnd - record.locator.charStart !== record.text.length
+	) {
+		issues.push(
+			issue(
+				"locator",
+				"qualitative_segment.locator_invalid",
+				"segment locator must be a half-open character range matching the stored text",
+			),
+		);
+	}
+	return issues;
+}
+
+function codebookIssues(record: CodebookVersion): ContractIssue[] {
+	const issues = confirmationIssues(record);
+	const codeIds = record.codes.map(({ codeId }) => codeId);
+	if (new Set(codeIds).size !== codeIds.length) {
+		issues.push(issue("codes", "codebook.duplicate_code", "code IDs must be unique within a version"));
+	}
+	if (
+		(record.version === 1 && record.supersedesCodebookVersionId !== null) ||
+		(record.version > 1 && record.supersedesCodebookVersionId === null)
+	) {
+		issues.push(
+			issue(
+				"supersedesCodebookVersionId",
+				"codebook.version_chain_invalid",
+				"codebook version 1 cannot supersede another version and later versions must do so",
+			),
+		);
+	}
+	return issues;
+}
+
+function modelSuggestionIssues(record: ModelSuggestion): ContractIssue[] {
+	return new Set(record.suggestedCodeIds).size === record.suggestedCodeIds.length
+		? []
+		: [issue("suggestedCodeIds", "model_suggestion.duplicate_code", "suggested code IDs must be unique")];
+}
+
+function codingDecisionIssues(record: CodingDecision): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (
+		(record.decision === "rejected" && record.assignedCodeIds.length > 0) ||
+		(record.decision !== "rejected" && record.assignedCodeIds.length === 0) ||
+		new Set(record.assignedCodeIds).size !== record.assignedCodeIds.length
+	) {
+		issues.push(
+			issue(
+				"assignedCodeIds",
+				"coding_decision.assignment_invalid",
+				"accepted or edited decisions require unique assigned codes; rejected decisions require none",
+			),
+		);
+	}
+	if (!Number.isFinite(Date.parse(record.decidedAt))) {
+		issues.push(issue("decidedAt", "coding_decision.time_invalid", "coding decision time must be an ISO date-time"));
+	}
+	return issues;
+}
+
+function themeSynthesisIssues(record: ThemeSynthesis): ContractIssue[] {
+	const issues = confirmationIssues(record);
+	const themeIds = record.themes.map(({ themeId }) => themeId);
+	if (new Set(themeIds).size !== themeIds.length) {
+		issues.push(issue("themes", "theme_synthesis.duplicate_theme", "theme IDs must be unique"));
+	}
+	for (const [index, theme] of record.themes.entries()) {
+		if (theme.negativeCaseSegmentIds.some((id) => !theme.qualitativeSegmentIds.includes(id))) {
+			issues.push(
+				issue(
+					`themes[${index}].negativeCaseSegmentIds`,
+					"theme_synthesis.negative_case_unlinked",
+					"negative cases must also be listed among the theme's segments",
+				),
+			);
+		}
+	}
+	return issues;
+}
+
 function taskIssues(record: ResearchTask): ContractIssue[] {
 	const issues: ContractIssue[] = [];
 	if (record.attemptCount > record.maxAttempts) {
@@ -669,6 +847,21 @@ function operationIssues(record: OperationRecord): ContractIssue[] {
 
 function analysisIssues(record: AnalysisRun): ContractIssue[] {
 	const issues: ContractIssue[] = [];
+	const terminal = ["succeeded", "failed", "aborted", "non_converged"].includes(record.status);
+	if (terminal && (record.startedAt === null || record.finishedAt === null)) {
+		issues.push(
+			issue("finishedAt", "analysis.timestamps_missing", "terminal analysis requires start and finish times"),
+		);
+	}
+	if (
+		terminal &&
+		(record.inputIntegrity.length !== record.inputs.length ||
+			new Set(record.inputIntegrity.map(({ path }) => path)).size !== record.inputIntegrity.length)
+	) {
+		issues.push(
+			issue("inputIntegrity", "analysis.input_check_incomplete", "each input requires one integrity check"),
+		);
+	}
 	if (record.status === "succeeded") {
 		if (record.exitCode !== 0 || record.startedAt === null || record.finishedAt === null || record.failure !== null) {
 			issues.push(
@@ -689,10 +882,19 @@ function analysisIssues(record: AnalysisRun): ContractIssue[] {
 				issue("outputs", "analysis.output_integrity_missing", "successful analysis outputs require hashes"),
 			);
 		}
+		if (
+			record.inputIntegrity.some(
+				(check) => check.mutationDetected || !check.unchanged || check.before.value !== check.after.value,
+			)
+		) {
+			issues.push(
+				issue("inputIntegrity", "analysis.raw_input_changed", "successful analysis cannot alter a raw input"),
+			);
+		}
 	}
-	if ((record.status === "failed" || record.status === "non_converged") && record.failure === null) {
+	if (["failed", "aborted", "non_converged"].includes(record.status) && record.failure === null) {
 		issues.push(
-			issue("failure", "analysis.failure_missing", "failed or non-converged analysis requires a structured error"),
+			issue("failure", "analysis.failure_missing", "failed, aborted, or non-converged analysis requires an error"),
 		);
 	}
 	return issues;
@@ -763,6 +965,24 @@ function invariantIssues(record: PersistedRecord): ContractIssue[] {
 			return designDecisionIssues(record);
 		case "protocol":
 			return protocolIssues(record);
+		case "dataset":
+			return datasetIssues(record);
+		case "variable":
+			return [];
+		case "analysis_specification":
+			return analysisSpecificationIssues(record);
+		case "qualitative_material":
+			return qualitativeMaterialIssues(record);
+		case "qualitative_segment":
+			return qualitativeSegmentIssues(record);
+		case "codebook_version":
+			return codebookIssues(record);
+		case "model_suggestion":
+			return modelSuggestionIssues(record);
+		case "coding_decision":
+			return codingDecisionIssues(record);
+		case "theme_synthesis":
+			return themeSynthesisIssues(record);
 		case "task":
 			return taskIssues(record);
 		case "operation":

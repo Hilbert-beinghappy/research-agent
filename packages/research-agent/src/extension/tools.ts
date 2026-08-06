@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import { UnpaywallAdapter } from "../adapters/document/unpaywall.ts";
@@ -9,6 +10,12 @@ import type { RawImportFile } from "../adapters/import/local.ts";
 import type { AdapterContext, SourceAdapter } from "../adapters/source/contract.ts";
 import { CrossrefAdapter } from "../adapters/source/crossref.ts";
 import { OpenAlexAdapter } from "../adapters/source/openalex.ts";
+import {
+	type AnalysisExecutionValue,
+	detectAnalysisRuntime,
+	executeAnalysis,
+	type RuntimeDetection,
+} from "../analysis/runtime.ts";
 import { CITATION_VERIFIER_VERSION } from "../citations/verify.ts";
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import {
@@ -18,6 +25,9 @@ import {
 	type CitationVerification,
 	type ClaimRecord,
 	ClaimRecordSchema,
+	CodebookCodeSchema,
+	type CodebookVersion,
+	type CodingDecision,
 	ConceptRecordSchema,
 	DesignBasisSchema,
 	DesignDecisionSchema,
@@ -28,9 +38,13 @@ import {
 	type FileRef,
 	type JsonValue,
 	JsonValueSchema,
+	type ModelSuggestion,
 	type Money,
 	type OperationRecord,
+	ProjectSensitivitySchema,
 	ProtocolRecordSchema,
+	type QualitativeMaterial,
+	type QualitativeSegment,
 	RESEARCH_SCHEMA_VERSION,
 	type RecordRef,
 	RecordRefSchema,
@@ -39,6 +53,8 @@ import {
 	type ResearchResult,
 	type SessionLink,
 	type SourceRecord,
+	ThemeSchema,
+	type ThemeSynthesis,
 	TheoryRelationSchema,
 } from "../contracts/schemas.ts";
 import { locateSourceDocument } from "../documents/locate.ts";
@@ -49,7 +65,12 @@ import { hashBytes, hashCanonicalJson } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { type FailureStatus, failureResult, successResult } from "../kernel/results.ts";
 import { type OpenedProject, openProject } from "../project/open.ts";
-import { listProjectRecordIds, projectRecordId, projectRecordRevision } from "../project/record-index.ts";
+import {
+	listProjectRecordIds,
+	type ProjectRecord,
+	projectRecordId,
+	projectRecordRevision,
+} from "../project/record-index.ts";
 import { createRecord, readRecord, updateRecord } from "../project/records.ts";
 import { readApprovalRecords } from "../security/approval.ts";
 import { brokerProjectFile } from "../security/broker-files.ts";
@@ -60,6 +81,13 @@ import {
 	requestGovernedHttp,
 } from "../security/broker-http.ts";
 import { type ActionRequest, createActionRequest, evaluateActionPolicy } from "../security/policy.ts";
+import {
+	type CreateAnalysisSpecificationValue,
+	createAnalysisSpecification,
+	decideAnalysisSpecification,
+	type ImportDatasetValue,
+	importCsvDataset,
+} from "../tools/analysis.ts";
 import {
 	type ArtifactToolValue,
 	commitPreparedArtifact,
@@ -84,6 +112,17 @@ import {
 } from "../tools/evidence.ts";
 import { importSourceFiles } from "../tools/import-sources.ts";
 import { finishOperation, type StartOperationInput, startOperation } from "../tools/operations.ts";
+import {
+	createCodebookVersion,
+	createThemeSynthesis,
+	decideQualitativeSynthesis,
+	importQualitativeMaterial,
+	type QualitativeAudit,
+	recordCodingDecision,
+	recordModelSuggestion,
+	renderQualitativeAudit,
+	segmentQualitativeMaterial,
+} from "../tools/qualitative.ts";
 import { commitSourceCandidates, metadataObject, type SourceCandidateInput } from "../tools/sources.ts";
 import { type CitationAdapterRun, verifyCitation } from "../tools/verify-citations.ts";
 
@@ -98,6 +137,8 @@ export const RESEARCH_TOOL_NAMES = [
 	"research_verify_citations",
 	"research_artifacts",
 	"research_design",
+	"research_analysis",
+	"research_qualitative",
 ] as const;
 
 const SearchSourcesParameters = Type.Object(
@@ -419,6 +460,160 @@ const DesignParameters = Type.Union([
 	),
 ]);
 
+const AnalysisParameters = Type.Union([
+	Type.Object(
+		{
+			action: Type.Literal("import_dataset"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			path: Type.String({ minLength: 1 }),
+			title: Type.String({ minLength: 1 }),
+			sensitivity: ProjectSensitivitySchema,
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_specification"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			title: Type.String({ minLength: 1 }),
+			protocolId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+			datasetIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
+			runtime: Type.Union([Type.Literal("python"), Type.Literal("r"), Type.Literal("stata")]),
+			scriptPath: Type.String({ minLength: 1 }),
+			environmentPath: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+			parameters: JsonValueSchema,
+			randomSeed: Type.Union([Type.Integer(), Type.Null()]),
+			commandArguments: Type.Array(Type.String()),
+			expectedOutputs: Type.Array(Type.String({ minLength: 1 })),
+			timeoutSeconds: Type.Integer({ minimum: 1, maximum: 3_600 }),
+			claimMode: Type.Union([
+				Type.Literal("descriptive"),
+				Type.Literal("associational"),
+				Type.Literal("causal"),
+				Type.Literal("interpretive"),
+				Type.Literal("comparative"),
+			]),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("decide_specification"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			analysisSpecificationId: Type.String({ minLength: 1 }),
+			expectedRecordRevision: Type.Integer({ minimum: 0 }),
+			decision: Type.Union([Type.Literal("confirmed"), Type.Literal("rejected")]),
+			note: Type.Optional(Type.String()),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("detect_runtime"),
+			runtime: Type.Union([Type.Literal("python"), Type.Literal("r"), Type.Literal("stata")]),
+			executable: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("run"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			analysisSpecificationId: Type.String({ minLength: 1 }),
+			executable: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+		},
+		{ additionalProperties: false },
+	),
+]);
+
+const QualitativeParameters = Type.Union([
+	Type.Object(
+		{
+			action: Type.Literal("import_material"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			path: Type.String({ minLength: 1 }),
+			title: Type.String({ minLength: 1 }),
+			sensitivity: ProjectSensitivitySchema,
+			deidentified: Type.Boolean(),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("segment_material"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			qualitativeMaterialId: Type.String({ minLength: 1 }),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_codebook"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			title: Type.String({ minLength: 1 }),
+			codes: Type.Array(CodebookCodeSchema, { minItems: 1 }),
+			supersedesCodebookVersionId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("decide_synthesis"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			kind: Type.Union([Type.Literal("codebook_version"), Type.Literal("theme_synthesis")]),
+			id: Type.String({ minLength: 1 }),
+			expectedRecordRevision: Type.Integer({ minimum: 0 }),
+			decision: Type.Union([Type.Literal("confirmed"), Type.Literal("rejected")]),
+			note: Type.Optional(Type.String()),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("record_model_suggestion"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			qualitativeSegmentId: Type.String({ minLength: 1 }),
+			codebookVersionId: Type.String({ minLength: 1 }),
+			suggestedCodeIds: Type.Array(Type.String({ minLength: 1 })),
+			rationale: Type.String({ minLength: 1 }),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("record_coding_decision"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			qualitativeSegmentId: Type.String({ minLength: 1 }),
+			codebookVersionId: Type.String({ minLength: 1 }),
+			modelSuggestionId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+			decision: Type.Union([Type.Literal("accepted"), Type.Literal("edited"), Type.Literal("rejected")]),
+			assignedCodeIds: Type.Array(Type.String({ minLength: 1 })),
+			note: Type.Optional(Type.String()),
+			supersedesCodingDecisionId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("create_theme_synthesis"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+			codebookVersionId: Type.String({ minLength: 1 }),
+			title: Type.String({ minLength: 1 }),
+			themes: Type.Array(ThemeSchema, { minItems: 1 }),
+			codingDecisionIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
+			supersedesThemeSynthesisId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+		},
+		{ additionalProperties: false },
+	),
+	Type.Object(
+		{
+			action: Type.Literal("audit"),
+			expectedRevision: Type.Integer({ minimum: 0 }),
+		},
+		{ additionalProperties: false },
+	),
+]);
+
 interface ToolOutcome<Value> {
 	result: ResearchResult<Value>;
 	outputs?: RecordRef[];
@@ -607,7 +802,7 @@ async function linkApprovalToOperation(
 			);
 }
 
-async function approveArtifactAction(
+async function approveAction(
 	projectRoot: string,
 	operationId: string,
 	ctx: ExtensionContext,
@@ -644,7 +839,7 @@ async function approveArtifactAction(
 			"PERMANENT_FAILURE",
 			"APPROVAL_POLICY_MISMATCH",
 			"integrity",
-			"Artifact action expected an approval but project policy returned an unscoped allow",
+			"Action expected an approval but project policy returned an unscoped allow",
 			operationId,
 		);
 	}
@@ -732,14 +927,9 @@ async function approveArtifactAction(
 	if (!linked.ok) return propagatedFailure(linked, operationId);
 	return approved
 		? successResult(approvalId, operationId)
-		: failureResult(
-				"PERMISSION_BLOCKED",
-				"ACTION_DENIED",
-				"permission",
-				"User denied the artifact action",
-				operationId,
-				{ approvalId },
-			);
+		: failureResult("PERMISSION_BLOCKED", "ACTION_DENIED", "permission", "User denied the action", operationId, {
+				approvalId,
+			});
 }
 
 async function recordHttpApproval(
@@ -2615,7 +2805,7 @@ async function artifactTool(
 			},
 			policy: opened.manifest.policy,
 		});
-		const approval = await approveArtifactAction(
+		const approval = await approveAction(
 			opened.root,
 			operation.operationId,
 			ctx,
@@ -2662,7 +2852,7 @@ async function artifactTool(
 			fingerprintParameters: { contentHash: prepared.value.outputFile.hash },
 			policy: opened.manifest.policy,
 		});
-		const approval = await approveArtifactAction(
+		const approval = await approveAction(
 			opened.root,
 			operation.operationId,
 			ctx,
@@ -2852,7 +3042,7 @@ function requestedDesignInputs(params: Static<typeof DesignParameters>): RecordR
 	return refs;
 }
 
-async function resolveDesignInputs(projectRoot: string, refs: readonly RecordRef[]): Promise<RecordRef[]> {
+async function resolveRecordInputs(projectRoot: string, refs: readonly RecordRef[]): Promise<RecordRef[]> {
 	const resolved: RecordRef[] = [];
 	for (const ref of refs) {
 		const result = await readRecord(projectRoot, ref.kind, ref.id);
@@ -2942,6 +3132,469 @@ async function designTool(
 				],
 			}
 		: { result: decided };
+}
+
+type AnalysisToolValue =
+	| ImportDatasetValue
+	| CreateAnalysisSpecificationValue
+	| RuntimeDetection
+	| AnalysisExecutionValue
+	| RecordRef;
+
+type QualitativeToolValue =
+	| QualitativeMaterial
+	| QualitativeSegment[]
+	| CodebookVersion
+	| ModelSuggestion
+	| CodingDecision
+	| ThemeSynthesis
+	| QualitativeAudit
+	| RecordRef;
+
+function recordReference(record: ProjectRecord): RecordRef {
+	return { kind: record.kind, id: projectRecordId(record), revision: projectRecordRevision(record) };
+}
+
+async function inputFilesForRecords(projectRoot: string, refs: readonly RecordRef[]): Promise<FileRef[]> {
+	const files: FileRef[] = [];
+	for (const ref of refs) {
+		const result = await readRecord(projectRoot, ref.kind, ref.id);
+		if (!result.ok) throw new TypeError(result.errors[0].message);
+		if (result.value.kind === "dataset" || result.value.kind === "qualitative_material") {
+			files.push(result.value.sourceFile);
+		}
+		if (result.value.kind === "analysis_specification") {
+			files.push(result.value.script, ...result.value.inputFiles);
+			if (result.value.environmentFile !== null) files.push(result.value.environmentFile);
+		}
+	}
+	return [...new Map(files.map((file) => [file.path, file])).values()];
+}
+
+async function requestedAnalysisInputs(
+	projectRoot: string,
+	params: Static<typeof AnalysisParameters>,
+): Promise<{ records: RecordRef[]; files: FileRef[] }> {
+	const refs: RecordRef[] = [];
+	if (params.action === "create_specification") {
+		refs.push(...params.datasetIds.map((id) => ({ kind: "dataset" as const, id, revision: null })));
+	}
+	if (params.action === "decide_specification" || params.action === "run") {
+		const specification = await readRecord(projectRoot, "analysis_specification", params.analysisSpecificationId);
+		if (!specification.ok) throw new TypeError(specification.errors[0].message);
+		if (specification.value.kind !== "analysis_specification")
+			throw new TypeError("Analysis specification is invalid");
+		refs.push(recordReference(specification.value));
+		if (params.action === "run") {
+			refs.push(
+				...specification.value.inputDatasetIds.map((id) => ({ kind: "dataset" as const, id, revision: null })),
+			);
+		}
+	}
+	const records = await resolveRecordInputs(projectRoot, refs);
+	return { records, files: await inputFilesForRecords(projectRoot, records) };
+}
+
+async function analysisTool(
+	project: CurrentProject,
+	ctx: ExtensionContext,
+	params: Static<typeof AnalysisParameters>,
+	operation: OperationRecord,
+	signal: AbortSignal,
+): Promise<ToolOutcome<AnalysisToolValue>> {
+	if (params.action === "detect_runtime") {
+		return {
+			result: successResult(
+				await detectAnalysisRuntime(params.runtime, params.executable ?? undefined),
+				operation.operationId,
+			),
+		};
+	}
+	let opened = await openProject(project.root);
+	if (opened.compatibility !== "current") {
+		return { result: thrownFailure(new TypeError("Research project schema is read-only"), operation.operationId) };
+	}
+	if (params.action === "import_dataset") {
+		const result = await importCsvDataset(opened.root, {
+			path: params.path,
+			title: params.title,
+			sensitivity: params.sensitivity,
+			expectedManifestRevision: opened.manifest.revision,
+			operationId: operation.operationId,
+			sessionId: ctx.sessionManager.getSessionId(),
+		});
+		return result.ok
+			? {
+					result,
+					outputs: [recordReference(result.value.dataset), ...result.value.variables.map(recordReference)],
+					outputFiles: [result.value.dataset.sourceFile],
+				}
+			: { result };
+	}
+	if (params.action === "create_specification") {
+		const result = await createAnalysisSpecification(opened.root, {
+			title: params.title,
+			protocolId: params.protocolId,
+			datasetIds: params.datasetIds,
+			runtime: params.runtime,
+			scriptPath: params.scriptPath,
+			environmentPath: params.environmentPath,
+			parameters: params.parameters,
+			randomSeed: params.randomSeed,
+			commandArguments: params.commandArguments,
+			expectedOutputs: params.expectedOutputs,
+			timeoutSeconds: params.timeoutSeconds,
+			claimMode: params.claimMode,
+			expectedManifestRevision: opened.manifest.revision,
+			operationId: operation.operationId,
+			sessionId: ctx.sessionManager.getSessionId(),
+		});
+		if (!result.ok) return { result };
+		const addedInputs = await addOperationInputs(opened.root, operation.operationId, result.value.inputs, [
+			result.value.specification.script,
+			...result.value.specification.inputFiles,
+			...(result.value.specification.environmentFile === null ? [] : [result.value.specification.environmentFile]),
+		]);
+		return addedInputs.ok
+			? { result, outputs: [recordReference(result.value.specification)] }
+			: { result: propagatedFailure(addedInputs, operation.operationId) };
+	}
+	if (params.action === "decide_specification") {
+		if (!ctx.hasUI) {
+			return {
+				result: failureResult(
+					"PERMISSION_BLOCKED",
+					"ANALYSIS_SPECIFICATION_CONFIRMATION_REQUIRED",
+					"permission",
+					"Analysis specification decision requires interactive user confirmation",
+					operation.operationId,
+				),
+			};
+		}
+		const accepted = await ctx.ui.confirm(
+			"Decide analysis specification",
+			`${params.decision === "confirmed" ? "Confirm" : "Reject"} analysis specification ${params.analysisSpecificationId}?`,
+		);
+		if (!accepted) {
+			return {
+				result: failureResult(
+					"PERMISSION_BLOCKED",
+					"ANALYSIS_SPECIFICATION_DECISION_CANCELLED",
+					"cancelled",
+					"User cancelled the analysis specification decision",
+					operation.operationId,
+				),
+			};
+		}
+		opened = await openProject(project.root);
+		if (opened.compatibility !== "current") throw new TypeError("Research project schema is read-only");
+		const result = await decideAnalysisSpecification(
+			opened.root,
+			params.analysisSpecificationId,
+			opened.manifest.revision,
+			params.expectedRecordRevision,
+			params.decision,
+			params.note ?? null,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: [result.value] } : { result };
+	}
+	const specification = await readRecord(opened.root, "analysis_specification", params.analysisSpecificationId);
+	if (!specification.ok) return { result: propagatedFailure(specification, operation.operationId) };
+	if (specification.value.kind !== "analysis_specification") {
+		return { result: thrownFailure(new TypeError("Analysis specification is invalid"), operation.operationId) };
+	}
+	const detected = await detectAnalysisRuntime(specification.value.runtime, params.executable ?? undefined);
+	if (!detected.available || detected.executable === null) {
+		return {
+			result: failureResult(
+				"PERMANENT_FAILURE",
+				"ANALYSIS_RUNTIME_UNAVAILABLE",
+				"runtime",
+				detected.reason ?? "Analysis runtime is unavailable",
+				operation.operationId,
+			),
+		};
+	}
+	const analysisRunId = createOpaqueId("analysis_run");
+	const taskId = createOpaqueId("task");
+	const runPath = `.research/runs/${analysisRunId}`;
+	const scriptCopy = `${runPath}/${basename(specification.value.script.path)}`;
+	const command =
+		specification.value.runtime === "stata"
+			? [detected.executable, "-b", "do", scriptCopy, ...specification.value.commandArguments]
+			: [detected.executable, scriptCopy, ...specification.value.commandArguments];
+	opened = await openProject(project.root);
+	if (opened.compatibility !== "current") throw new TypeError("Research project schema is read-only");
+	const request = createActionRequest({
+		projectId: opened.manifest.projectId,
+		operationId: operation.operationId,
+		sessionId: ctx.sessionManager.getSessionId(),
+		actionClass: specification.value.runtime === "stata" ? "commercial_runtime" : "unknown_script_execution",
+		actionName: "research.analysis.execute",
+		destination: null,
+		paths: [specification.value.script.path, ...specification.value.inputFiles.map(({ path }) => path), runPath],
+		dataClasses: ["research_dataset", "analysis_script"],
+		estimatedCost: null,
+		destructive: false,
+		recoverable: true,
+		fingerprintParameters: {
+			analysisSpecificationId: specification.value.analysisSpecificationId,
+			specificationRevision: specification.value.audit.revision,
+			runtime: specification.value.runtime,
+			command,
+			inputs: specification.value.inputFiles.map(({ hash }) => hash),
+		},
+		policy: opened.manifest.policy,
+	});
+	const approval = await approveAction(
+		opened.root,
+		operation.operationId,
+		ctx,
+		request,
+		"Run local research analysis",
+		`Command: ${command.join(" ")}\nWorking directory: ${runPath}\nInputs:\n${specification.value.inputFiles.map(({ path }) => `- ${path}`).join("\n")}`,
+		operation.inputs,
+		operation.inputFiles,
+	);
+	if (!approval.ok) return { result: approval };
+	const execution = await executeAnalysis(opened.root, specification.value, operation.operationId, {
+		executable: detected.executable,
+		signal,
+		analysisRunId,
+		taskId,
+	});
+	return {
+		result: execution.result,
+		outputs:
+			execution.task === null || execution.run === null
+				? []
+				: [recordReference(execution.task), recordReference(execution.run)],
+		outputFiles:
+			execution.task === null || execution.run === null ? [] : [...execution.run.outputs, ...execution.run.logs],
+	};
+}
+
+async function requestedQualitativeInputs(
+	projectRoot: string,
+	params: Static<typeof QualitativeParameters>,
+): Promise<RecordRef[]> {
+	const refs: RecordRef[] = [];
+	if (params.action === "segment_material") {
+		refs.push({ kind: "qualitative_material", id: params.qualitativeMaterialId, revision: null });
+	}
+	if (params.action === "create_codebook" && params.supersedesCodebookVersionId !== null) {
+		refs.push({ kind: "codebook_version", id: params.supersedesCodebookVersionId, revision: null });
+	}
+	if (params.action === "decide_synthesis") refs.push({ kind: params.kind, id: params.id, revision: null });
+	if (params.action === "record_model_suggestion") {
+		refs.push(
+			{ kind: "qualitative_segment", id: params.qualitativeSegmentId, revision: null },
+			{ kind: "codebook_version", id: params.codebookVersionId, revision: null },
+		);
+	}
+	if (params.action === "record_coding_decision") {
+		refs.push(
+			{ kind: "qualitative_segment", id: params.qualitativeSegmentId, revision: null },
+			{ kind: "codebook_version", id: params.codebookVersionId, revision: null },
+		);
+		if (params.modelSuggestionId !== null)
+			refs.push({ kind: "model_suggestion", id: params.modelSuggestionId, revision: null });
+		if (params.supersedesCodingDecisionId !== null)
+			refs.push({ kind: "coding_decision", id: params.supersedesCodingDecisionId, revision: null });
+	}
+	if (params.action === "create_theme_synthesis") {
+		refs.push({ kind: "codebook_version", id: params.codebookVersionId, revision: null });
+		refs.push(...params.codingDecisionIds.map((id) => ({ kind: "coding_decision" as const, id, revision: null })));
+		if (params.supersedesThemeSynthesisId !== null)
+			refs.push({ kind: "theme_synthesis", id: params.supersedesThemeSynthesisId, revision: null });
+	}
+	if (params.action === "audit") {
+		const opened = await openProject(projectRoot);
+		if (opened.compatibility !== "current") throw new TypeError("Research project schema is read-only");
+		for (const kind of [
+			"qualitative_material",
+			"qualitative_segment",
+			"codebook_version",
+			"model_suggestion",
+			"coding_decision",
+			"theme_synthesis",
+		] as const) {
+			for (const id of await listProjectRecordIds(opened.root, opened.manifest, kind)) {
+				refs.push({ kind, id, revision: null });
+			}
+		}
+	}
+	return resolveRecordInputs(projectRoot, refs);
+}
+
+async function qualitativeTool(
+	project: CurrentProject,
+	ctx: ExtensionContext,
+	params: Static<typeof QualitativeParameters>,
+	operation: OperationRecord,
+): Promise<ToolOutcome<QualitativeToolValue>> {
+	let opened = await openProject(project.root);
+	if (opened.compatibility !== "current") {
+		return { result: thrownFailure(new TypeError("Research project schema is read-only"), operation.operationId) };
+	}
+	if (params.action === "import_material") {
+		const result = await importQualitativeMaterial(opened.root, {
+			path: params.path,
+			title: params.title,
+			sensitivity: params.sensitivity,
+			deidentified: params.deidentified,
+			expectedManifestRevision: opened.manifest.revision,
+			operationId: operation.operationId,
+			sessionId: ctx.sessionManager.getSessionId(),
+		});
+		return result.ok
+			? { result, outputs: [recordReference(result.value)], outputFiles: [result.value.sourceFile] }
+			: { result };
+	}
+	if (params.action === "segment_material") {
+		const result = await segmentQualitativeMaterial(
+			opened.root,
+			params.qualitativeMaterialId,
+			opened.manifest.revision,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: result.value.map((segment) => recordReference(segment)) } : { result };
+	}
+	if (params.action === "create_codebook") {
+		const result = await createCodebookVersion(
+			opened.root,
+			params.title,
+			params.codes,
+			params.supersedesCodebookVersionId,
+			opened.manifest.revision,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: [recordReference(result.value)] } : { result };
+	}
+	if (params.action === "decide_synthesis") {
+		if (!ctx.hasUI) {
+			return {
+				result: failureResult(
+					"PERMISSION_BLOCKED",
+					"QUALITATIVE_CONFIRMATION_REQUIRED",
+					"permission",
+					"Codebook and theme decisions require interactive user confirmation",
+					operation.operationId,
+				),
+			};
+		}
+		const accepted = await ctx.ui.confirm(
+			"Decide qualitative synthesis",
+			`${params.decision === "confirmed" ? "Confirm" : "Reject"} ${params.kind} ${params.id}?`,
+		);
+		if (!accepted) {
+			return {
+				result: failureResult(
+					"PERMISSION_BLOCKED",
+					"QUALITATIVE_DECISION_CANCELLED",
+					"cancelled",
+					"User cancelled the qualitative synthesis decision",
+					operation.operationId,
+				),
+			};
+		}
+		opened = await openProject(project.root);
+		if (opened.compatibility !== "current") throw new TypeError("Research project schema is read-only");
+		const result = await decideQualitativeSynthesis(
+			opened.root,
+			params.kind,
+			params.id,
+			opened.manifest.revision,
+			params.expectedRecordRevision,
+			params.decision,
+			params.note ?? null,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: [result.value] } : { result };
+	}
+	if (params.action === "record_model_suggestion") {
+		if (ctx.model === undefined) {
+			return {
+				result: failureResult(
+					"PERMANENT_FAILURE",
+					"MODEL_PROVENANCE_UNAVAILABLE",
+					"integrity",
+					"Current model identity is unavailable",
+					operation.operationId,
+				),
+			};
+		}
+		const result = await recordModelSuggestion(
+			opened.root,
+			params.qualitativeSegmentId,
+			params.codebookVersionId,
+			params.suggestedCodeIds,
+			params.rationale,
+			{ provider: ctx.model.provider, modelId: ctx.model.id, thinkingLevel: ctx.thinkingLevel ?? null },
+			opened.manifest.revision,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: [recordReference(result.value)] } : { result };
+	}
+	if (params.action === "record_coding_decision") {
+		if (!ctx.hasUI) {
+			return {
+				result: failureResult(
+					"PERMISSION_BLOCKED",
+					"HUMAN_CODING_DECISION_REQUIRED",
+					"permission",
+					"Coding decisions require interactive human confirmation",
+					operation.operationId,
+				),
+			};
+		}
+		const accepted = await ctx.ui.confirm(
+			"Record human coding decision",
+			`Segment: ${params.qualitativeSegmentId}\nDecision: ${params.decision}\nCodes: ${params.assignedCodeIds.join(", ") || "none"}\n\nRecord this as the user's decision?`,
+		);
+		if (!accepted) {
+			return {
+				result: failureResult(
+					"PERMISSION_BLOCKED",
+					"HUMAN_CODING_DECISION_CANCELLED",
+					"cancelled",
+					"User cancelled the coding decision",
+					operation.operationId,
+				),
+			};
+		}
+		opened = await openProject(project.root);
+		if (opened.compatibility !== "current") throw new TypeError("Research project schema is read-only");
+		const result = await recordCodingDecision(
+			opened.root,
+			params.qualitativeSegmentId,
+			params.codebookVersionId,
+			params.modelSuggestionId,
+			params.decision,
+			params.assignedCodeIds,
+			params.note ?? null,
+			params.supersedesCodingDecisionId,
+			opened.manifest.revision,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: [recordReference(result.value)] } : { result };
+	}
+	if (params.action === "create_theme_synthesis") {
+		const result = await createThemeSynthesis(
+			opened.root,
+			params.codebookVersionId,
+			params.title,
+			params.themes,
+			params.codingDecisionIds,
+			params.supersedesThemeSynthesisId,
+			opened.manifest.revision,
+			operation.operationId,
+		);
+		return result.ok ? { result, outputs: [recordReference(result.value)] } : { result };
+	}
+	const result = await renderQualitativeAudit(opened.root);
+	return { result };
 }
 
 export function registerResearchTools(pi: ExtensionAPI, options: RegisterResearchToolsOptions): void {
@@ -3143,7 +3796,7 @@ export function registerResearchTools(pi: ExtensionAPI, options: RegisterResearc
 						),
 					);
 				}
-				const inputs = await resolveDesignInputs(project.root, requestedDesignInputs(params));
+				const inputs = await resolveRecordInputs(project.root, requestedDesignInputs(params));
 				return toolResponse(
 					await trackedTool(
 						project,
@@ -3152,6 +3805,123 @@ export function registerResearchTools(pi: ExtensionAPI, options: RegisterResearc
 						"research.design",
 						(operation) => designTool(project, ctx, params, operation),
 						inputs,
+					),
+				);
+			} catch (error) {
+				return unavailableToolResult(error);
+			}
+		},
+	});
+
+	pi.registerTool({
+		name: "research_analysis",
+		label: "Run reproducible research analysis",
+		description:
+			"Import CSV data, record and confirm an analysis specification, detect Python/R/Stata, and execute a traceable local run without installing dependencies.",
+		promptSnippet:
+			"Use confirmed scripts and immutable data copies; never infer successful convergence from process exit alone",
+		parameters: AnalysisParameters,
+		executionMode: "sequential",
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+			try {
+				const project = await options.requireProject(ctx);
+				if ("expectedRevision" in params && project.manifest.revision !== params.expectedRevision) {
+					return toolResponse(
+						failureResult(
+							"DATA_CONFLICT",
+							"ANALYSIS_PROJECT_REVISION_CONFLICT",
+							"data_conflict",
+							`Expected project revision ${params.expectedRevision}, found ${project.manifest.revision}`,
+							null,
+						),
+					);
+				}
+				const inputs = await requestedAnalysisInputs(project.root, params);
+				const executionSignal = signal ?? ctx.signal ?? new AbortController().signal;
+				return toolResponse(
+					await trackedTool(
+						project,
+						ctx,
+						options,
+						"research.analysis",
+						(operation) => analysisTool(project, ctx, params, operation, executionSignal),
+						inputs.records,
+						inputs.files,
+					),
+				);
+			} catch (error) {
+				return unavailableToolResult(error);
+			}
+		},
+	});
+
+	pi.registerTool({
+		name: "research_qualitative",
+		label: "Audit qualitative research",
+		description:
+			"Import and segment text, version codebooks, separate model suggestions from human coding decisions, synthesize themes, and render an audit trail.",
+		promptSnippet:
+			"Treat coding as a human decision and preserve suggestions, edits, rejected codes, and negative cases",
+		parameters: QualitativeParameters,
+		executionMode: "sequential",
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			try {
+				const project = await options.requireProject(ctx);
+				if (project.manifest.revision !== params.expectedRevision) {
+					return toolResponse(
+						failureResult(
+							"DATA_CONFLICT",
+							"QUALITATIVE_PROJECT_REVISION_CONFLICT",
+							"data_conflict",
+							`Expected project revision ${params.expectedRevision}, found ${project.manifest.revision}`,
+							null,
+						),
+					);
+				}
+				if (
+					params.action === "segment_material" ||
+					params.action === "record_model_suggestion" ||
+					params.action === "audit"
+				) {
+					if (ctx.model === undefined) {
+						return toolResponse(
+							failureResult(
+								"PERMANENT_FAILURE",
+								"MODEL_PROVENANCE_UNAVAILABLE",
+								"integrity",
+								"Current model identity is unavailable",
+								null,
+							),
+						);
+					}
+					if (
+						!project.manifest.policy.modelEgressAllowed ||
+						(project.manifest.policy.allowedModelProviders.length > 0 &&
+							!project.manifest.policy.allowedModelProviders.includes(ctx.model.provider)) ||
+						(project.manifest.policy.allowedDataClassesForModelEgress.length > 0 &&
+							!project.manifest.policy.allowedDataClassesForModelEgress.includes("qualitative_material"))
+					) {
+						return toolResponse(
+							failureResult(
+								"PERMISSION_BLOCKED",
+								"MODEL_EGRESS_DENIED",
+								"permission",
+								"Project policy does not allow this model to process qualitative material",
+								null,
+							),
+						);
+					}
+				}
+				const inputs = await requestedQualitativeInputs(project.root, params);
+				return toolResponse(
+					await trackedTool(
+						project,
+						ctx,
+						options,
+						"research.qualitative",
+						(operation) => qualitativeTool(project, ctx, params, operation),
+						inputs,
+						await inputFilesForRecords(project.root, inputs),
 					),
 				);
 			} catch (error) {

@@ -1,4 +1,4 @@
-import { access, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -142,6 +142,24 @@ describe("project transactions", () => {
 
 		await expect(commitPreparedTransaction(root, transactionId)).rejects.toThrow("Staged hash mismatch");
 		await expect(access(join(root, ...recordPath.split("/")))).rejects.toThrow();
+		await expect(openProject(root, 0)).resolves.toMatchObject({ compatibility: "current" });
+	});
+
+	it.skipIf(process.platform === "win32")("rejects a symbolic-link transaction target", async () => {
+		const { root, manifest } = await createProject("symlink-target");
+		const outside = join(temporaryDirectory, "outside.txt");
+		const target = join(root, "notes", "linked.txt");
+		await writeFile(outside, "outside");
+		await symlink(outside, target);
+
+		await expect(
+			commitProjectTransaction(root, {
+				expectedRevision: 0,
+				writes: [{ path: "notes/linked.txt", content: "changed" }],
+				manifest: nextManifest(manifest),
+			}),
+		).rejects.toThrow("symbolic link");
+		await expect(readFile(outside, "utf8")).resolves.toBe("outside");
 		await expect(openProject(root, 0)).resolves.toMatchObject({ compatibility: "current" });
 	});
 

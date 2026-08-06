@@ -1,9 +1,9 @@
-# Threat model v0.1
+# Threat model v0.3
 
 ## Assets
 
 - Canonical project records, manifest revisions, input/output hashes, transaction ledger, and recovery state.
-- Local papers, excerpts, bibliographic imports, provider responses, research questions, and model-authored drafts.
+- Local papers, excerpts, bibliographic imports, provider responses, research questions, datasets, qualitative materials, scripts, runtime logs, and model-authored drafts or coding suggestions.
 - Provider credentials, approval decisions, action budgets, publication-status checks, and provenance.
 
 ## Trust boundaries
@@ -13,6 +13,7 @@
 3. **Model and Skills:** untrusted decision inputs. They can request only registered Tools while governed mode is active; their text is not canonical state.
 4. **Built-in Adapters and external services:** Adapter code is trusted in process; provider data and availability are untrusted. Network side effects go through the HTTP broker.
 5. **Imported files:** untrusted bytes. Format, size, path and PDF parser outcomes are validated before evidence use.
+6. **Local analysis runtimes and scripts:** user-confirmed but not sandboxed code. They receive copied inputs and a designated output directory, while the host verifies immutable originals before and after execution.
 
 Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are not an OS sandbox. A malicious Extension, Adapter, dependency, host user, or compromised Pi process can bypass them.
 
@@ -29,12 +30,16 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 | Evidence fabrication or promotion | Evidence-level enum, locator invariants, exact excerpt match, source/parser hashes, citation state and artifact gates. | Model interpretation can still be wrong; human review remains required. |
 | Malicious/corrupt PDF | Signature/content/size checks, isolated parser result states, no automatic OCR upload. | PDF.js remains a complex dependency; process-level sandboxing is not provided. |
 | Dependency or proprietary asset leakage | Exact direct pins, lock-derived SPDX SBOM/notices, allowed Skill list, package-content scan. | A newly disclosed dependency vulnerability requires a new review/release. |
+| Script mutates raw research data | Content-addressed originals are read-only, copied for execution, hash-checked afterward, and restored from an external temporary backup when mutation is detected. | A host process with the same account can still race or alter files outside this transaction boundary. |
+| Failed analysis reported as a finding | Terminal status, exit code, logs, expected-output checks, timeout/abort and explicit non-convergence are canonical `AnalysisRun` facts; failed outputs are not success artifacts. | A successful script can still implement a scientifically invalid method; confirmation and review remain required. |
+| Model coding replaces human judgment | `ModelSuggestion` is immutable and separate; `CodingDecision` requires an explicit user accept/edit/reject action and preserves supersession and negative cases. | Human coding can still be inconsistent or biased; v0.3 does not calculate intercoder reliability automatically. |
+| Commercial software/license leakage | Stata is detected by executable path only, never bundled, and its license content is not inspected. Every run requires commercial-runtime approval. | Users remain responsible for installation, licensing and permitted use. |
 
 ## Privacy defaults
 
-Low-risk local reads, deterministic analysis, and new project outputs can run automatically. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress also disables governed model Tools for the linked project.
+Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
 
-Project exports can contain titles, authors, excerpts, research notes, and filenames. Review them before sharing. v0.1 has no secret vault, participant-data de-identification service, telemetry, background monitor, automated email, or automated submission.
+Project exports and runtime logs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. v0.3 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background monitor, automated email, or automated submission.
 
 ## Security non-goals
 

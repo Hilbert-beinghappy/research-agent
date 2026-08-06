@@ -59,7 +59,7 @@ async function readDirectoryNames(projectRoot: string, directory: string): Promi
 	}
 }
 
-export function buildV0_2Manifest(raw: JsonValue): ResearchProjectManifest {
+export function buildV0_3Manifest(raw: JsonValue): ResearchProjectManifest {
 	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
 		throw new TypeError("Legacy project manifest must be an object");
 	}
@@ -70,7 +70,7 @@ export function buildV0_2Manifest(raw: JsonValue): ResearchProjectManifest {
 		!Number.isInteger(raw.revision) ||
 		!Array.isArray(raw.recordSets)
 	) {
-		throw new TypeError("Project is not a valid v0.1 migration source");
+		throw new TypeError("Project is not a valid v0.2 migration source");
 	}
 	const existing = new Map<string, JsonValue>();
 	for (const value of raw.recordSets) {
@@ -142,7 +142,7 @@ export async function prepareProjectMigration(projectRoot: string): Promise<stri
 	}
 	const oldManifest = await readFile(opened.manifestPath, "utf8");
 	const raw = canonicalizeJson(JSON.parse(oldManifest));
-	const targetManifest = buildV0_2Manifest(raw);
+	const targetManifest = buildV0_3Manifest(raw);
 	const target = `${canonicalStringify(targetManifest)}\n`;
 	const migrationId = `migration_${randomUUID()}`;
 	await Promise.all(
@@ -233,7 +233,7 @@ export async function rollbackProjectMigration(projectRoot: string, migrationId:
 	const manifestPath = await resolveProjectPath(projectRoot, PROJECT_MANIFEST_PATH);
 	const currentHash = (await hashFile(manifestPath)).value;
 	if (currentHash !== journal.newManifestHash && currentHash !== journal.oldManifestHash) {
-		throw new Error("DATA_CONFLICT: v0.2 project changed after migration; rollback would be lossy");
+		throw new Error("DATA_CONFLICT: v0.3 project changed after migration; rollback would be lossy");
 	}
 	if (currentHash === journal.newManifestHash) await atomicWriteFile(manifestPath, await readFile(beforePath));
 	const rolledBack = await openProject(projectRoot, journal.fromRevision);

@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-06
+
+### Added
+
+- Content-addressed CSV datasets, variable dictionaries, confirmed analysis specifications, and terminal Python/R/optional-Stata `AnalysisRun` records with command, runtime, logs, output hashes, and raw-input integrity checks.
+- UTF-8 qualitative materials, stable paragraph locators, versioned codebooks, immutable model suggestions, explicit human accept/edit/reject decisions, supersession, negative cases, themes, and Markdown/JSON audit output.
+- The `research_analysis` and `research_qualitative` aggregate Tools, quantitative/qualitative Skills, two public synthetic examples, runtime clean-room qualification, failure injection, method-boundary evaluation, and 1,000-row/segment benchmarks.
+- Recoverable v0.2-to-v0.3 manifest migration that adds record sets and directories without moving data or inventing method records.
+
+### Changed
+
+- New projects and generated schemas use v0.3 while v0.1/v0.2 records and committed schemas remain readable.
+- Batch record transactions use bounded concurrent file persistence while preserving hash verification and manifest-last commit order.
+- Package, Extension, and Artifact generator versions advance to 0.3.0.
+
+### Known limitations
+
+- Local runtime scripts execute with the user's host account authority; v0.3 provides approval, copied inputs, immutable-original checks and audit records, not an OS sandbox.
+- Python/R dependencies are detected or reported but never installed automatically. Stata is optional, user-owned, mock-qualified by default, and never bundled or license-inspected.
+- CSV and UTF-8 plain text are the v0.3 canonical inputs; XLSX, notebooks, hosted compute, OCR, automatic coding acceptance, and significance-driven model selection are not included.
+
 ## [0.2.0] - 2026-08-06
 
 ### Added

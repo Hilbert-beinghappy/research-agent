@@ -12,7 +12,7 @@ import type {
 	SourceRecord,
 } from "../contracts/schemas.ts";
 import type { ProjectRecord } from "../project/record-index.ts";
-import { projectRecordRevision } from "../project/record-index.ts";
+import { projectRecordId, projectRecordRevision } from "../project/record-index.ts";
 import { readRecord } from "../project/records.ts";
 import type { ResearchArtifactType } from "./render.ts";
 
@@ -30,42 +30,7 @@ export interface ArtifactGateInput {
 }
 
 function recordRef(record: ProjectRecord): RecordRef {
-	switch (record.kind) {
-		case "source":
-			return { kind: "source", id: record.sourceId, revision: record.audit.revision };
-		case "document":
-			return { kind: "document", id: record.documentId, revision: record.audit.revision };
-		case "evidence":
-			return { kind: "evidence", id: record.evidenceId, revision: record.audit.revision };
-		case "claim":
-			return { kind: "claim", id: record.claimId, revision: record.audit.revision };
-		case "citation_verification":
-			return { kind: "citation_verification", id: record.verificationId, revision: record.audit.revision };
-		case "research_question_version":
-			return {
-				kind: "research_question_version",
-				id: record.researchQuestionVersionId,
-				revision: record.audit.revision,
-			};
-		case "concept":
-			return { kind: "concept", id: record.conceptId, revision: record.audit.revision };
-		case "theory_relation":
-			return { kind: "theory_relation", id: record.theoryRelationId, revision: record.audit.revision };
-		case "design_decision":
-			return { kind: "design_decision", id: record.designDecisionId, revision: record.audit.revision };
-		case "protocol":
-			return { kind: "protocol", id: record.protocolId, revision: record.audit.revision };
-		case "task":
-			return { kind: "task", id: record.taskId, revision: record.revision };
-		case "operation":
-			return { kind: "operation", id: record.operationId, revision: record.audit.revision };
-		case "analysis_run":
-			return { kind: "analysis_run", id: record.analysisRunId, revision: record.audit.revision };
-		case "artifact":
-			return { kind: "artifact", id: record.artifactId, revision: record.audit.revision };
-		case "approval":
-			return { kind: "approval", id: record.approvalId, revision: record.audit.revision };
-	}
+	return { kind: record.kind, id: projectRecordId(record), revision: projectRecordRevision(record) };
 }
 
 function check(

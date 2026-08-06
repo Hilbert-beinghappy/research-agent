@@ -37,7 +37,10 @@ import { createRecord, readRecord } from "../../src/project/records.ts";
 import { listPendingProjectTransactions, prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { validateProject } from "../../src/project/validate.ts";
 
-const V0_1_TOOL_NAMES = RESEARCH_TOOL_NAMES.filter((name) => name !== "research_design");
+const V0_2_TOOL_NAMES = RESEARCH_TOOL_NAMES.filter(
+	(name) => name !== "research_analysis" && name !== "research_qualitative",
+);
+const V0_1_TOOL_NAMES = V0_2_TOOL_NAMES.filter((name) => name !== "research_design");
 
 interface ScenarioTopic {
 	slug: string;
@@ -1639,7 +1642,7 @@ async function runTopic(
 	expect(
 		JSON.stringify(await readFile(await resolveProjectPath(projectRoot, PROJECT_MANIFEST_PATH), "utf8")),
 	).not.toContain(openAlexKey);
-	expect(new Set(harness.toolCalls)).toEqual(new Set(withDesign ? RESEARCH_TOOL_NAMES : V0_1_TOOL_NAMES));
+	expect(new Set(harness.toolCalls)).toEqual(new Set(withDesign ? V0_2_TOOL_NAMES : V0_1_TOOL_NAMES));
 
 	return {
 		L1: true,

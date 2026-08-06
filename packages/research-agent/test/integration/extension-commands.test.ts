@@ -306,6 +306,8 @@ describe("research extension commands", () => {
 			"research_verify_citations",
 			"research_artifacts",
 			"research_design",
+			"research_analysis",
+			"research_qualitative",
 		]);
 		expect(
 			(await ordinary.emit("tool_call", { type: "tool_call", toolName: "write", input: {} }, ordinaryContext)).at(
@@ -340,15 +342,20 @@ describe("research extension commands", () => {
 			schemaVersion: string;
 			recordSets: { kind: string }[];
 		};
-		const designKinds = new Set([
-			"research_question_version",
-			"concept",
-			"theory_relation",
-			"design_decision",
-			"protocol",
+		const v0_3Kinds = new Set([
+			"dataset",
+			"variable",
+			"analysis_specification",
+			"qualitative_material",
+			"qualitative_segment",
+			"codebook_version",
+			"model_suggestion",
+			"coding_decision",
+			"theme_synthesis",
+			"analysis_run",
 		]);
 		manifest.schemaVersion = RESEARCH_LEGACY_SCHEMA_VERSION;
-		manifest.recordSets = manifest.recordSets.filter(({ kind }) => !designKinds.has(kind));
+		manifest.recordSets = manifest.recordSets.filter(({ kind }) => !v0_3Kinds.has(kind));
 		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
 		const harness = createHarness();
