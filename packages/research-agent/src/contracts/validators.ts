@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Compile } from "typebox/compile";
+import { hashCanonicalJson } from "../kernel/integrity.ts";
 import { canonicalizeJson } from "./canonical-json.ts";
 import {
+	type AdapterExportProfile,
 	type AnalysisRun,
 	type AnalysisSpecification,
 	type ApprovalRecord,
@@ -18,11 +20,14 @@ import {
 	type DisclosureRecord,
 	type DocumentRecord,
 	type EvidenceCard,
+	type ExternalItemLink,
 	type FileRef,
 	type JsonResearchResult,
 	JsonResearchResultSchema,
 	type ManuscriptRecord,
 	type ModelSuggestion,
+	type MonitorRun,
+	type MonitorSubscription,
 	type OperationRecord,
 	type PersistedRecord,
 	PersistedRecordSchema,
@@ -896,6 +901,93 @@ function submissionGateIssues(record: SubmissionGateReport): ContractIssue[] {
 	return [];
 }
 
+function adapterExportProfileIssues(record: AdapterExportProfile): ContractIssue[] {
+	const zotero = record.format === "zotero-api";
+	if (
+		zotero !== (record.destination.kind === "zotero_library") ||
+		zotero !== (record.credentialAlias !== null) ||
+		(zotero && record.adapterId !== "zotero-api")
+	) {
+		return [
+			issue(
+				"destination",
+				"adapter_export_profile.destination_invalid",
+				"Zotero API profiles require a library and credential alias; file formats require a project path",
+			),
+		];
+	}
+	return [];
+}
+
+function externalItemLinkIssues(record: ExternalItemLink): ContractIssue[] {
+	const synced = record.syncStatus === "synced";
+	if (
+		synced !== (record.externalItemId !== null && record.externalVersion !== null) ||
+		synced === (record.lastError !== null)
+	) {
+		return [
+			issue(
+				"syncStatus",
+				"external_item_link.state_invalid",
+				"Synced links require an external ID/version and no error; incomplete links require an error",
+			),
+		];
+	}
+	return [];
+}
+
+function monitorSubscriptionIssues(record: MonitorSubscription): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (
+		(record.version === 1 && record.supersedesMonitorSubscriptionId !== null) ||
+		(record.version > 1 && record.supersedesMonitorSubscriptionId === null)
+	) {
+		issues.push(
+			issue(
+				"supersedesMonitorSubscriptionId",
+				"monitor_subscription.version_chain_invalid",
+				"First subscriptions cannot supersede another revision; later revisions must",
+			),
+		);
+	}
+	if (
+		record.query.filters.fromYear !== null &&
+		record.query.filters.toYear !== null &&
+		record.query.filters.fromYear > record.query.filters.toYear
+	) {
+		issues.push(issue("query.filters", "monitor_subscription.year_range_invalid", "Monitor year range is inverted"));
+	}
+	if (
+		hashCanonicalJson({ adapterId: record.adapterId, adapterVersion: record.adapterVersion, query: record.query })
+			.value !== record.queryHash.value
+	) {
+		issues.push(
+			issue("queryHash", "monitor_subscription.query_hash_invalid", "Monitor query hash does not match its query"),
+		);
+	}
+	return issues;
+}
+
+function monitorRunIssues(record: MonitorRun): ContractIssue[] {
+	const success = record.status === "succeeded";
+	const failed = record.status === "failed_retryable";
+	if (
+		(success && record.errors.length > 0) ||
+		(!success && record.errors.length === 0) ||
+		failed !== (record.retryTaskId !== null) ||
+		failed === (record.nextMonitorSubscriptionId !== null)
+	) {
+		return [
+			issue(
+				"status",
+				"monitor_run.state_invalid",
+				"Monitor status, errors, retry task, and checkpoint revision are inconsistent",
+			),
+		];
+	}
+	return [];
+}
+
 function taskIssues(record: ResearchTask): ContractIssue[] {
 	const issues: ContractIssue[] = [];
 	if (record.attemptCount > record.maxAttempts) {
@@ -1130,6 +1222,14 @@ function invariantIssues(record: PersistedRecord): ContractIssue[] {
 			return disclosureIssues(record);
 		case "submission_gate_report":
 			return submissionGateIssues(record);
+		case "adapter_export_profile":
+			return adapterExportProfileIssues(record);
+		case "external_item_link":
+			return externalItemLinkIssues(record);
+		case "monitor_subscription":
+			return monitorSubscriptionIssues(record);
+		case "monitor_run":
+			return monitorRunIssues(record);
 		case "task":
 			return taskIssues(record);
 		case "operation":

@@ -30,6 +30,7 @@ type JsonObject = { [key: string]: JsonValue };
 
 export interface SourceCandidateInput extends Omit<MetadataCandidateInput, "candidateId"> {
 	candidateId: string;
+	sourceIdHint: string | null;
 	adapterVersion: string;
 	queryText: string | null;
 	queryHash: HashValue | null;
@@ -186,8 +187,18 @@ async function existingSources(projectRoot: string): Promise<SourceRecord[]> {
 	return sources;
 }
 
-function exactExisting(candidate: NormalizedSourceCandidate, sources: readonly SourceRecord[]): SourceRecord | null {
+function exactExisting(
+	candidate: NormalizedSourceCandidate,
+	sources: readonly SourceRecord[],
+	sourceIdHint: string | null,
+): SourceRecord | null {
 	return (
+		sources.find(
+			(source) =>
+				source.sourceId === sourceIdHint &&
+				(source.dedupKeys.strongIdentifier === candidate.dedupKeys.strongIdentifier ||
+					source.titleNormalized === candidate.titleNormalized),
+		) ??
 		sources.find(
 			(source) =>
 				candidate.dedupKeys.strongIdentifier !== null &&
@@ -313,7 +324,12 @@ export async function commitSourceCandidates(
 			if (groupInputs.some((input) => input === undefined)) throw new TypeError("Source candidate input is missing");
 			const typedInputs = groupInputs as SourceCandidateInput[];
 			const discovery = discoveries(typedInputs);
-			const exact = exactExisting(candidate, sources);
+			const sourceIdHints = [
+				...new Set(typedInputs.map(({ sourceIdHint }) => sourceIdHint).filter((id) => id !== null)),
+			];
+			if (sourceIdHints.length > 1)
+				throw new TypeError("Merged source candidates contain conflicting source ID hints");
+			const exact = exactExisting(candidate, sources, sourceIdHints[0] ?? null);
 			if (exact !== null) {
 				let storedExact = exact;
 				const nextDiscovery = uniqueBy([...exact.discovery, ...discovery], (value) => canonicalStringify(value));

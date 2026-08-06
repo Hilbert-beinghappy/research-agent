@@ -1,10 +1,11 @@
-# Threat model v0.4
+# Threat model v0.5
 
 ## Assets
 
 - Canonical project records, manifest revisions, input/output hashes, transaction ledger, and recovery state.
 - Local papers, excerpts, bibliographic imports, provider responses, research questions, datasets, qualitative materials, scripts, runtime logs, and model-authored drafts or coding suggestions.
 - Provider credentials, approval decisions, action budgets, publication-status checks, and provenance.
+- External item mappings, export bundles, monitor queries/cursors, and derived cross-project catalogs.
 
 ## Trust boundaries
 
@@ -34,13 +35,16 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 | Failed analysis reported as a finding | Terminal status, exit code, logs, expected-output checks, timeout/abort and explicit non-convergence are canonical `AnalysisRun` facts; failed outputs are not success artifacts. | A successful script can still implement a scientifically invalid method; confirmation and review remain required. |
 | Model coding replaces human judgment | `ModelSuggestion` is immutable and separate; `CodingDecision` requires an explicit user accept/edit/reject action and preserves supersession and negative cases. | Human coding can still be inconsistent or biased; v0.3 does not calculate intercoder reliability automatically. |
 | Model invents support or treats reviewer consensus as verification | ClaimOccurrences require canonical Claim/Evidence/citation links; deterministic integrity runs first; reviewer roles are rubrics; immutable revisions, user dispositions, disclosure, P0 blocking, and explicit submission approval remain recorded. | Narrative quality, interpretation, and factual truth still require author review and external scholarly scrutiny. |
+| Unapproved or duplicate Zotero write | Credential aliases are resolved only by the broker; POST is classified as external write; approval is bound to destination/action/data; a write token and ExternalItemLink hash reconcile retries and partial responses. | Zotero can change or delete items outside this package; a remote service may accept a request but fail before returning a receipt. Reconciliation remains required. |
+| Monitor skips, duplicates, or advances after failure | Query hash, immutable subscription revisions, latest-revision check, canonical dedup, one-page confirmed runs, atomic run/checkpoint commit, and retry task. Failed runs retain the previous cursor. | Provider cursors can expire or providers can reorder results; source discovery is not a guarantee of historical completeness. |
+| Derived export or catalog becomes a second source of truth | Office/Obsidian/catalog outputs carry stable IDs or input hashes and are explicitly rebuildable; validators follow canonical records, not exports. | Users can edit exported files; reimport treats them as external input and does not silently overwrite canonical facts. |
 | Commercial software/license leakage | Stata is detected by executable path only, never bundled, and its license content is not inspected. Every run requires commercial-runtime approval. | Users remain responsible for installation, licensing and permitted use. |
 
 ## Privacy defaults
 
 Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
 
-Project exports, manuscripts, review findings, and runtime logs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. v0.4 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background monitor, automated email, or automated submission.
+Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. v0.5 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
 
 ## Security non-goals
 

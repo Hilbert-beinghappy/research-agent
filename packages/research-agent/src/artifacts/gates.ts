@@ -166,7 +166,7 @@ export async function evaluateArtifactGates(input: ArtifactGateInput): Promise<A
 			checks: [check("artifact_inputs", "passed", "Artifact inputs are valid project snapshots", input.records)],
 		};
 	}
-	if (input.artifactType === "manuscript") {
+	if (["manuscript", "docx", "pdf", "pptx"].includes(input.artifactType)) {
 		const manuscripts = input.records.filter((record): record is ManuscriptRecord => record.kind === "manuscript");
 		const manuscript = manuscripts[0];
 		const reports = input.records
@@ -223,7 +223,8 @@ export async function evaluateArtifactGates(input: ArtifactGateInput): Promise<A
 	}
 
 	const checks: ArtifactValidationCheck[] = [];
-	const claimBased = input.artifactType === "review" || input.artifactType === "evidence-matrix";
+	const claimBased =
+		input.artifactType === "review" || input.artifactType === "evidence-matrix" || input.artifactType === "xlsx";
 	const claims = input.records
 		.filter((record): record is ClaimRecord => record.kind === "claim")
 		.filter((claim) => input.selectedClaimIds.has(claim.claimId))

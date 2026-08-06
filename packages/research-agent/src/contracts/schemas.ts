@@ -2,8 +2,9 @@
 
 import { type Static, type TSchema, type TUnsafe, Type } from "typebox";
 
-export const RESEARCH_SCHEMA_VERSION = "0.4.0" as const;
-export const RESEARCH_LEGACY_SCHEMA_VERSION = "0.3.0" as const;
+export const RESEARCH_SCHEMA_VERSION = "0.5.0" as const;
+export const RESEARCH_LEGACY_SCHEMA_VERSION = "0.4.0" as const;
+export const RESEARCH_V0_3_SCHEMA_VERSION = "0.3.0" as const;
 export const RESEARCH_V0_2_SCHEMA_VERSION = "0.2.0" as const;
 export const RESEARCH_V0_1_SCHEMA_VERSION = "0.1.0" as const;
 
@@ -46,6 +47,10 @@ export type ReviewFindingId = string;
 export type RevisionDecisionId = string;
 export type DisclosureId = string;
 export type SubmissionGateReportId = string;
+export type AdapterExportProfileId = string;
+export type ExternalItemLinkId = string;
+export type MonitorSubscriptionId = string;
+export type MonitorRunId = string;
 export type TaskId = string;
 export type AnalysisRunId = string;
 export type ArtifactId = string;
@@ -71,15 +76,22 @@ export const JsonValueSchema = Type.Unsafe<JsonValue>(JsonValueRecursiveSchema);
 const ExistingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_1_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_2_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DesignRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_2_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DataRecordSchemaVersionSchema = Type.Union([
+	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_SCHEMA_VERSION),
+]);
+const WritingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
@@ -117,6 +129,10 @@ export const RecordKindSchema = Type.Union([
 	Type.Literal("revision_decision"),
 	Type.Literal("disclosure"),
 	Type.Literal("submission_gate_report"),
+	Type.Literal("adapter_export_profile"),
+	Type.Literal("external_item_link"),
+	Type.Literal("monitor_subscription"),
+	Type.Literal("monitor_run"),
 	Type.Literal("task"),
 	Type.Literal("analysis_run"),
 	Type.Literal("artifact"),
@@ -1156,7 +1172,7 @@ export type BibliographyEntry = Static<typeof BibliographyEntrySchema>;
 
 export const ManuscriptRecordSchema = PersistedObject({
 	kind: Type.Literal("manuscript"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	manuscriptId: NonEmptyStringSchema,
 	manuscriptSeriesId: NonEmptyStringSchema,
 	version: Type.Integer({ minimum: 1 }),
@@ -1181,7 +1197,7 @@ export type ManuscriptRecord = Static<typeof ManuscriptRecordSchema>;
 
 export const SectionRecordSchema = PersistedObject({
 	kind: Type.Literal("section"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	sectionId: NonEmptyStringSchema,
 	manuscriptId: NonEmptyStringSchema,
 	sectionKey: NonEmptyStringSchema,
@@ -1196,7 +1212,7 @@ export type SectionRecord = Static<typeof SectionRecordSchema>;
 
 export const ClaimOccurrenceSchema = PersistedObject({
 	kind: Type.Literal("claim_occurrence"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	claimOccurrenceId: NonEmptyStringSchema,
 	manuscriptId: NonEmptyStringSchema,
 	sectionId: NonEmptyStringSchema,
@@ -1222,7 +1238,7 @@ export type ReviewFindingType = Static<typeof ReviewFindingTypeSchema>;
 
 export const ReviewFindingSchema = PersistedObject({
 	kind: Type.Literal("review_finding"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	reviewFindingId: NonEmptyStringSchema,
 	manuscriptId: NonEmptyStringSchema,
 	reviewerRole: Type.Union([
@@ -1254,7 +1270,7 @@ export type ReviewFinding = Static<typeof ReviewFindingSchema>;
 
 export const RevisionDecisionSchema = PersistedObject({
 	kind: Type.Literal("revision_decision"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	revisionDecisionId: NonEmptyStringSchema,
 	manuscriptSeriesId: NonEmptyStringSchema,
 	fromManuscriptId: Nullable(NonEmptyStringSchema),
@@ -1276,7 +1292,7 @@ export type RevisionDecision = Static<typeof RevisionDecisionSchema>;
 
 export const DisclosureRecordSchema = PersistedObject({
 	kind: Type.Literal("disclosure"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	disclosureId: NonEmptyStringSchema,
 	manuscriptId: NonEmptyStringSchema,
 	aiUse: NonEmptyStringSchema,
@@ -1301,7 +1317,7 @@ export type SubmissionGateCheck = Static<typeof SubmissionGateCheckSchema>;
 
 export const SubmissionGateReportSchema = PersistedObject({
 	kind: Type.Literal("submission_gate_report"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: WritingRecordSchemaVersionSchema,
 	submissionGateReportId: NonEmptyStringSchema,
 	manuscriptId: NonEmptyStringSchema,
 	passed: Type.Boolean(),
@@ -1316,6 +1332,147 @@ export const SubmissionGateReportSchema = PersistedObject({
 	audit: RecordAuditSchema,
 });
 export type SubmissionGateReport = Static<typeof SubmissionGateReportSchema>;
+
+export const AdapterExportFormatSchema = Type.Union([
+	Type.Literal("ris"),
+	Type.Literal("bibtex"),
+	Type.Literal("obsidian"),
+	Type.Literal("docx"),
+	Type.Literal("pdf"),
+	Type.Literal("xlsx"),
+	Type.Literal("pptx"),
+	Type.Literal("zotero-api"),
+]);
+export type AdapterExportFormat = Static<typeof AdapterExportFormatSchema>;
+
+export const AdapterExportProfileSchema = PersistedObject({
+	kind: Type.Literal("adapter_export_profile"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	adapterExportProfileId: NonEmptyStringSchema,
+	name: NonEmptyStringSchema,
+	adapterId: NonEmptyStringSchema,
+	adapterVersion: NonEmptyStringSchema,
+	format: AdapterExportFormatSchema,
+	destination: Type.Union([
+		PersistedObject({ kind: Type.Literal("project_file"), path: RelativePathSchema }),
+		PersistedObject({
+			kind: Type.Literal("zotero_library"),
+			libraryType: Type.Union([Type.Literal("users"), Type.Literal("groups")]),
+			libraryId: NonEmptyStringSchema,
+		}),
+	]),
+	credentialAlias: Nullable(NonEmptyStringSchema),
+	enabled: Type.Boolean(),
+	createdAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type AdapterExportProfile = Static<typeof AdapterExportProfileSchema>;
+
+export const ExternalItemLinkSchema = PersistedObject({
+	kind: Type.Literal("external_item_link"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	externalItemLinkId: NonEmptyStringSchema,
+	adapterExportProfileId: NonEmptyStringSchema,
+	recordRef: RecordRefSchema,
+	externalItemId: Nullable(NonEmptyStringSchema),
+	externalVersion: Nullable(NonNegativeIntegerSchema),
+	contentHash: HashValueSchema,
+	syncStatus: Type.Union([Type.Literal("synced"), Type.Literal("failed"), Type.Literal("pending_reconciliation")]),
+	lastError: Nullable(ResearchErrorSchema),
+	attemptedAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type ExternalItemLink = Static<typeof ExternalItemLinkSchema>;
+
+export const MonitorQuerySchema = PersistedObject({
+	text: NonEmptyStringSchema,
+	filters: PersistedObject({
+		fromYear: Nullable(Type.Integer({ minimum: 1000, maximum: 9999 })),
+		toYear: Nullable(Type.Integer({ minimum: 1000, maximum: 9999 })),
+		types: Type.Array(NonEmptyStringSchema, { maxItems: 100 }),
+	}),
+	maxResults: Type.Integer({ minimum: 1, maximum: 10_000 }),
+});
+export type MonitorQuery = Static<typeof MonitorQuerySchema>;
+
+export const MonitorSubscriptionSchema = PersistedObject({
+	kind: Type.Literal("monitor_subscription"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	monitorSubscriptionId: NonEmptyStringSchema,
+	monitorSubscriptionSeriesId: NonEmptyStringSchema,
+	version: Type.Integer({ minimum: 1 }),
+	name: NonEmptyStringSchema,
+	adapterId: Type.Union([Type.Literal("crossref"), Type.Literal("openalex")]),
+	adapterVersion: NonEmptyStringSchema,
+	query: MonitorQuerySchema,
+	queryHash: HashValueSchema,
+	cursor: JsonValueSchema,
+	budget: PersistedObject({
+		maxCost: MoneySchema,
+		maxRequests: Type.Integer({ minimum: 1 }),
+	}),
+	status: Type.Union([Type.Literal("active"), Type.Literal("paused"), Type.Literal("retired")]),
+	supersedesMonitorSubscriptionId: Nullable(NonEmptyStringSchema),
+	lastSuccessfulRunId: Nullable(NonEmptyStringSchema),
+	createdAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type MonitorSubscription = Static<typeof MonitorSubscriptionSchema>;
+
+export const MonitorRunSchema = PersistedObject({
+	kind: Type.Literal("monitor_run"),
+	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	monitorRunId: NonEmptyStringSchema,
+	monitorSubscriptionId: NonEmptyStringSchema,
+	queryHash: HashValueSchema,
+	cursorBefore: JsonValueSchema,
+	cursorAfter: JsonValueSchema,
+	createdSourceIds: Type.Array(NonEmptyStringSchema),
+	reusedSourceIds: Type.Array(NonEmptyStringSchema),
+	requestCount: NonNegativeIntegerSchema,
+	cost: MoneySchema,
+	status: Type.Union([
+		Type.Literal("succeeded"),
+		Type.Literal("partially_succeeded"),
+		Type.Literal("failed_retryable"),
+	]),
+	errors: Type.Array(ResearchErrorSchema),
+	operationId: NonEmptyStringSchema,
+	retryTaskId: Nullable(NonEmptyStringSchema),
+	nextMonitorSubscriptionId: Nullable(NonEmptyStringSchema),
+	confirmedAt: NonEmptyStringSchema,
+	startedAt: NonEmptyStringSchema,
+	finishedAt: NonEmptyStringSchema,
+	audit: RecordAuditSchema,
+});
+export type MonitorRun = Static<typeof MonitorRunSchema>;
+
+export const CrossProjectSourceRefSchema = PersistedObject({
+	strongIdentifier: NonEmptyStringSchema,
+	projectId: NonEmptyStringSchema,
+	projectLocator: NonEmptyStringSchema,
+	sourceId: NonEmptyStringSchema,
+	title: NonEmptyStringSchema,
+	publicationYear: Nullable(Type.Integer({ minimum: 1000, maximum: 9999 })),
+});
+export type CrossProjectSourceRef = Static<typeof CrossProjectSourceRefSchema>;
+
+export const ProjectCatalogSchema = PersistedObject({
+	format: Type.Literal("pi-research-project-catalog"),
+	version: Type.Literal(1),
+	generatedAt: NonEmptyStringSchema,
+	projectCount: NonNegativeIntegerSchema,
+	sourceCount: NonNegativeIntegerSchema,
+	sources: Type.Array(CrossProjectSourceRefSchema),
+	duplicates: Type.Array(
+		PersistedObject({
+			strongIdentifier: NonEmptyStringSchema,
+			refs: Type.Array(CrossProjectSourceRefSchema, { minItems: 2 }),
+		}),
+	),
+	catalogHash: HashValueSchema,
+});
+export type ProjectCatalog = Static<typeof ProjectCatalogSchema>;
 
 export const TaskStatusSchema = Type.Union([
 	Type.Literal("planned"),
@@ -1426,6 +1583,7 @@ export const ArtifactKindSchema = Type.Union([
 	Type.Literal("json"),
 	Type.Literal("ris"),
 	Type.Literal("bibtex"),
+	Type.Literal("obsidian"),
 	Type.Literal("docx"),
 	Type.Literal("pdf"),
 	Type.Literal("xlsx"),
@@ -1630,6 +1788,10 @@ export const PersistedRecordSchema = Type.Union([
 	RevisionDecisionSchema,
 	DisclosureRecordSchema,
 	SubmissionGateReportSchema,
+	AdapterExportProfileSchema,
+	ExternalItemLinkSchema,
+	MonitorSubscriptionSchema,
+	MonitorRunSchema,
 	ResearchTaskSchema,
 	OperationRecordSchema,
 	AnalysisRunSchema,

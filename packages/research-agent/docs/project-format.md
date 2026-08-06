@@ -1,10 +1,10 @@
-# Research project format v0.4
+# Research project format v0.5
 
 ## Source of truth
 
 `research-project.json` and the versioned JSON records under `.research/records/` are the canonical research state. Pi Session stores only a link to the project ID, manifest path, observed revision, and last operation. A Session can be discarded without losing research facts; a project can be reopened from another Session with `/research-open`.
 
-The current schema version is `0.4.0`. Public JSON Schemas are under `schemas/v0.4`, generated from `src/contracts/schemas.ts`; the committed v0.1–v0.3 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. A v0.3 manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. Migrations never skip schema generations.
+The current schema version is `0.5.0`. Public JSON Schemas are under `schemas/v0.5`, generated from `src/contracts/schemas.ts`; the committed v0.1–v0.4 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. A v0.4 manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. Migrations never skip schema generations.
 
 ## Layout
 
@@ -27,6 +27,8 @@ README.md
     data/{datasets,variables,specifications}/
     qualitative/{materials,segments,codebooks,suggestions,decisions,themes}/
     writing/{manuscripts,sections,claim-occurrences,review-findings,revision-decisions,disclosures,submission-gates}/
+    adapters/{export-profiles,external-links}/
+    monitors/{subscriptions,runs}/
     analysis-runs/
     tasks/
     operations/
@@ -43,7 +45,7 @@ sources/
   imports/analysis/
   parsed/
 notes/
-artifacts/{reviews,matrices,manuscripts,exports,drafts,designs,final}/
+artifacts/{reviews,matrices,manuscripts,exports,drafts,designs,final,catalogs,knowledge}/
 ```
 
 Each analysis run has an independent `.research/runs/<analysis-run-id>/` directory containing copied inputs, outputs, stdout, and stderr. Canonical run facts live in `.research/records/analysis-runs`; the run directory alone is not evidence of success.
@@ -72,6 +74,9 @@ Each analysis run has an independent `.research/runs/<analysis-run-id>/` directo
 | `ClaimOccurrence` | Exact section character range and anchor hash linking a core/non-core occurrence to Claim, EvidenceCard, and citation keys. |
 | `ReviewFinding` / `RevisionDecision` | Deterministic or model/human review concern plus an explicit user disposition or active-revision change. |
 | `DisclosureRecord` / `SubmissionGateReport` | Confirmed AI-use disclosure and deterministic readiness checks with coverage, P0 state, approval and publishability. |
+| `AdapterExportProfile` / `ExternalItemLink` | Versioned destination/format/credential alias and the per-record external item/version/hash/reconciliation state. External systems are never canonical facts. |
+| `MonitorSubscription` / `MonitorRun` | Immutable query/Adapter/budget/cursor revision and one confirmed batch's inputs, results, cost, errors, retry task, and next checkpoint. |
+| `ProjectCatalog` / `CrossProjectSourceRef` | Rebuildable file index of strong identifiers across selected projects. It is hash-checked derived state, not a project record set. |
 | `ResearchTask` | Workflow state, dependencies, attempts, cursor, budget and errors. |
 | `OperationRecord` | Actor/model/Adapter execution, exact inputs and outputs, raw receipts, approvals, usage, cost and failure. |
 | `ArtifactRecord` | Derived output file, input snapshot, generator version, hash, publishability and gate results. |
@@ -85,9 +90,9 @@ Canonical writes use expected manifest and record revisions. A multi-file transa
 
 Original PDFs, imported CSV/text, analysis scripts/environments, and raw provider receipts are content-addressed immutable inputs. Analysis executes copies and rechecks every original hash afterward; a mutation attempt fails the run and restores the original bytes. Derived parsed text, outputs, exports, and indexes can be rebuilt from their input hashes and generator versions. Raw files and excerpts retain their access and redistribution status; project ownership does not imply public redistribution rights.
 
-## v0.3 to v0.4 migration
+## v0.4 to v0.5 migration
 
-Migration changes only the manifest schema version, revision, record-set declarations, and required writing/artifact directories. It does not reinterpret an existing Markdown Artifact as a ManuscriptRecord, choose an active draft, invent a ClaimOccurrence or disclosure, or modify a v0.3 record. Preparation stores hash-bound before/after snapshots; an interrupted pending migration can resume. Rollback restores the v0.3 manifest only when the current manifest still exactly matches the migrated snapshot. Any later v0.4 manifest write makes rollback lossy and therefore blocked.
+Migration changes only the manifest schema version, revision, record-set declarations, and required adapter/monitor/artifact directories. It does not create profiles, infer external IDs, schedule searches, export data, advance a cursor, reinterpret an existing Artifact, or modify a v0.4 record. Preparation stores hash-bound before/after snapshots; an interrupted pending migration can resume. Rollback restores the v0.4 manifest only when the current manifest still exactly matches the migrated snapshot. Any later v0.5 manifest write makes rollback lossy and therefore blocked.
 
 Design, analysis-specification, codebook, and theme confirmation are record states, not chat implications. Headless confirmation leaves the record at `awaiting_confirmation`; `/research-resume` returns its kind, ID, and revision. Rejected or superseded records remain auditable. A model suggestion is immutable and never becomes a human coding decision through confirmation by inference.
 
@@ -95,4 +100,4 @@ Design, analysis-specification, codebook, and theme confirmation are record stat
 
 Manifest paths and file references use normalized project-relative POSIX paths. Absolute paths, parent traversal, symlink escape, and case-colliding portable paths are rejected. A `reference` import can intentionally remain machine-local and is marked non-portable; use `copy` for a self-contained project when rights permit it.
 
-Session files, credentials, caches, locks, external provider secrets, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v0.4 records environment files, runtime versions, immutable manuscript revisions, and gate reports but does not claim container-level reproducibility or define the v1.5 exchange bundle format.
+Session files, credential values, caches, locks, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v0.5 includes only credential aliases and external item IDs/versions. Obsidian, Office, PDF, and project-catalog files are derived and may be deleted/rebuilt; Zotero remains external. v0.5 does not claim container-level reproducibility or define the v1.5 exchange bundle format.

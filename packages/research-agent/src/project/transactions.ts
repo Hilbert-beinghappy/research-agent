@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import type { HashValue, JsonValue, ResearchProjectManifest } from "../contracts/schemas.ts";
 import { validatePersistedRecord } from "../contracts/validators.ts";
-import { hashFile } from "../kernel/integrity.ts";
+import { hashBytes, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath, validatePortablePathSet, validateProjectRelativePath } from "../kernel/paths.ts";
 import { atomicWriteFile } from "./atomic-write.ts";
 import { PROJECT_MANIFEST_PATH } from "./layout.ts";
@@ -254,7 +254,7 @@ export async function prepareProjectTransaction(projectRoot: string, input: Proj
 					if (write.content !== null) {
 						const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
 						await atomicWriteFile(staged, write.content);
-						newHash = await hashFile(staged);
+						newHash = hashBytes(write.content);
 					}
 					return { path: write.path, oldHash, newHash };
 				}),
@@ -308,7 +308,8 @@ export async function commitPreparedTransaction(projectRoot: string, transaction
 				if ((await hashFile(staged)).value !== entry.newHash.value) {
 					throw new Error(`Staged hash mismatch: ${entry.path}`);
 				}
-				await atomicWriteFile(target, await readFile(staged));
+				if (entry.oldHash === null) await rename(staged, target);
+				else await atomicWriteFile(target, await readFile(staged));
 			}),
 		);
 	}

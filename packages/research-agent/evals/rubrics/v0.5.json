@@ -1,0 +1,28 @@
+{
+  "version": "0.5.0",
+  "hardGates": [
+    "four_adapter_contract_paths",
+    "round_trip_identifier_retention",
+    "destination_bound_external_write_approval",
+    "partial_external_write_reconciliation",
+    "monitor_user_confirmation",
+    "monitor_cursor_integrity",
+    "five_incremental_monitor_batches",
+    "cross_project_duplicate_recall",
+    "ten_thousand_source_catalog_performance",
+    "model_adapter_monitor_boundary"
+  ],
+  "thresholds": {
+    "adapterContractPaths": 4,
+    "failureInjectionCases": 3,
+    "canonicalCorruptionMax": 0,
+    "roundTripIdentifierRetention": 1,
+    "duplicateExternalWritesMax": 0,
+    "crossProjectDuplicateRecall": 1,
+    "monitorCheckpointBatches": 5,
+    "catalogSources": 10000,
+    "catalogQueryP95Ms": 2000,
+    "modelInvocationCountMax": 2,
+    "modelCostUsdMax": 0.1
+  }
+}

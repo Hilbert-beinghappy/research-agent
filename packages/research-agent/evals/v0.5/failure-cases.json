@@ -1,0 +1,25 @@
+{
+  "version": "0.5.0",
+  "status": "passed",
+  "sourceTests": [
+    "test/integration/knowledge-monitoring.test.ts",
+    "test/integration/governed-http.test.ts"
+  ],
+  "cases": [
+    {
+      "caseId": "zotero-partial-write",
+      "expectedState": "external_link_and_retry_task",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "portable-pdf-unicode-degradation",
+      "expectedState": "explicit_failure_use_docx",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "monitor-rate-limit",
+      "expectedState": "retry_task_without_cursor_advance",
+      "canonicalCorruption": false
+    }
+  ]
+}

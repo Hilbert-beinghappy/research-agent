@@ -42,7 +42,9 @@ const V0_2_TOOL_NAMES = RESEARCH_TOOL_NAMES.filter(
 		name !== "research_analysis" &&
 		name !== "research_qualitative" &&
 		name !== "research_manuscript" &&
-		name !== "research_review",
+		name !== "research_review" &&
+		name !== "research_knowledge" &&
+		name !== "research_monitor",
 );
 const V0_1_TOOL_NAMES = V0_2_TOOL_NAMES.filter((name) => name !== "research_design");
 

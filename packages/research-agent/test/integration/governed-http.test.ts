@@ -432,5 +432,30 @@ describe("governed HTTP broker", () => {
 			errors: [{ code: "APPROVAL_REQUIRED", details: { actionClass: "sensitive_egress" } }],
 		});
 		expect(sensitiveTransportCalls).toBe(0);
+
+		const writeOperationId = await createRunningOperation();
+		let writeTransportCalls = 0;
+		const write = await requestGovernedHttp(
+			projectRoot,
+			await brokerContext(writeOperationId),
+			{
+				...intent,
+				method: "POST",
+				body: '{"title":"Public metadata"}',
+				idempotencyKey: "fixture:external-write",
+			},
+			{
+				transport: async () => {
+					writeTransportCalls += 1;
+					throw new Error("external write must not execute before approval");
+				},
+			},
+		);
+		expect(write).toMatchObject({
+			ok: false,
+			status: "PERMISSION_BLOCKED",
+			errors: [{ code: "APPROVAL_REQUIRED", details: { actionClass: "external_write" } }],
+		});
+		expect(writeTransportCalls).toBe(0);
 	});
 });

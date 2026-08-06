@@ -179,6 +179,7 @@ try {
 	let outputBytes = 0;
 	const artifactSamples = await sample(() => {
 		const rendered = renderArtifact("research-design", records, null);
+		if (typeof rendered.content !== "string") throw new Error("Design artifact must be text");
 		if (!rendered.content.includes("# Research Design")) throw new Error("Design artifact was not rendered");
 		outputBytes = Buffer.byteLength(rendered.content);
 	}, 20);

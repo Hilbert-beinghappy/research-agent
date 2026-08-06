@@ -3,7 +3,7 @@
 import { readFile, stat } from "node:fs/promises";
 import type { FileRef, OperationRecord, RecordKind, RecordRef } from "../contracts/schemas.ts";
 import { readParsedPdfDocument, resolveParsedPdfLocator } from "../evidence/query.ts";
-import { hashBytes, hashFile } from "../kernel/integrity.ts";
+import { hashBytes, hashCanonicalJson, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { countManuscriptWords, manuscriptContentHash, reviewFindingFingerprint } from "../tools/writing.ts";
 import { openProject } from "./open.ts";
@@ -58,6 +58,10 @@ const RECORD_KINDS = new Set<RecordKind>([
 	"revision_decision",
 	"disclosure",
 	"submission_gate_report",
+	"adapter_export_profile",
+	"external_item_link",
+	"monitor_subscription",
+	"monitor_run",
 	"task",
 	"operation",
 	"analysis_run",
@@ -965,6 +969,101 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 							code: "INVALID_SUBMISSION_GATE_REPORT",
 							path,
 							message: "Submission gate state or approval is inconsistent with its manuscript",
+						});
+					}
+					break;
+				}
+				case "adapter_export_profile":
+					break;
+				case "external_item_link":
+					requireRecord("adapter_export_profile", record.adapterExportProfileId, `${path}#adapterExportProfileId`);
+					break;
+				case "monitor_subscription": {
+					if (record.supersedesMonitorSubscriptionId !== null) {
+						requireRecord(
+							"monitor_subscription",
+							record.supersedesMonitorSubscriptionId,
+							`${path}#supersedesMonitorSubscriptionId`,
+						);
+						const previous = records.get("monitor_subscription")?.get(record.supersedesMonitorSubscriptionId);
+						if (
+							previous?.kind === "monitor_subscription" &&
+							(previous.monitorSubscriptionSeriesId !== record.monitorSubscriptionSeriesId ||
+								previous.version + 1 !== record.version)
+						) {
+							issues.push({
+								code: "INVALID_MONITOR_SUBSCRIPTION_CHAIN",
+								path,
+								message: "Monitor subscription series or version chain is invalid",
+							});
+						}
+					}
+					if (record.lastSuccessfulRunId !== null) {
+						requireRecord("monitor_run", record.lastSuccessfulRunId, `${path}#lastSuccessfulRunId`);
+						const run = records.get("monitor_run")?.get(record.lastSuccessfulRunId);
+						if (
+							run?.kind === "monitor_run" &&
+							(run.status === "failed_retryable" ||
+								run.nextMonitorSubscriptionId !== record.monitorSubscriptionId ||
+								run.monitorSubscriptionId !== record.supersedesMonitorSubscriptionId ||
+								hashCanonicalJson(run.cursorAfter).value !== hashCanonicalJson(record.cursor).value)
+						) {
+							issues.push({
+								code: "INVALID_MONITOR_CHECKPOINT",
+								path: `${path}#lastSuccessfulRunId`,
+								message: "Monitor checkpoint does not match the run that created it",
+							});
+						}
+					}
+					break;
+				}
+				case "monitor_run": {
+					requireRecord("monitor_subscription", record.monitorSubscriptionId, `${path}#monitorSubscriptionId`);
+					requireRecord("operation", record.operationId, `${path}#operationId`);
+					if (record.retryTaskId !== null) requireRecord("task", record.retryTaskId, `${path}#retryTaskId`);
+					if (record.nextMonitorSubscriptionId !== null)
+						requireRecord(
+							"monitor_subscription",
+							record.nextMonitorSubscriptionId,
+							`${path}#nextMonitorSubscriptionId`,
+						);
+					for (const sourceId of [...record.createdSourceIds, ...record.reusedSourceIds])
+						requireRecord("source", sourceId, `${path}#sourceIds`);
+					const subscription = records.get("monitor_subscription")?.get(record.monitorSubscriptionId);
+					if (
+						subscription?.kind === "monitor_subscription" &&
+						(subscription.queryHash.value !== record.queryHash.value ||
+							hashCanonicalJson(subscription.cursor).value !== hashCanonicalJson(record.cursorBefore).value)
+					) {
+						issues.push({
+							code: "MONITOR_RUN_INPUT_MISMATCH",
+							path,
+							message: "Monitor run query or input cursor differs from its subscription revision",
+						});
+					}
+					if (record.nextMonitorSubscriptionId !== null) {
+						const next = records.get("monitor_subscription")?.get(record.nextMonitorSubscriptionId);
+						if (
+							next?.kind === "monitor_subscription" &&
+							(next.supersedesMonitorSubscriptionId !== record.monitorSubscriptionId ||
+								next.lastSuccessfulRunId !== record.monitorRunId ||
+								hashCanonicalJson(next.cursor).value !== hashCanonicalJson(record.cursorAfter).value)
+						) {
+							issues.push({
+								code: "INVALID_MONITOR_CHECKPOINT",
+								path: `${path}#nextMonitorSubscriptionId`,
+								message: "Monitor run does not match its next checkpoint revision",
+							});
+						}
+					}
+					if (
+						record.status === "failed_retryable" &&
+						hashCanonicalJson(record.cursorBefore).value !== hashCanonicalJson(record.cursorAfter).value
+					) {
+						issues.push({
+							code: "FAILED_MONITOR_CURSOR_ADVANCED",
+							path: `${path}#cursorAfter`,
+							message: "A failed monitor run cannot advance its cursor",
 						});
 					}
 					break;

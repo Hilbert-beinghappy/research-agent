@@ -25,7 +25,9 @@ const RECORDED_RESPONSE_HEADERS = new Set([
 	"date",
 	"etag",
 	"last-modified",
+	"last-modified-version",
 	"retry-after",
+	"zotero-api-version",
 ]);
 
 export interface HttpCredentialReference {
@@ -487,15 +489,18 @@ export async function requestGovernedHttp(
 		const sendsSensitiveData =
 			opened.manifest.policy.sensitivity === "restricted" ||
 			intent.dataClasses.some((dataClass) => !dataClass.startsWith("public"));
+		const mutatesExternalState = intent.method !== "GET" && intent.method !== "HEAD";
 		const actionRequest = createActionRequest({
 			projectId: opened.manifest.projectId,
 			operationId: context.operationId,
 			sessionId: context.sessionId,
-			actionClass: sendsSensitiveData
-				? "sensitive_egress"
-				: intent.paid
-					? "paid_service_call"
-					: "public_network_read",
+			actionClass: mutatesExternalState
+				? "external_write"
+				: sendsSensitiveData
+					? "sensitive_egress"
+					: intent.paid
+						? "paid_service_call"
+						: "public_network_read",
 			actionName: "http.request",
 			destination: new URL(intent.url).origin,
 			paths: [],

@@ -1,0 +1,13 @@
+{
+  "name": "Synthetic Zotero profile",
+  "adapterId": "zotero-api",
+  "adapterVersion": "0.5.0",
+  "format": "zotero-api",
+  "destination": {
+    "kind": "zotero_library",
+    "libraryType": "users",
+    "libraryId": "example-user-id"
+  },
+  "credentialAlias": "ZOTERO_API_KEY",
+  "enabled": true
+}

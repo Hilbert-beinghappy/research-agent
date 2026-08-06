@@ -2,13 +2,14 @@
 
 ## Pi commands
 
-| Command | Actual v0.4 behavior | State change |
+| Command | Actual v0.5 behavior | State change |
 |---|---|---|
 | `/research-version` | Show the loaded package version. | None |
 | `/research-init [title]` | Initialize the current empty directory, create the bootstrap task and operation, and link the Pi Session. | Adds a project; no overwrite |
 | `/research-open [path]` | Validate and link an existing current-schema project. | Session link only |
-| `/research-migrate [path]` | Prepare and commit the v0.3-to-v0.4 manifest migration after confirmation. `/research-migrate rollback <id>` restores the snapshot only when no v0.4 manifest write occurred. | Confirmed migration or unchanged rollback |
-| `/research-status` | Return stage, revision, record counts, task/operation/full-text/evidence/citation/design/analysis/writing status, and recorded budget totals. | None |
+| `/research-migrate [path]` | Prepare and commit the v0.4-to-v0.5 manifest migration after confirmation. `/research-migrate rollback <id>` restores the snapshot only when no v0.5 manifest write occurred. | Confirmed migration or unchanged rollback |
+| `/research-status` | Return stage, revision, record counts, task/operation/full-text/evidence/citation/design/analysis/writing/export-profile/monitor status, and recorded budget totals. | None |
+| `/research-monitor [list \| run <id>]` | List the latest monitor revision in each series or run one interactive, confirmed provider batch. | `list` is read-only; `run` records an Operation, MonitorRun, sources, and either a checkpoint or retry task. |
 | `/research-resume` | Return incomplete or blocked work plus pending design/method records, open P0 findings, and the current manuscript revision. | None |
 | `/research-validate` | Validate schemas, hashes, references, portable paths, and pending transactions. | None |
 | `/research-recover [commit|rollback] [transaction-id]` | Commit or roll back one pending transaction after interactive confirmation. | Confirmed recovery only |
@@ -16,7 +17,7 @@
 
 All commands except the version notification return a canonical `ResearchResult` as JSON. In non-interactive mode, actions requiring confirmation return `PERMISSION_BLOCKED`; they do not infer consent.
 
-There is no `/research-export` command in v0.4. Deterministic export is the `research_artifacts` Tool so that source references, operation state, output hashes, and gates remain in one path.
+There is no `/research-export` command in v0.5. Deterministic files use `research_artifacts`; profiles, Zotero reconciliation, and cross-project catalogs use `research_knowledge`. This keeps source references, approvals, operation state, output hashes, and failures on governed paths.
 
 ## Skills and prompts
 
@@ -31,6 +32,8 @@ There is no `/research-export` command in v0.4. Deterministic export is the `res
 | `/skill:academic-writing` | Create sectioned immutable manuscript revisions with ClaimOccurrence, bibliography, method, disclosure, and gate links. |
 | `/skill:academic-review` | Apply deterministic and judgment rubrics without treating model roles as independent evidence. |
 | `/skill:academic-revision` | Record user dispositions, create a new immutable revision, inspect diffs/rollback, and rerun the submission gate. |
+| `/skill:knowledge-export` | Create an export profile, generate portable formats, reconcile Zotero writes, and query a rebuildable project catalog without changing canonical facts. |
+| `/skill:literature-monitoring` | Create/revise a monitor and run one confirmed Crossref/OpenAlex batch with immutable cursors, budgets, deduplication, and retry state. |
 | `/scope-review` | Expand the topic/scope review prompt. |
 | `/integrity-review` | Expand the evidence and citation integrity prompt. |
 
@@ -46,7 +49,9 @@ Skills orchestrate model judgment. They do not parse PDFs, decide dedup matches,
 | `research_query_corpus` | Bounded text query, record scope, filters, limit, character bound, cursor. | Deterministically paginated source-located hits. |
 | `research_commit_evidence` | Strict EvidenceCard and Claim drafts plus expected project revision. | Validated canonical evidence/claims or a revision/provenance failure. |
 | `research_verify_citations` | Source IDs, Crossref/OpenAlex providers, refresh rule, field thresholds. | Existence, metadata, publication-status checks and final verification state. |
-| `research_artifacts` | Structured export or Markdown commit, source record refs, target status, optional portable output path. | Markdown research design/evidence matrix, JSON/RIS/BibTeX output, hash, ArtifactRecord, warnings and blockers. |
+| `research_artifacts` | Structured export or Markdown commit, source record refs, target status, optional portable output path. | Markdown, JSON, RIS/BibTeX, Obsidian ZIP, DOCX, PDF, XLSX, or PPTX output, hash, ArtifactRecord, warnings and blockers. |
+| `research_knowledge` | Create an export profile; render it; push a bounded Zotero batch; build/query a selected-project catalog. | Profile/link/task records, portable Artifact, external-write reconciliation, or content-hashed catalog results. |
+| `research_monitor` | Create/revise/list a subscription or run one confirmed provider page under its query, cursor, request, and cost bounds. | Immutable MonitorRun plus exactly one next checkpoint on success/partial success, or a retry task with unchanged cursor on failure. |
 | `research_design` | Create a question, concept, relation, critical decision, or protocol; or confirm/reject an exact record revision. | Versioned design record, explicit confirmation state, Operation provenance, or a method/dependency/revision failure. |
 | `research_analysis` | Import UTF-8 CSV, create/decide a frozen specification, detect Python/R/Stata, or run an approved local script. | Dataset/variable/specification records, terminal Task and AnalysisRun, command/cwd/runtime, logs, output hashes, raw-integrity checks, or explicit failure. |
 | `research_qualitative` | Import UTF-8 text, segment, version/decide a codebook or theme, record a model suggestion or human coding decision, or render an audit. | Stable segment locators, immutable suggestions, human decisions/supersession, themes/negative cases, and Markdown/JSON audit output. |
@@ -77,4 +82,8 @@ Draft one immutable manuscript revision from confirmed project records. Map ever
 Run deterministic integrity findings first, then apply the relevant method and evidence rubrics. Label all model findings as AI review.
 /skill:academic-revision
 Record my disposition for each finding, create a new revision, show the diff, confirm the disclosure, and stop before submission unless the gate passes and I approve it.
+/skill:knowledge-export
+Create a project-file export profile, generate an Obsidian vault and DOCX, then show the exact destination and records before any Zotero write.
+/skill:literature-monitoring
+Create a bounded Crossref monitor for the confirmed query. Run only one batch after I confirm; preserve the old cursor on any failure and do not edit the manuscript automatically.
 ```

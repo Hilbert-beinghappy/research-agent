@@ -22,12 +22,18 @@ import type {
 	TheoryRelation,
 } from "../contracts/schemas.ts";
 import { type ProjectRecord, projectRecordId } from "../project/record-index.ts";
+import { renderDocx, renderObsidianVault, renderPdf, renderPptx, renderXlsx } from "./portable-formats.ts";
 
 export type ResearchArtifactType =
 	| "review"
 	| "evidence-matrix"
 	| "research-design"
 	| "manuscript"
+	| "obsidian"
+	| "docx"
+	| "pdf"
+	| "xlsx"
+	| "pptx"
 	| "ris"
 	| "bibtex"
 	| "json";
@@ -42,7 +48,7 @@ export interface ArtifactFormatSpec {
 }
 
 export interface RenderedArtifact extends ArtifactFormatSpec {
-	content: string;
+	content: string | Uint8Array;
 }
 
 const FORMAT_SPECS: Record<ResearchArtifactType, ArtifactFormatSpec> = {
@@ -76,6 +82,46 @@ const FORMAT_SPECS: Record<ResearchArtifactType, ArtifactFormatSpec> = {
 		generatorId: "research.manuscript-markdown",
 		mediaType: "text/markdown",
 		title: "Auditable manuscript",
+		directory: "artifacts/manuscripts",
+	},
+	obsidian: {
+		artifactKind: "obsidian",
+		extension: "zip",
+		generatorId: "research.obsidian-vault",
+		mediaType: "application/zip",
+		title: "Obsidian research vault",
+		directory: "artifacts/knowledge",
+	},
+	docx: {
+		artifactKind: "docx",
+		extension: "docx",
+		generatorId: "research.manuscript-docx",
+		mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		title: "Manuscript DOCX",
+		directory: "artifacts/manuscripts",
+	},
+	pdf: {
+		artifactKind: "pdf",
+		extension: "pdf",
+		generatorId: "research.manuscript-pdf",
+		mediaType: "application/pdf",
+		title: "Manuscript PDF",
+		directory: "artifacts/manuscripts",
+	},
+	xlsx: {
+		artifactKind: "xlsx",
+		extension: "xlsx",
+		generatorId: "research.evidence-matrix-xlsx",
+		mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		title: "Evidence matrix XLSX",
+		directory: "artifacts/matrices",
+	},
+	pptx: {
+		artifactKind: "pptx",
+		extension: "pptx",
+		generatorId: "research.manuscript-pptx",
+		mediaType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		title: "Manuscript presentation",
 		directory: "artifacts/manuscripts",
 	},
 	ris: {
@@ -392,6 +438,7 @@ function sourceToCsl(source: SourceRecord): { [key: string]: JsonValue } {
 	const value: { [key: string]: JsonValue } = {
 		id: source.sourceId,
 		"citation-key": source.sourceId,
+		note: `Pi-Research-Source-ID: ${source.sourceId}`,
 		type: cslType(source.sourceType),
 		title: source.title,
 	};
@@ -452,17 +499,42 @@ export function renderArtifact(
 	markdownContent: string | null,
 ): RenderedArtifact {
 	const spec = artifactFormatSpec(type);
-	const content =
-		type === "review"
-			? normalizedMarkdown(markdownContent ?? "")
-			: type === "evidence-matrix"
-				? renderEvidenceMatrix(records)
-				: type === "research-design"
-					? renderResearchDesign(records)
-					: type === "manuscript"
-						? renderManuscript(records)
-						: type === "ris" || type === "bibtex"
-							? renderBibliography(type, records)
-							: renderJson(records);
+	let content: string | Uint8Array;
+	switch (type) {
+		case "review":
+			content = normalizedMarkdown(markdownContent ?? "");
+			break;
+		case "evidence-matrix":
+			content = renderEvidenceMatrix(records);
+			break;
+		case "research-design":
+			content = renderResearchDesign(records);
+			break;
+		case "manuscript":
+			content = renderManuscript(records);
+			break;
+		case "obsidian":
+			content = renderObsidianVault(records);
+			break;
+		case "docx":
+			content = renderDocx(records);
+			break;
+		case "pdf":
+			content = renderPdf(records);
+			break;
+		case "xlsx":
+			content = renderXlsx(records);
+			break;
+		case "pptx":
+			content = renderPptx(records);
+			break;
+		case "ris":
+		case "bibtex":
+			content = renderBibliography(type, records);
+			break;
+		case "json":
+			content = renderJson(records);
+			break;
+	}
 	return { ...spec, content };
 }

@@ -43,7 +43,7 @@ import {
 import { createRecord, readRecord } from "../project/records.ts";
 import { brokerProjectFile } from "../security/broker-files.ts";
 
-export const ARTIFACT_GENERATOR_VERSION = "0.4.0";
+export const ARTIFACT_GENERATOR_VERSION = "0.5.0";
 
 export interface GenerateArtifactRequest {
 	action: "generate_structured" | "commit_markdown";
@@ -103,6 +103,10 @@ const GENERATION_INPUT_KINDS = new Set<RecordKind>([
 	"revision_decision",
 	"disclosure",
 	"submission_gate_report",
+	"adapter_export_profile",
+	"external_item_link",
+	"monitor_subscription",
+	"monitor_run",
 	"analysis_run",
 	"approval",
 ]);
@@ -419,7 +423,10 @@ export async function prepareArtifact(
 					path: outputPath(request, rendered, inputAggregateHash),
 					hash: outputHash,
 					mediaType: rendered.mediaType,
-					bytes: Buffer.byteLength(rendered.content),
+					bytes:
+						typeof rendered.content === "string"
+							? Buffer.byteLength(rendered.content)
+							: rendered.content.byteLength,
 				},
 				inputAggregateHash,
 				validation,

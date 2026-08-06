@@ -35,7 +35,12 @@ import {
 import { validateProject } from "../project/validate.ts";
 import { createActionRequest } from "../security/policy.ts";
 import { isDesignRecord } from "../tools/design.ts";
-import { RESEARCH_TOOL_NAMES, type RegisterResearchToolsOptions, registerResearchTools } from "./tools.ts";
+import {
+	executeMonitorCommand,
+	RESEARCH_TOOL_NAMES,
+	type RegisterResearchToolsOptions,
+	registerResearchTools,
+} from "./tools.ts";
 
 export const RESEARCH_SESSION_ENTRY_TYPE = "pi-research-agent.project-link";
 
@@ -262,22 +267,37 @@ function countValues(values: readonly string[]): Record<string, number> {
 }
 
 export async function projectStatus(project: CurrentProject): Promise<JsonValue> {
-	const [tasks, operations, documents, evidence, citations, design, manuscripts, reviewFindings, gateReports] =
-		await Promise.all([
-			loadRecords(project, "task"),
-			loadRecords(project, "operation"),
-			loadRecords(project, "document"),
-			loadRecords(project, "evidence"),
-			loadRecords(project, "citation_verification"),
-			Promise.all(
-				(["research_question_version", "concept", "theory_relation", "design_decision", "protocol"] as const).map(
-					(kind) => loadRecords(project, kind),
-				),
-			).then((records) => records.flat()),
-			loadRecords(project, "manuscript"),
-			loadRecords(project, "review_finding"),
-			loadRecords(project, "submission_gate_report"),
-		]);
+	const [
+		tasks,
+		operations,
+		documents,
+		evidence,
+		citations,
+		design,
+		manuscripts,
+		reviewFindings,
+		gateReports,
+		exportProfiles,
+		monitorSubscriptions,
+		monitorRuns,
+	] = await Promise.all([
+		loadRecords(project, "task"),
+		loadRecords(project, "operation"),
+		loadRecords(project, "document"),
+		loadRecords(project, "evidence"),
+		loadRecords(project, "citation_verification"),
+		Promise.all(
+			(["research_question_version", "concept", "theory_relation", "design_decision", "protocol"] as const).map(
+				(kind) => loadRecords(project, kind),
+			),
+		).then((records) => records.flat()),
+		loadRecords(project, "manuscript"),
+		loadRecords(project, "review_finding"),
+		loadRecords(project, "submission_gate_report"),
+		loadRecords(project, "adapter_export_profile"),
+		loadRecords(project, "monitor_subscription"),
+		loadRecords(project, "monitor_run"),
+	]);
 	const taskRecords = tasks.filter((record) => record.kind === "task");
 	const budgetActual: Record<string, number> = {};
 	for (const task of taskRecords) {
@@ -313,6 +333,15 @@ export async function projectStatus(project: CurrentProject): Promise<JsonValue>
 			gateReports
 				.filter((record) => record.kind === "submission_gate_report")
 				.map(({ publishability }) => publishability),
+		),
+		exportProfilesByFormat: countValues(
+			exportProfiles.filter((record) => record.kind === "adapter_export_profile").map(({ format }) => format),
+		),
+		monitorSubscriptionsByStatus: countValues(
+			monitorSubscriptions.filter((record) => record.kind === "monitor_subscription").map(({ status }) => status),
+		),
+		monitorRunsByStatus: countValues(
+			monitorRuns.filter((record) => record.kind === "monitor_run").map(({ status }) => status),
 		),
 		budgetActual,
 	});
@@ -390,7 +419,8 @@ export function registerResearchCommands(
 		return bindProject(ctx, dirname(link.manifestPath), link.projectId);
 	};
 
-	registerResearchTools(pi, { version, requireProject, appendProjectLink, ...toolOptions });
+	const registeredToolOptions = { version, requireProject, appendProjectLink, ...toolOptions };
+	registerResearchTools(pi, registeredToolOptions);
 
 	const register = (name: string, description: string, handler: ResearchCommandHandler): void => {
 		pi.registerCommand(name, {
@@ -416,7 +446,7 @@ export function registerResearchCommands(
 
 	register(
 		"research-migrate",
-		"Migrate a v0.3 project to v0.4 or roll back an unchanged migration",
+		"Migrate a v0.4 project to v0.5 or roll back an unchanged migration",
 		async (args, ctx) => {
 			const [action, migrationId] = args.split(/\s+/, 2);
 			if (action === "rollback") {
@@ -433,7 +463,7 @@ export function registerResearchCommands(
 				}
 				const confirmed = await ctx.ui.confirm(
 					"Roll back research project migration",
-					`Restore the v0.3 manifest snapshot from ${migrationId}? Rollback is refused if any v0.4 state was written.`,
+					`Restore the v0.4 manifest snapshot from ${migrationId}? Rollback is refused if any v0.5 state was written.`,
 				);
 				if (!confirmed) {
 					return failureResult(
@@ -550,6 +580,20 @@ export function registerResearchCommands(
 
 	register("research-status", "Show canonical research project status", async (_args, ctx) => {
 		return successResult(await projectStatus(await requireProject(ctx)), null);
+	});
+
+	register("research-monitor", "List monitors or run one confirmed batch", async (args, ctx) => {
+		const [action, monitorSubscriptionId] = args.split(/\s+/, 2);
+		if (args.length === 0 || action === "list") {
+			return executeMonitorCommand(await requireProject(ctx), ctx, registeredToolOptions, { action: "list" });
+		}
+		if (action !== "run" || monitorSubscriptionId === undefined) {
+			throw new TypeError("Usage: /research-monitor [list | run <monitor-subscription-id>]");
+		}
+		return executeMonitorCommand(await requireProject(ctx), ctx, registeredToolOptions, {
+			action: "run",
+			monitorSubscriptionId,
+		});
 	});
 
 	register("research-resume", "Show incomplete and blocked research tasks", async (_args, ctx) => {

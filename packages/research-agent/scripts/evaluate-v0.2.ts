@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DesignDecision, ProtocolRecord } from "../src/contracts/schemas.ts";
-import { RESEARCH_SCHEMA_VERSION } from "../src/contracts/schemas.ts";
+import { RESEARCH_V0_2_SCHEMA_VERSION } from "../src/contracts/schemas.ts";
 import { validatePersistedRecord } from "../src/contracts/validators.ts";
 
 interface DesignCase {
@@ -166,7 +166,7 @@ function confirmation() {
 function decision(input: DesignCase): DesignDecision {
 	return {
 		kind: "design_decision",
-		schemaVersion: RESEARCH_SCHEMA_VERSION,
+		schemaVersion: RESEARCH_V0_2_SCHEMA_VERSION,
 		designDecisionId: `decision_${input.caseId}`,
 		decisionType: "method",
 		question: `Which method should address ${input.question}`,
@@ -202,7 +202,7 @@ function decision(input: DesignCase): DesignDecision {
 function protocol(input: DesignCase): ProtocolRecord {
 	return {
 		kind: "protocol",
-		schemaVersion: RESEARCH_SCHEMA_VERSION,
+		schemaVersion: RESEARCH_V0_2_SCHEMA_VERSION,
 		protocolId: `protocol_${input.caseId}`,
 		title: input.question,
 		researchQuestionVersionId: `rq_${input.caseId}`,
@@ -248,7 +248,7 @@ const fixture = json<Fixture>(fixturePath);
 const rubric = json<Rubric>(rubricPath);
 const baseline = json<Baseline>(baselinePath);
 const modelBaseline = json<ModelBaseline>(modelBaselinePath);
-check(fixture.schemaVersion === RESEARCH_SCHEMA_VERSION, "Fixture schema version is stale");
+check(fixture.schemaVersion === RESEARCH_V0_2_SCHEMA_VERSION, "Fixture schema version is stale");
 check(sha256(fixturePath) === baseline.input.fixtureSha256, "Design fixture hash changed");
 check(sha256(rubricPath) === baseline.input.rubricSha256, "Design rubric hash changed");
 check(baseline.status === "passed", "Frozen design baseline is not marked passed");

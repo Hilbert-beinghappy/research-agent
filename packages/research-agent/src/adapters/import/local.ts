@@ -30,6 +30,7 @@ export interface ImportedSourceCandidate {
 	format: ImportFormat;
 	metadataStatus: "provided" | "missing";
 	metadata: { [key: string]: JsonValue } | null;
+	sourceIdHint: string | null;
 	requiresBibliographicMatch: boolean;
 }
 
@@ -123,6 +124,11 @@ function metadataObject(value: JsonValue): { [key: string]: JsonValue } {
 	return value;
 }
 
+function sourceIdHint(metadata: { [key: string]: JsonValue }): string | null {
+	if (typeof metadata.note !== "string") return null;
+	return /^Pi-Research-Source-ID:\s*(src_[0-9a-f-]{36})$/u.exec(metadata.note)?.[1] ?? null;
+}
+
 export function parseLocalImport(raw: RawImportFile, bytes: Uint8Array): ParsedImport {
 	if (raw.format === "pdf") {
 		if (new TextDecoder().decode(bytes.subarray(0, 5)) !== "%PDF-") {
@@ -138,6 +144,7 @@ export function parseLocalImport(raw: RawImportFile, bytes: Uint8Array): ParsedI
 					format: "pdf",
 					metadataStatus: "missing",
 					metadata: null,
+					sourceIdHint: null,
 					requiresBibliographicMatch: true,
 				},
 			],
@@ -165,15 +172,19 @@ export function parseLocalImport(raw: RawImportFile, bytes: Uint8Array): ParsedI
 		};
 	}
 	return {
-		sourceCandidates: parseBibliography(raw.format, bytes).map((entry, entryIndex) => ({
-			candidateKey: `${raw.format}:${raw.contentHash.value}:${entryIndex}`,
-			inputIndex: raw.inputIndex,
-			entryIndex,
-			format: raw.format,
-			metadataStatus: "provided",
-			metadata: metadataObject(entry),
-			requiresBibliographicMatch: false,
-		})),
+		sourceCandidates: parseBibliography(raw.format, bytes).map((entry, entryIndex) => {
+			const metadata = metadataObject(entry);
+			return {
+				candidateKey: `${raw.format}:${raw.contentHash.value}:${entryIndex}`,
+				inputIndex: raw.inputIndex,
+				entryIndex,
+				format: raw.format,
+				metadataStatus: "provided",
+				metadata,
+				sourceIdHint: sourceIdHint(metadata),
+				requiresBibliographicMatch: false,
+			};
+		}),
 		documentCandidates: [],
 	};
 }

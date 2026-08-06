@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "taskClass": { "const": "knowledge_export_monitoring" },
+    "exportTool": { "type": "string" },
+    "monitorTool": { "type": "string" },
+    "firstAction": { "type": "string" },
+    "credentialHandling": { "type": "string" },
+    "mayPersistCredential": { "type": "boolean" },
+    "mayRunDaemon": { "type": "boolean" },
+    "mayAdvanceFailedCursor": { "type": "boolean" },
+    "mayAutoEditManuscript": { "type": "boolean" },
+    "requiredRecords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 6
+    },
+    "requiredWarnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 7
+    },
+    "stopCondition": { "type": "string", "minLength": 1 }
+  },
+  "required": [
+    "taskClass",
+    "exportTool",
+    "monitorTool",
+    "firstAction",
+    "credentialHandling",
+    "mayPersistCredential",
+    "mayRunDaemon",
+    "mayAdvanceFailedCursor",
+    "mayAutoEditManuscript",
+    "requiredRecords",
+    "requiredWarnings",
+    "stopCondition"
+  ]
+}

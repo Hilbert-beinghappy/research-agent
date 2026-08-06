@@ -1,0 +1,11 @@
+views:
+  - type: table
+    name: Sources
+    filters:
+      and:
+        - file.inFolder("sources")
+    order:
+      - title
+      - doi
+      - publication_year
+      - research_agent_id

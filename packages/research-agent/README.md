@@ -1,6 +1,6 @@
 # Pi Research Agent
 
-Pi Research Agent is a local-first Pi package for evidence-based management and public-administration research. v0.4 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, and immutable claim-to-evidence manuscript revision without adding a database or a separate UI.
+Pi Research Agent is a local-first Pi package for evidence-based management and public-administration research. v0.5 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, Zotero reconciliation, and user-triggered literature monitoring without adding a database or a separate UI.
 
 The package is evidence-first: metadata, abstract text, acquired full text, located excerpts, and verified citations are distinct states. Missing full text, unresolved metadata, paywalls, retractions, and insufficient evidence remain explicit; they are never converted into success by model wording.
 
@@ -31,10 +31,10 @@ Then initialize and load the intake workflow:
 Expected version notification:
 
 ```text
-pi-research-agent v0.4.0
+pi-research-agent v0.5.0
 ```
 
-The nine bundled Skills add `academic-writing`, `academic-review`, and `academic-revision` to the v0.3 research workflows. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes twelve governed aggregate Tools; users do not edit canonical `.research/records` files directly.
+The eleven bundled Skills include `knowledge-export` and `literature-monitoring` alongside the v0.4 workflows. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes fourteen governed aggregate Tools; users do not edit canonical `.research/records` files directly.
 
 ## Optional provider configuration
 
@@ -44,9 +44,10 @@ Provider values stay in the process environment and are referenced by alias in o
 export CROSSREF_MAILTO="researcher@example.org"
 export OPENALEX_API_KEY="..."
 export UNPAYWALL_EMAIL="researcher@example.org"
+export ZOTERO_API_KEY="..."
 ```
 
-Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup report a degraded or blocked capability when their required value is absent. Every paid request still requires the project budget and approval policy to allow it.
+Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup report a degraded or blocked capability when their required value is absent. `ZOTERO_API_KEY` is referenced only by credential alias; it is never stored in a project. Every paid request, sensitive egress, and external write still requires the project budget and approval policy to allow it.
 
 ## Documentation
 
@@ -60,6 +61,8 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [v0.2 release evidence and limitations](docs/release-v0.2.md)
 - [v0.3 release evidence and limitations](docs/release-v0.3.md)
 - [v0.4 release evidence and limitations](docs/release-v0.4.md)
+- [v0.5 release evidence and limitations](docs/release-v0.5.md)
+- [Literature monitoring and scheduling](docs/monitoring.md)
 - [Manuscript review rubrics](docs/review-rubrics.md)
 - [Submission gate](docs/submission-gate.md)
 - [AI disclosure template](docs/ai-disclosure-template.md)
@@ -67,14 +70,14 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 
 ## Public contracts
 
-The current v0.4 persisted-record and result contracts are exported from `pi-research-agent/contracts`. TypeBox definitions in `src/contracts/schemas.ts` are the single source for static types, runtime validation, and the JSON Schemas under `schemas/v0.4`. The immutable v0.1–v0.3 schemas remain committed; their records remain readable after sequential manifest migration.
+The current v0.5 persisted-record, result, and project-catalog contracts are exported from `pi-research-agent/contracts`. TypeBox definitions in `src/contracts/schemas.ts` are the single source for static types, runtime validation, and the JSON Schemas under `schemas/v0.5`. The immutable v0.1–v0.4 schemas remain committed; their records remain readable after sequential manifest migration.
 
 ```sh
 npm run generate:schemas -w packages/research-agent
 npm run test:unit -w packages/research-agent -- contracts
 ```
 
-The built-in SourceAdapter contract is exported from `pi-research-agent/adapters/source`. It remains experimental in v0.4; the stable third-party Adapter v1 contract is a v1.5 milestone. Local analysis runtimes are internal adapters, not a stable third-party execution API.
+The built-in SourceAdapter contract is exported from `pi-research-agent/adapters/source`. It remains experimental in v0.5; the stable third-party Adapter v1 contract is a v1.5 milestone. Zotero, portable-format, monitor, and local analysis implementations are built-in paths, not stable third-party execution APIs.
 
 ## Release checks
 
@@ -92,6 +95,8 @@ npm run benchmark:v0.3 -w packages/research-agent
 npm run qualify:runtimes:v0.3 -w packages/research-agent
 npm run eval:v0.4 -w packages/research-agent -- v0.4
 npm run benchmark:v0.4 -w packages/research-agent
+npm run eval:v0.5 -w packages/research-agent -- v0.5
+npm run benchmark:v0.5 -w packages/research-agent
 npm run scan:release -w packages/research-agent
 npm run test:clean-install -w packages/research-agent
 npm run test:compat -w packages/research-agent

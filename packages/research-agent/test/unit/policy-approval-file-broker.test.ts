@@ -219,6 +219,17 @@ describe("policy, approvals, and file broker", () => {
 			}),
 		).resolves.toMatchObject({ ok: true, value: { path, deleted: false, approvalId: null } });
 		await expect(readFile(join(projectRoot, ...path.split("/")), "utf8")).resolves.toBe("v1");
+		await expect(
+			brokerProjectFile(projectRoot, {
+				operationId,
+				sessionId: "session-1",
+				expectedManifestRevision: 3,
+				path,
+				content: "v1",
+				dataClasses: [],
+			}),
+		).resolves.toMatchObject({ ok: true, value: { path, deleted: false, approvalId: null } });
+		await expect(currentManifest(3)).resolves.toMatchObject({ revision: 3 });
 
 		await expect(
 			brokerProjectFile(projectRoot, {

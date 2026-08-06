@@ -68,6 +68,10 @@ export async function brokerProjectFile(
 		if (opened.compatibility !== "current") throw new TypeError("Project schema is read-only");
 		const target = await resolveProjectPath(opened.root, path);
 		const oldHash = await currentHash(target);
+		const newHash = input.content === null ? null : hashBytes(input.content);
+		if (newHash !== null && oldHash?.value === newHash.value) {
+			return successResult({ path, hash: newHash, deleted: false, approvalId: null }, input.operationId);
+		}
 		if (input.content === null && oldHash === null) {
 			return failureResult(
 				"PERMANENT_FAILURE",
@@ -93,7 +97,7 @@ export async function brokerProjectFile(
 			destructive: input.content === null,
 			recoverable: true,
 			fingerprintParameters: {
-				contentHash: input.content === null ? null : hashBytes(input.content),
+				contentHash: newHash,
 			},
 			policy: opened.manifest.policy,
 		});
@@ -144,7 +148,7 @@ export async function brokerProjectFile(
 		return successResult(
 			{
 				path,
-				hash: input.content === null ? null : hashBytes(input.content),
+				hash: newHash,
 				deleted: input.content === null,
 				approvalId: evaluation.approvalId,
 			},

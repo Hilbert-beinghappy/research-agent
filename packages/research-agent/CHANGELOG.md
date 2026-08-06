@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-06
+
+### Added
+
+- AdapterExportProfile, ExternalItemLink, MonitorSubscription, and MonitorRun records with a recoverable v0.4-to-v0.5 manifest migration.
+- `research_knowledge` and `research_monitor` aggregate Tools, `/research-monitor`, and bounded knowledge-export and literature-monitoring Skills.
+- Zotero API v3 write intents and partial-result reconciliation; stable-ID RIS/BibTeX round trips; Obsidian vault/Bases, basic DOCX/PDF/XLSX/PPTX outputs, and a rebuildable cross-project catalog.
+- Three failure cases, five checkpoint batches, a 10,000-source catalog benchmark, Office/Quick Look qualification, and a sanitized `deepseek-v4-flash` adapter/monitor boundary evaluation.
+
+### Changed
+
+- New projects and generated schemas use v0.5 while v0.1–v0.4 records and committed schemas remain readable.
+- HTTP POST is governed as an external write before sensitive-read or paid-read classifications; identical project-file content is an idempotent no-op.
+- Hash-verified staged files for new records commit by atomic rename, preserving transaction recovery while reducing the 1,000-segment Node 22.19 p95 from above five seconds to 2.239 seconds.
+- Package, Extension, and Artifact generator versions advance to 0.5.0.
+
+### Known limitations
+
+- v0.5 has no background daemon, cloud sync, account service, real-time collaboration, vector database, or automatic manuscript update.
+- Native PDF export supports ASCII text only; DOCX is the Unicode path. Office and Obsidian output is intentionally basic and rebuildable, not template-perfect.
+- Zotero and provider state can drift externally; the package records and reconciles observed receipts but never treats the remote system as canonical.
+
 ## [0.4.0] - 2026-08-06
 
 ### Added

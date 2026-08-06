@@ -1,6 +1,8 @@
-# Adapter capability matrix v0.4
+# Adapter capability matrix v0.5
 
 Capabilities are runtime observations, not permanent claims about an external service. Dates and prices below are the implementation snapshot used by v0.1; run health checks and inspect operation receipts before relying on a provider.
+
+The Zotero path follows the official [Web API v3 basics](https://www.zotero.org/support/dev/web_api/v3/basics) and [write-request contract](https://www.zotero.org/support/dev/web_api/v3/write_requests) for user/group prefixes, API headers, 50-object batches, write tokens, indexed result maps, and version conflicts.
 
 | Adapter/component | v0.1 capability | Credential | Cost model | Pagination/resume | Data egress | Explicit degradation |
 |---|---|---|---|---|---|---|
@@ -14,13 +16,18 @@ Capabilities are runtime observations, not permanent claims about an external se
 | Optional Stata runtime | Detect a user-owned `stata-mp`, `stata-se`, or `stata` executable and use the declared batch `-b do` contract after approval. | User's lawful local installation. | Commercial runtime outside this package. | One terminal `AnalysisRun` per attempt. | None by the adapter. | No bundled binary, license-file inspection, automatic installation, or CI claim of real Stata execution. |
 | Qualitative workbench | UTF-8 text import, paragraph locator indexing, codebook/suggestion/decision/theme records, Markdown/JSON audit. | None. | None. | Immutable records and explicit supersession. | Model suggestions follow project model-egress policy. | No automatic coding acceptance, de-identification service, saturation claim, or participant contact. |
 | Manuscript renderer | Immutable sections, ClaimOccurrence mapping, review/revision records, disclosure, deterministic submission gate, and Markdown export. | None. | None. | One Artifact per exact record snapshot. | Model drafting/review follows project model-egress policy; export is local. | No external submission, invented citation/evidence, human peer-review claim, or automatic review acceptance. |
+| Zotero API export `0.5.0` | Map canonical SourceRecords to Zotero API v3 items and reconcile success, unchanged, and per-item failure responses. | Required credential alias, normally `ZOTERO_API_KEY`. | Provider request accounting; no price assumption. | At most 50 items per POST; 32-character write token makes a retried request idempotent. | Bibliographic metadata sent only to the profile's user/group library after destination-bound approval. | Missing credential, 4xx/5xx, version conflict, partial write, or malformed response creates explicit links/errors and a retry task; this package never deletes Zotero items or reads Zotero SQLite. |
+| Portable artifact renderer | Deterministic DOCX, ASCII-only PDF, evidence-matrix XLSX, basic PPTX, and Obsidian ZIP from canonical records. | None. | None. | One Artifact per exact input snapshot. | Local project output only. | Unicode native PDF fails explicitly and directs the caller to DOCX; complex templates, formulas, animations, and pixel-perfect layout are not claimed. |
+| Obsidian knowledge export | Source, evidence, and claim notes with YAML IDs, links, a source index, and a rebuildable Bases view. | None. | None. | Rebuild from the canonical project. | Local project output only. | Portable path escaping is deterministic; Obsidian files never become canonical research state. |
+| Project catalog | File-based strong-identifier catalog across selected projects, duplicate groups, content hash, and exact identifier query. | None. | None. | Rebuildable JSON file. | None. | Projects requiring migration, invalid hashes, duplicate locators, or absent strong IDs are explicit; no database or vector index. |
+| Literature monitor | Versioned Crossref/OpenAlex query, one confirmed batch, canonical dedup, cost/request bounds, immutable run, and cursor checkpoint. | Same as the selected source Adapter. | Subscription hard caps plus normal broker accounting. | Exactly one provider page per user-confirmed run; next cursor persists only with a successful/partial checkpoint. | Query and identifiers sent to the selected provider after confirmation. | Failed runs preserve the prior cursor and create a retry task; query/Adapter changes require a new subscription revision. No daemon. |
 
 ## Trust and contract status
 
-Crossref and OpenAlex implement the exported experimental `SourceAdapter` contract and receive only an `AdapterContext` with a governed HTTP broker. Unpaywall uses the same capability snapshot and broker context for document location. Analysis and qualitative components are built-in internal tools, not the stable third-party Adapter v1 contract planned for v1.5. Built-in code is reviewed and runs in process.
+Crossref and OpenAlex implement the exported experimental `SourceAdapter` contract and receive only an `AdapterContext` with a governed HTTP broker. Unpaywall and Zotero use the same governed broker boundary for document lookup and external writes. Analysis, qualitative, portable-format, catalog, and monitoring components are built-in internal tools, not the stable third-party Adapter v1 contract planned for v1.5. Built-in code is reviewed and runs in process.
 
 The TypeScript contract cannot prevent arbitrary third-party in-process code from calling Node filesystem, network, environment, or process APIs directly. v0.1 therefore does not load unknown Adapters or call them sandboxed. The stable third-party contract, conformance kit, and strong-isolation protocol are v1.5/v2.0 work.
 
-## Not present in v0.4
+## Not present in v0.5
 
-No Semantic Scholar, CORE, DataCite, Europe PMC, licensed Chinese database, direct Zotero API/write, OCR service, notebook server, hosted compute, dependency installer, Obsidian, DOCX, XLSX, PPTX, monitoring, or generic web-scraping Adapter is shipped. Local proprietary Skills are neither copied nor included in the tarball.
+No Semantic Scholar, CORE, DataCite, Europe PMC, licensed Chinese database, Zotero SQLite integration, OCR service, notebook server, hosted compute, dependency installer, background daemon, cloud sync, real-time collaboration, vector database, or generic web-scraping Adapter is shipped. Local proprietary Skills are neither copied nor included in the tarball.

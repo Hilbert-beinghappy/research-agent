@@ -68,6 +68,14 @@ export function projectRecordId(record: ProjectRecord): string {
 			return record.disclosureId;
 		case "submission_gate_report":
 			return record.submissionGateReportId;
+		case "adapter_export_profile":
+			return record.adapterExportProfileId;
+		case "external_item_link":
+			return record.externalItemLinkId;
+		case "monitor_subscription":
+			return record.monitorSubscriptionId;
+		case "monitor_run":
+			return record.monitorRunId;
 		case "task":
 			return record.taskId;
 		case "operation":
@@ -139,6 +147,14 @@ export function projectRecordIdField(kind: RecordKind): string {
 			return "disclosureId";
 		case "submission_gate_report":
 			return "submissionGateReportId";
+		case "adapter_export_profile":
+			return "adapterExportProfileId";
+		case "external_item_link":
+			return "externalItemLinkId";
+		case "monitor_subscription":
+			return "monitorSubscriptionId";
+		case "monitor_run":
+			return "monitorRunId";
 		case "task":
 			return "taskId";
 		case "operation":

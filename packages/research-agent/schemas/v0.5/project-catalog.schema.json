@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent project catalog v0.5",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "generatedAt",
+    "projectCount",
+    "sourceCount",
+    "sources",
+    "duplicates",
+    "catalogHash"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "pi-research-project-catalog"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "strongIdentifier",
+          "projectId",
+          "projectLocator",
+          "sourceId",
+          "title",
+          "publicationYear"
+        ],
+        "properties": {
+          "strongIdentifier": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectLocator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "publicationYear": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 9999
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "duplicates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "strongIdentifier",
+          "refs"
+        ],
+        "properties": {
+          "strongIdentifier": {
+            "type": "string",
+            "minLength": 1
+          },
+          "refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "strongIdentifier",
+                "projectId",
+                "projectLocator",
+                "sourceId",
+                "title",
+                "publicationYear"
+              ],
+              "properties": {
+                "strongIdentifier": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "projectLocator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sourceId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "publicationYear": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1000,
+                      "maximum": 9999
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": true
+            },
+            "minItems": 2
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "catalogHash": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

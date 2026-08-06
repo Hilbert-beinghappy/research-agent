@@ -70,3 +70,14 @@ npm run benchmark:v0.4 -w packages/research-agent
 The release test suite executes 20 declared injections and requires zero false submission passes; the public evaluator replays their sanitized baseline. The inventory covers invented and missing citation markers, absent/unlocated/unsupported core evidence, unverified/retracted/conflicted sources, missing quantitative/qualitative method records, causal overclaim, missing disclosure/approval, unresolved deterministic and model P0 findings, and section/anchor tampering. The evaluator also verifies the frozen 50,000-word performance baseline, three Skill hashes, rubric and Prompt hashes, and the sanitized real-model boundary result.
 
 The authorized `deepseek-v4-flash` check used no tools or web requests. The validated structured result took two provider turns and cost USD 0.049945. It routed first to deterministic integrity findings, required immutable revision, and refused invented citations, model-consensus verification, and immediate submission. One earlier response failed the local rubric before cost persistence; the baseline records one unobserved-cost invocation rather than estimating it.
+
+## v0.5 knowledge-adapter and monitoring evaluation
+
+```sh
+npm run eval:v0.5 -w packages/research-agent -- v0.5
+npm run benchmark:v0.5 -w packages/research-agent
+```
+
+The deterministic gate replays three declared failure cases: partial Zotero write reconciliation, explicit Unicode-PDF degradation, and a rate-limited monitor that cannot advance its cursor. The integration suite covers RIS/BibTeX stable-ID hints, portable Office/Obsidian structures, external item mapping and retry state, five successful monitor checkpoints, a failed checkpoint, cross-project DOI duplication, and canonical project validation. The benchmark loads, validates, and queries a 10,000-source JSON catalog twenty times; the frozen Darwin arm64/Node 22.19.0 p95 is 20.486 ms against a 2-second gate with zero API/model calls.
+
+The authorized `deepseek-v4-flash` boundary evaluation used no tools or web requests. Its first response preserved every safety boundary but used workflow labels because the initial Prompt omitted the registered Tool inventory; that response was rejected. After the Prompt named the actual available Tools, the validated response selected `research_knowledge` and `research_monitor`, required destination-bound approval and an environment credential alias, preserved a failed cursor, and refused a daemon or automatic manuscript edit. Both observed invocations are counted: four provider turns, USD 0.08349 total, with no unobserved cost.

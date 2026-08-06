@@ -19,6 +19,8 @@ const allowedTools = new Set([
 	"research_qualitative",
 	"research_manuscript",
 	"research_review",
+	"research_knowledge",
+	"research_monitor",
 ]);
 
 function researchTools(content: string): string[] {
@@ -26,7 +28,7 @@ function researchTools(content: string): string[] {
 }
 
 describe("research skill routing", () => {
-	it("loads nine bounded workflow skills and two thin prompt templates", async () => {
+	it("loads eleven bounded workflow skills and two thin prompt templates", async () => {
 		const tempDir = await mkdtemp(join(tmpdir(), "pi-research-skills-"));
 		const cwd = join(tempDir, "project");
 		const agentDir = join(tempDir, "agent");
@@ -49,7 +51,9 @@ describe("research skill routing", () => {
 				"academic-review",
 				"academic-revision",
 				"academic-writing",
+				"knowledge-export",
 				"literature-evidence",
+				"literature-monitoring",
 				"literature-review",
 				"qualitative-research",
 				"quantitative-research",
@@ -66,6 +70,8 @@ describe("research skill routing", () => {
 			expect(descriptions.get("academic-writing")).toContain("immutable");
 			expect(descriptions.get("academic-review")).toContain("rubrics");
 			expect(descriptions.get("academic-revision")).toContain("submission gate");
+			expect(descriptions.get("knowledge-export")).toContain("Zotero");
+			expect(descriptions.get("literature-monitoring")).toContain("explicit user confirmation");
 
 			const skillText = new Map<string, string>();
 			for (const skill of packageSkills) {
