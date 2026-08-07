@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent project backup v1.1",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "backupId",
+    "projectId",
+    "projectSchemaVersion",
+    "projectRevision",
+    "createdAt",
+    "label",
+    "files",
+    "rootHash"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "pi-research-project-backup"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "backupId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectSchemaVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "hash",
+          "bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
+          },
+          "hash": {
+            "type": "object",
+            "required": [
+              "algorithm",
+              "value"
+            ],
+            "properties": {
+              "algorithm": {
+                "type": "string",
+                "const": "sha256"
+              },
+              "value": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "additionalProperties": true
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "rootHash": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

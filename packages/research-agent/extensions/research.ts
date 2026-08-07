@@ -3,7 +3,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerResearchCommands } from "../src/extension/commands.ts";
 
-export const RESEARCH_AGENT_VERSION = "1.0.0";
+export const RESEARCH_AGENT_VERSION = "1.1.0";
 
 export default function researchExtension(pi: ExtensionAPI): void {
 	pi.registerCommand("research-version", {

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taskClass",
+    "firstAction",
+    "requiredSequence",
+    "sourceRoute",
+    "mayUseUnverifiedLicensedProvider",
+    "maySimulateLogin",
+    "mayBypassCaptchaOrLimits",
+    "mayPersistCredential",
+    "mayTreatAbstractAsFullText",
+    "mayClaimUnboundedCompleteness",
+    "requiredWarnings",
+    "stopCondition"
+  ],
+  "properties": {
+    "taskClass": { "const": "domain_and_authorized_source_routing" },
+    "firstAction": { "const": "load-domain-package" },
+    "requiredSequence": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "enum": [
+          "load-domain-package",
+          "record-access-policy",
+          "search-open-sources",
+          "import-user-authorized-export",
+          "record-provider-capability-deferred",
+          "report-bounded-coverage"
+        ]
+      }
+    },
+    "sourceRoute": { "const": "open_sources_and_user_authorized_exports_only" },
+    "mayUseUnverifiedLicensedProvider": { "const": false },
+    "maySimulateLogin": { "const": false },
+    "mayBypassCaptchaOrLimits": { "const": false },
+    "mayPersistCredential": { "const": false },
+    "mayTreatAbstractAsFullText": { "const": false },
+    "mayClaimUnboundedCompleteness": { "const": false },
+    "requiredWarnings": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "stopCondition": { "type": "string", "minLength": 1 }
+  }
+}

@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { RESEARCH_V0_5_SCHEMA_VERSION } from "../../src/contracts/schemas.ts";
+import { RESEARCH_SCHEMA_VERSION, RESEARCH_V0_5_SCHEMA_VERSION } from "../../src/contracts/schemas.ts";
 import { doctorProject } from "../../src/project/doctor.ts";
 import { initializeProject } from "../../src/project/init.ts";
 import { PROJECT_MANIFEST_PATH } from "../../src/project/layout.ts";
@@ -46,7 +46,7 @@ describe("project doctor", () => {
 			issues: [{ code: "SCHEMA_MIGRATION_REQUIRED", category: "schema" }],
 		});
 
-		manifest.schemaVersion = "1.0.0";
+		manifest.schemaVersion = RESEARCH_SCHEMA_VERSION;
 		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 		await mkdir(join(projectRoot, ".research", "migrations", "staging", "migration_incomplete"), {
 			recursive: true,
@@ -89,6 +89,40 @@ describe("project doctor", () => {
 			issues: expect.arrayContaining([
 				expect.objectContaining({ code: "ADAPTER_ABSENT", category: "adapter_absence" }),
 			]),
+		});
+	});
+
+	it("reports an unavailable domain package without blocking generic guidance", async () => {
+		const manifestPath = join(projectRoot, PROJECT_MANIFEST_PATH);
+		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+			domain: { templateVersion: string | null };
+		};
+		manifest.domain.templateVersion = "9.9.9";
+		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+		await expect(doctorProject(projectRoot)).resolves.toMatchObject({
+			status: "attention",
+			issues: [
+				expect.objectContaining({
+					code: "DOMAIN_PACKAGE_ABSENT",
+					category: "domain_package_absence",
+					severity: "attention",
+				}),
+			],
+		});
+	});
+
+	it("reports an incomplete domain package reference", async () => {
+		const manifestPath = join(projectRoot, PROJECT_MANIFEST_PATH);
+		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+			domain: { templateVersion: string | null };
+		};
+		manifest.domain.templateVersion = null;
+		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+		await expect(doctorProject(projectRoot)).resolves.toMatchObject({
+			status: "attention",
+			issues: [expect.objectContaining({ code: "DOMAIN_PACKAGE_REFERENCE_INCOMPLETE" })],
 		});
 	});
 });

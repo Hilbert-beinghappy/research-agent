@@ -1,7 +1,7 @@
 {
 	"format": "pi-research-agent-compatibility",
 	"version": 1,
-	"researchAgentVersion": "1.0.0",
+	"researchAgentVersion": "1.1.0",
 	"node": ">=22.19.0",
 	"architectureBaseline": {
 		"piCommit": "97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53"

@@ -1,0 +1,37 @@
+{
+	"format": "pi-research-domain-package",
+	"manifestVersion": 1,
+	"packageId": "pi-research-domain-sociology",
+	"packageVersion": "1.1.0",
+	"displayName": "Sociology",
+	"domainId": "sociology",
+	"domainLabel": "Sociology",
+	"languages": ["en", "zh"],
+	"licenseExpression": "Apache-2.0",
+	"resources": [
+		{
+			"ruleId": "soc-search-terms",
+			"resourceType": "search_synonym",
+			"key": "social-structure",
+			"value": ["social structure", "institution", "inequality", "collective action", "社会结构", "社会分层"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent sociology template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "soc-unit-of-analysis",
+			"resourceType": "terminology",
+			"key": "unit-of-analysis",
+			"value": ["individual", "household", "group", "community", "institution", "network"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent sociology template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "soc-method-boundary",
+			"resourceType": "method_rubric",
+			"key": "inequality-claims",
+			"value": {"required": ["population boundary", "mechanism", "historical context", "within-group heterogeneity"]},
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent sociology template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		}
+	]
+}

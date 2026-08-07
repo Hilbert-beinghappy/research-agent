@@ -14,7 +14,7 @@ import {
 } from "./layout.ts";
 import { type OpenedProject, openProject } from "./open.ts";
 
-export type ResearchDomain = "management" | "public-administration";
+export type ResearchDomain = "management" | "public-administration" | "sociology" | "political-science";
 
 export interface InitializeProjectInput {
 	title: string;
@@ -24,6 +24,15 @@ export interface InitializeProjectInput {
 const DOMAIN_LABELS: Record<ResearchDomain, string> = {
 	management: "Management",
 	"public-administration": "Public Administration",
+	sociology: "Sociology",
+	"political-science": "Political Science",
+};
+
+const DOMAIN_PACKAGES: Record<ResearchDomain, string> = {
+	management: "pi-research-domain-management",
+	"public-administration": "pi-research-domain-public-administration",
+	sociology: "pi-research-domain-sociology",
+	"political-science": "pi-research-domain-political-science",
 };
 
 export async function initializeProject(projectRoot: string, input: InitializeProjectInput): Promise<OpenedProject> {
@@ -63,8 +72,8 @@ export async function initializeProject(projectRoot: string, input: InitializePr
 		domain: {
 			id: domain,
 			label: DOMAIN_LABELS[domain],
-			templatePackage: null,
-			templateVersion: null,
+			templatePackage: DOMAIN_PACKAGES[domain],
+			templateVersion: RESEARCH_SCHEMA_VERSION,
 		},
 		researchQuestions: [],
 		currentStage: "topic_exploration",

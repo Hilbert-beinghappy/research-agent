@@ -32,4 +32,4 @@ A successful local restore proves byte-for-byte recovery from that backup. It do
 
 ## Migration rollback
 
-Every v0.x-to-v1.0 migration creates a full backup automatically. `/research-migrate rollback <migration-id>` verifies its backup reference and restores the pre-migration manifest only if no later v1.0 project write occurred. When later writes exist, rollback is refused; restore the backup into a new empty directory instead.
+Every supported older-to-v1.1 migration creates a full backup automatically. `/research-migrate rollback <migration-id>` verifies its backup reference and restores the pre-migration manifest only if no later v1.1 project write occurred. When later writes exist, rollback is refused; restore the backup into a new empty directory instead.

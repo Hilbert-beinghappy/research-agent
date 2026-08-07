@@ -1,0 +1,23 @@
+{
+  "format": "pi-research-licensed-source-readiness",
+  "version": 1,
+  "status": "deferred",
+  "reason": "No named provider, contract terms, official API documentation, test entitlement, or redistribution permission was supplied for a Chinese licensed database.",
+  "requiredInputs": [
+    "named provider and product",
+    "current contract and automation terms",
+    "official API or supported export documentation",
+    "user-owned test entitlement",
+    "rate and download limits",
+    "metadata, abstract, full-text, export, and redistribution rights"
+  ],
+  "forbiddenApproaches": [
+    "simulate browser login",
+    "bypass captcha",
+    "evade rate or download limits",
+    "store credential values in project files",
+    "redistribute restricted records or full text",
+    "claim complete Chinese-database coverage"
+  ],
+  "shippedProviderPackages": []
+}

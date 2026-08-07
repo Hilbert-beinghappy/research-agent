@@ -9,9 +9,11 @@ Pi Research Agent exposes a deliberately small public surface. Files under `src/
 | `pi-research-agent` | Canonical JSON helpers, persisted schemas and types, validators, `ResearchResult`, project manifest, backup, catalog, evidence, citation, design, analysis, writing, approval, task, and operation contracts. |
 | `pi-research-agent/contracts` | The same contract surface as the package root. |
 | `pi-research-agent/routing/models` | `parseResearchModelRouteInput`, `selectResearchModelRoute`, their TypeBox schemas, and route/result types. |
-| `pi-research-agent/schemas/v1.0/*` | Generated JSON Schema for persisted records, machine results, project catalogs, and project backups. |
+| `pi-research-agent/domains` | `loadDomainPackage`, `resolveDomainResources`, and resolved-resource types. |
+| `pi-research-agent/access` | `evaluateAuthorizedSourceAccess`, built-in policy snapshot construction, request/decision types, and access-policy contracts. |
+| `pi-research-agent/schemas/v1.1/*` | Generated JSON Schema for persisted records, machine results, project catalogs, and project backups. |
 
-The v1 compatibility promise covers backward reading of published 1.x minor records, direct migration from 0.1–0.5 projects, and the machine-readable `ResearchResult` envelope. A security fix may reject input that an older validator accepted; release notes must identify the tightened rule.
+The v1 compatibility promise covers backward reading of published 1.x minor records, direct migration from 0.1–1.0 projects, and the machine-readable `ResearchResult` envelope. A security fix may reject input that an older validator accepted; release notes must identify the tightened rule.
 
 ## Experimental exports
 
@@ -19,7 +21,7 @@ The v1 compatibility promise covers backward reading of published 1.x minor reco
 
 ## Extension boundary
 
-The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and thirteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. The Extension, project doctor, backup engine, migration engine, transaction internals, and filesystem layout helpers are not imported as SDK APIs in v1.0; automation uses Pi command/Tool surfaces until the v2.0 SDK/RPC release.
+The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and fourteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. The Extension, project doctor, backup engine, migration engine, transaction internals, and filesystem layout helpers are not imported as SDK APIs in v1.1; automation uses Pi command/Tool surfaces until the v2.0 SDK/RPC release.
 
 ## Change process
 

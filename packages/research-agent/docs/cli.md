@@ -2,15 +2,15 @@
 
 ## Pi commands
 
-| Command | Actual v1.0 behavior | State change |
+| Command | Actual v1.1 behavior | State change |
 |---|---|---|
 | `/research-version` | Show the loaded package version. | None |
-| `/research-init [title]` | Initialize the current empty directory, create the bootstrap task and operation, and link the Pi Session. | Adds a project; no overwrite |
+| `/research-init [--domain <id>] [title]` | Initialize the current empty directory with a built-in domain, create the bootstrap task and operation, and link the Pi Session. The default is public administration. | Adds a project; no overwrite |
 | `/research-open [path]` | Validate and link an existing current-schema project. | Session link only |
-| `/research-migrate [path]` | Create a verified backup, then migrate any v0.1–v0.5 manifest directly to v1.0 after confirmation. `/research-migrate rollback <id>` restores the backup only when no later write occurred. | Confirmed migration or unchanged rollback |
+| `/research-migrate [path]` | Create a verified backup, then migrate any supported v0.1–v1.0 manifest directly to v1.1 after confirmation. `/research-migrate rollback <id>` restores the backup only when no later write occurred. | Confirmed migration or unchanged rollback |
 | `/research-backup [list \| create [label]]` | List backups or create a content-hashed snapshot of canonical project files and immutable inputs. | `create` adds a backup outside canonical record sets |
 | `/research-restore <backup-id> <empty-destination>` | Verify a backup manifest, file hashes, root hash, and project identity, then restore into a new empty directory. | Adds files only to the empty destination |
-| `/research-doctor [path]` | Diagnose schema compatibility, integrity, missing files, pending transactions/migrations, Adapter availability, and declared external drift. | None; repair actions are recommendations |
+| `/research-doctor [path]` | Diagnose schema compatibility, integrity, missing files, pending transactions/migrations, Adapter and Domain Package availability, and declared external drift. | None; repair actions are recommendations |
 | `/research-model-route <v1-json-input>` | Select one available model deterministically under project policy, sensitivity, capability, context, and cost constraints. | None |
 | `/research-status [full]` | Default summary reads the manifest only. `full` scans canonical records for task/operation/full-text/evidence/citation/design/analysis/writing/export-profile/monitor status and recorded budget totals. | None |
 | `/research-monitor [list \| run <id>]` | List the latest monitor revision in each series or run one interactive, confirmed provider batch. | `list` is read-only; `run` records an Operation, MonitorRun, sources, and either a checkpoint or retry task. |
@@ -18,10 +18,11 @@
 | `/research-validate` | Validate schemas, hashes, references, portable paths, and pending transactions. | None |
 | `/research-recover [commit|rollback] [transaction-id]` | Commit or roll back one pending transaction after interactive confirmation. | Confirmed recovery only |
 | `/research-policy` | Show policy. `/research-policy set {"sensitivity":"internal"}` proposes a validated patch and records the decision. | Policy changes require confirmation |
+| `/research-domain [show \| set <manifest-path>]` | Show the active domain or validate and activate a Domain Package manifest. | Activation requires confirmation and records Operation/Approval state. |
 
 All commands except the version notification return the v1 canonical `ResearchResult` JSON envelope. Its stable fields are `ok`, `status`, `value`, `errors`, and `meta`; `meta` carries `operationId`, `taskId`, and warnings. In non-interactive mode, actions requiring confirmation return `PERMISSION_BLOCKED`; they do not infer consent.
 
-There is no `/research-export` command in v1.0. Deterministic files use `research_artifacts`; profiles, Zotero reconciliation, and cross-project catalogs use `research_knowledge`. This keeps source references, approvals, operation state, output hashes, and failures on governed paths.
+There is no `/research-export` command in v1.1. Deterministic files use `research_artifacts`; profiles, Zotero reconciliation, and cross-project catalogs use `research_knowledge`. This keeps source references, approvals, operation state, output hashes, and failures on governed paths.
 
 ## Skills and prompts
 

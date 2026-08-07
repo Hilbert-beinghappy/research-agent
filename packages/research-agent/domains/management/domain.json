@@ -1,0 +1,37 @@
+{
+	"format": "pi-research-domain-package",
+	"manifestVersion": 1,
+	"packageId": "pi-research-domain-management",
+	"packageVersion": "1.1.0",
+	"displayName": "Management",
+	"domainId": "management",
+	"domainLabel": "Management",
+	"languages": ["en", "zh"],
+	"licenseExpression": "Apache-2.0",
+	"resources": [
+		{
+			"ruleId": "mgmt-search-terms",
+			"resourceType": "search_synonym",
+			"key": "organization",
+			"value": ["organization", "firm", "management", "organizational behavior", "组织", "企业管理"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent management template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "mgmt-unit-of-analysis",
+			"resourceType": "terminology",
+			"key": "unit-of-analysis",
+			"value": ["individual", "team", "organization", "industry", "interorganizational network"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent management template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "mgmt-method-boundary",
+			"resourceType": "method_rubric",
+			"key": "performance-claims",
+			"value": {"required": ["construct definition", "level of analysis", "measurement validity", "selection mechanism"]},
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent management template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		}
+	]
+}

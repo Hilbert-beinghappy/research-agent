@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
+import { accessPolicySnapshot } from "../access/policy.ts";
 import { UnpaywallAdapter } from "../adapters/document/unpaywall.ts";
 import { createZoteroWriteIntent, parseZoteroWriteResponse } from "../adapters/export/zotero.ts";
 import { fetchHttpTransport } from "../adapters/http/transport.ts";
@@ -1748,6 +1749,12 @@ async function searchSources(
 						rank: returned + index + 1,
 						requestOperationId: run.operationId,
 						abstractRights: "metadata_only",
+						accessPolicy: accessPolicySnapshot(
+							adapterId,
+							capabilities.adapterVersion,
+							retrievedAt,
+							"official_api",
+						),
 					});
 				}
 				returned += run.result.value.candidates.length;
@@ -1975,6 +1982,12 @@ async function importSources(
 						rank: candidate.entryIndex === null ? null : candidate.entryIndex + 1,
 						requestOperationId: operation.operationId,
 						abstractRights: "metadata_only",
+						accessPolicy: accessPolicySnapshot(
+							"local-import",
+							RESEARCH_SCHEMA_VERSION,
+							retrievedAt,
+							"user_authorized_file",
+						),
 					},
 				];
 	});
@@ -3618,6 +3631,12 @@ async function monitorTool(
 				rank: index + 1,
 				requestOperationId: run.operationId,
 				abstractRights: "metadata_only",
+				accessPolicy: accessPolicySnapshot(
+					subscription.adapterId,
+					subscription.adapterVersion,
+					retrievedAt,
+					"official_api",
+				),
 			});
 		}
 		const committed = await commitSourceCandidates(project.root, operation.operationId, candidates);

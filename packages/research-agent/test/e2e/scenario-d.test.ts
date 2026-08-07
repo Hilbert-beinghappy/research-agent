@@ -7,8 +7,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
 import {
-	RESEARCH_MIGRATABLE_SCHEMA_VERSIONS,
 	RESEARCH_SCHEMA_VERSION,
+	RESEARCH_V1_0_MIGRATABLE_SCHEMA_VERSIONS,
 	type RecordKind,
 	type SourceRecord,
 } from "../../src/contracts/schemas.ts";
@@ -31,7 +31,7 @@ import { validateProject } from "../../src/project/validate.ts";
 import { startOperation } from "../../src/tools/operations.ts";
 
 const timestamp = "2026-08-06T00:00:00.000Z";
-type LegacySchemaVersion = (typeof RESEARCH_MIGRATABLE_SCHEMA_VERSIONS)[number];
+type LegacySchemaVersion = (typeof RESEARCH_V1_0_MIGRATABLE_SCHEMA_VERSIONS)[number];
 const introduced: Partial<Record<RecordKind, string>> = {
 	research_question_version: "0.2.0",
 	concept: "0.2.0",
@@ -61,7 +61,7 @@ const introduced: Partial<Record<RecordKind, string>> = {
 	monitor_run: "0.5.0",
 };
 const interruptions = ["staged_write", "record_replace_boundary", "manifest_commit"] as const;
-const cases = RESEARCH_MIGRATABLE_SCHEMA_VERSIONS.flatMap((schemaVersion) =>
+const cases = RESEARCH_V1_0_MIGRATABLE_SCHEMA_VERSIONS.flatMap((schemaVersion) =>
 	interruptions.map((interruption) => ({ schemaVersion, interruption })),
 );
 

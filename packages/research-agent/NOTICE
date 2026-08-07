@@ -3,3 +3,6 @@ Copyright 2026 Pi Research Agent contributors
 
 This product includes third-party software. The production dependency inventory
 and declared licenses are listed in THIRD_PARTY_NOTICES.md and SBOM.spdx.json.
+
+Built-in Domain Package manifests are contributor-authored and distributed under
+Apache-2.0. No proprietary Skill text or licensed-database content is included.

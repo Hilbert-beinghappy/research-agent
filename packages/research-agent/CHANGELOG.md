@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-07
+
+### Added
+
+- Four data-only Domain Packages for management, public administration, sociology, and political science, with per-rule provenance, deterministic precedence, equal-precedence conflict rejection, and confirmed `/research-domain` activation.
+- AccessPolicySnapshot, DownloadLimit, EntitlementCapability, and access-path contracts plus fail-closed authorization evaluation for metadata, abstract, full text, export, credential state, automation, and request/item/byte limits.
+- Source-discovery access provenance, domain/authorized-source authoring guides, a 12-case access matrix, 10,000-rule/decision benchmark, and a sanitized `deepseek-v4-flash` routing boundary evaluation.
+
+### Changed
+
+- New projects and generated schemas use v1.1; `/research-init --domain` selects one of four built-in packages, while every v0.1–v1.0 project migrates without rewriting canonical records.
+- Package and Extension versions advance to 1.1.0. Domain and authorization helpers are exported as public package entries.
+
+### Known limitations
+
+- No Chinese licensed-provider Adapter is shipped. Provider-specific work is deferred until a named provider, current contract, official interface, user-owned test entitlement, limits, and redistribution terms are available.
+- Domain resources are maintainable starting rules, not authoritative disciplinary consensus. Installed Domain Package files are referenced rather than embedded in a portable project.
+- Unknown third-party Adapter isolation remains v1.5 work; v1.1 adds no database, custom UI, hosted credential service, browser-login automation, CAPTCHA handling, or generic scraping.
+
 ## [1.0.0] - 2026-08-07
 
 ### Added

@@ -3,6 +3,7 @@
 import { stat } from "node:fs/promises";
 import type { JsonValue, RecordKind } from "../contracts/schemas.ts";
 import { RESEARCH_MIGRATABLE_SCHEMA_VERSIONS, RESEARCH_SCHEMA_VERSION } from "../contracts/schemas.ts";
+import { BUILT_IN_DOMAIN_PACKAGE_IDS, loadDomainPackageById } from "../domain/packages.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { listPendingProjectMigrations, listStagedProjectMigrations } from "./migrate.ts";
 import { openProject } from "./open.ts";
@@ -18,6 +19,7 @@ export type ProjectDoctorCategory =
 	| "pending_transaction"
 	| "pending_migration"
 	| "adapter_absence"
+	| "domain_package_absence"
 	| "external_drift"
 	| "integrity";
 
@@ -92,6 +94,8 @@ function repairAction(issue: ProjectDoctorIssue): ProjectRepairAction {
 	if (issue.category === "pending_migration")
 		action = "Resume /research-migrate or inspect the staged migration journal";
 	if (issue.category === "adapter_absence") action = "Install or enable the named adapter, or disable its profile";
+	if (issue.category === "domain_package_absence")
+		action = "Install the referenced domain package or continue with generic research guidance";
 	if (issue.category === "external_drift")
 		action = "Run the adapter reconciliation task; do not rewrite canonical records from external state";
 	if (issue.category === "missing_file")
@@ -154,6 +158,7 @@ async function adapterIssues(
 export async function doctorProject(
 	projectRoot: string,
 	availableAdapters: ReadonlySet<string> = DEFAULT_ADAPTERS,
+	availableDomainPackages: ReadonlySet<string> = BUILT_IN_DOMAIN_PACKAGE_IDS,
 ): Promise<ProjectDoctorReport> {
 	let opened: Awaited<ReturnType<typeof openProject>>;
 	try {
@@ -242,6 +247,34 @@ export async function doctorProject(
 		});
 	}
 	issues.push(...adapters);
+	const { templatePackage, templateVersion } = opened.manifest.domain;
+	if ((templatePackage === null) !== (templateVersion === null)) {
+		issues.push({
+			code: "DOMAIN_PACKAGE_REFERENCE_INCOMPLETE",
+			category: "domain_package_absence",
+			severity: "attention",
+			path: "research-project.json#domain",
+			message: "Domain package ID and version must either both be set or both be null",
+		});
+	} else if (templatePackage !== null && templateVersion !== null) {
+		let available = availableDomainPackages.has(templatePackage);
+		try {
+			available =
+				(await loadDomainPackageById(templatePackage, templateVersion, opened.root)).domainId ===
+				opened.manifest.domain.id;
+		} catch {
+			if (BUILT_IN_DOMAIN_PACKAGE_IDS.has(templatePackage)) available = false;
+		}
+		if (!available) {
+			issues.push({
+				code: "DOMAIN_PACKAGE_ABSENT",
+				category: "domain_package_absence",
+				severity: "attention",
+				path: "research-project.json#domain.templatePackage",
+				message: `Domain package ${templatePackage}@${templateVersion} is unavailable; generic guidance remains usable`,
+			});
+		}
+	}
 	const status = issues.some(({ severity }) => severity === "blocked")
 		? "blocked"
 		: issues.length > 0

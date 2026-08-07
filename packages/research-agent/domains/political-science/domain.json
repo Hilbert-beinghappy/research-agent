@@ -1,0 +1,37 @@
+{
+	"format": "pi-research-domain-package",
+	"manifestVersion": 1,
+	"packageId": "pi-research-domain-political-science",
+	"packageVersion": "1.1.0",
+	"displayName": "Political Science",
+	"domainId": "political-science",
+	"domainLabel": "Political Science",
+	"languages": ["en", "zh"],
+	"licenseExpression": "Apache-2.0",
+	"resources": [
+		{
+			"ruleId": "pol-search-terms",
+			"resourceType": "search_synonym",
+			"key": "political-institutions",
+			"value": ["political institution", "representation", "state capacity", "political behavior", "政治制度", "国家能力"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent political science template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "pol-unit-of-analysis",
+			"resourceType": "terminology",
+			"key": "unit-of-analysis",
+			"value": ["voter", "elite", "party", "institution", "state", "international system"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent political science template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "pol-method-boundary",
+			"resourceType": "method_rubric",
+			"key": "institutional-claims",
+			"value": {"required": ["case scope", "institutional mechanism", "strategic behavior", "alternative institution"]},
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent political science template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		}
+	]
+}

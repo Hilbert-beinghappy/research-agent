@@ -1,10 +1,10 @@
-# Research project format v1.0
+# Research project format v1.1
 
 ## Source of truth
 
 `research-project.json` and the versioned JSON records under `.research/records/` are the canonical research state. Pi Session stores only a link to the project ID, manifest path, observed revision, and last operation. A Session can be discarded without losing research facts; a project can be reopened from another Session with `/research-open`.
 
-The current schema version is `1.0.0`. Public JSON Schemas are under `schemas/v1.0`, generated from `src/contracts/schemas.ts`; the committed v0.1–v0.5 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. A v0.x manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.x versions migrate directly to the same v1.0 manifest shape without rewriting canonical record files.
+The current schema version is `1.1.0`. Public JSON Schemas are under `schemas/v1.1`, generated from `src/contracts/schemas.ts`; the committed v0.1–v1.0 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.1–v1.0 versions migrate directly to the v1.1 manifest shape without rewriting canonical record files.
 
 ## Layout
 
@@ -54,7 +54,7 @@ Each analysis run has an independent `.research/runs/<analysis-run-id>/` directo
 
 | Record | Canonical fact |
 |---|---|
-| `SourceRecord` | Bibliographic metadata, identifiers, discovery provenance, dedup state, metadata conflicts, publication status. |
+| `SourceRecord` | Bibliographic metadata, identifiers, discovery provenance including access path/policy snapshot, dedup state, metadata conflicts, publication status. |
 | `DocumentRecord` | Access and license state, immutable local file hash, full-text/parser state, parsed block references. |
 | `EvidenceCard` | Material level, locator, exact excerpt check, claim relation, rights, validity and supersession. |
 | `ClaimRecord` | Scoped assertion, evidence links, conflicts, and derived support status. |
@@ -90,11 +90,17 @@ Canonical writes use expected manifest and record revisions. A multi-file transa
 
 Original PDFs, imported CSV/text, analysis scripts/environments, and raw provider receipts are content-addressed immutable inputs. Analysis executes copies and rechecks every original hash afterward; a mutation attempt fails the run and restores the original bytes. Derived parsed text, outputs, exports, and indexes can be rebuilt from their input hashes and generator versions. Raw files and excerpts retain their access and redistribution status; project ownership does not imply public redistribution rights.
 
-## v0.x to v1.0 migration
+## v0.1–v1.0 to v1.1 migration
 
-Migration changes only the manifest schema version, revision, record-set declarations, and required directories. It does not create records, infer missing facts, move data, or reinterpret a v0.x record. Preparation creates a full hash-bound project backup and hash-bound before/after manifest snapshots. One project-scoped migration lock prevents concurrent writers. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores the old manifest only when no later v1.0 write occurred.
+Migration changes only the manifest schema version, revision, record-set declarations, required directories, and the default built-in Domain Package reference when it is absent. It does not create records, infer missing facts, move data, or reinterpret a historical record. Preparation creates a full hash-bound project backup and hash-bound before/after manifest snapshots. One project-scoped migration lock prevents concurrent writers. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores the old manifest only when no later v1.1 write occurred.
 
-The migration matrix covers v0.1–v0.5 at staged-write, record-replace, and manifest-commit interruption points. v1.0 has no record-replace step, so that kill point asserts that no canonical record is rewritten. At every point the project root is either the complete old state or the complete new state, never mixed.
+Scenario D keeps the frozen v1.0 matrix covering v0.1–v0.5 at staged-write, record-replace, and manifest-commit interruption points. v1.1 additionally tests direct migration from every v0.x schema and v1.0, including the default Domain Package reference. No migration rewrites canonical records.
+
+## Domain and access policy state
+
+The manifest stores the active domain ID/label and Domain Package ID/version. Domain manifests remain package inputs rather than copied project facts. Activating another package is a confirmed manifest transaction with Operation and Approval records. A missing package degrades domain guidance and is reported by the doctor; it does not corrupt the project.
+
+New source-discovery events may store an `accessPath` and immutable `AccessPolicySnapshot`. The snapshot is the observed policy boundary for that discovery, not a credential or a legal conclusion. Historical discovery events without these optional fields remain readable. v1.1 production discovery paths always populate them.
 
 Design, analysis-specification, codebook, and theme confirmation are record states, not chat implications. Headless confirmation leaves the record at `awaiting_confirmation`; `/research-resume` returns its kind, ID, and revision. Rejected or superseded records remain auditable. A model suggestion is immutable and never becomes a human coding decision through confirmation by inference.
 
@@ -102,8 +108,8 @@ Design, analysis-specification, codebook, and theme confirmation are record stat
 
 Manifest paths and file references use normalized project-relative POSIX paths. Absolute paths, parent traversal, symlink escape, and case-colliding portable paths are rejected. A `reference` import can intentionally remain machine-local and is marked non-portable; use `copy` for a self-contained project when rights permit it.
 
-Session files, credential values, caches, locks, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v1.0 stores only credential aliases and external item IDs/versions. Obsidian, Office, PDF, project-catalog, and corpus-index files are derived and may be deleted/rebuilt; Zotero remains external. A project backup includes canonical state and project-local immutable inputs but excludes caches, locks, and nested backups. The v1.5 exchange bundle remains a separate future contract.
+Session files, credential values, caches, locks, installed Domain Packages, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v1.1 stores package references, policy snapshots, credential aliases, and external item IDs/versions. Obsidian, Office, PDF, project-catalog, and corpus-index files are derived and may be deleted/rebuilt; Zotero remains external. A project backup includes canonical state and project-local immutable inputs but excludes caches, locks, and nested backups. The v1.5 exchange bundle remains a separate future contract.
 
 ## Derived corpus index
 
-Source, evidence, and claim queries may use `.research/cache/corpus-*-v1.json`. Each file is bound to the relevant canonical record-set fingerprint and its own content hash. A missing, corrupt, or stale cache is rebuilt from canonical files. PDF blocks remain hash-checked from their live parsed documents. The cache is never a source of truth and may be deleted; v1.0 does not require SQLite or another database.
+Source, evidence, and claim queries may use `.research/cache/corpus-*-v1.json`. Each file is bound to the relevant canonical record-set fingerprint and its own content hash. A missing, corrupt, or stale cache is rebuilt from canonical files. PDF blocks remain hash-checked from their live parsed documents. The cache is never a source of truth and may be deleted; v1.1 does not require SQLite or another database.

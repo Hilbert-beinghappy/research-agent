@@ -1,0 +1,35 @@
+{
+  "format": "pi-research-domain-package-evaluation",
+  "version": 1,
+  "packages": [
+    {
+      "domainId": "management",
+      "packageId": "pi-research-domain-management",
+      "path": "domains/management/domain.json",
+      "initialPriority": true
+    },
+    {
+      "domainId": "public-administration",
+      "packageId": "pi-research-domain-public-administration",
+      "path": "domains/public-administration/domain.json",
+      "initialPriority": true
+    },
+    {
+      "domainId": "sociology",
+      "packageId": "pi-research-domain-sociology",
+      "path": "domains/sociology/domain.json",
+      "initialPriority": false
+    },
+    {
+      "domainId": "political-science",
+      "packageId": "pi-research-domain-political-science",
+      "path": "domains/political-science/domain.json",
+      "initialPriority": false
+    }
+  ],
+  "mergePolicy": {
+    "winner": "highest_precedence",
+    "equalPrecedenceConflict": "reject",
+    "tieOrder": "resourceType,key,packageId"
+  }
+}

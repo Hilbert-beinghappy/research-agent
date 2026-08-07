@@ -1,4 +1,4 @@
-# Threat model v1.0
+# Threat model v1.1
 
 ## Assets
 
@@ -20,7 +20,7 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 
 ## Enforced controls
 
-| Threat | v1.0 control | Residual risk |
+| Threat | v1.1 control | Residual risk |
 |---|---|---|
 | Model writes canonical files directly | Governed mode removes write/edit/bash tools; canonical mutations use transactions and expected revisions. | Other host code can still write files. |
 | Path escape or overwrite | Portable relative-path validation, symlink checks, protected paths, action fingerprints, confirmation for overwrite/delete. | Host-level changes outside Pi are not prevented. |
@@ -30,6 +30,9 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 | Secret leakage | Project stores credential aliases only; broker rejects raw credential headers/query fields and records redacted intent. Release tarball scans common secret and personal-path patterns. | Environment, model prompts, or provider bodies can contain sensitive data if the user supplies them. |
 | Unapproved network or spend | Policy evaluation, destination/action scope, explicit budgets, approval ledger, request/cost accounting and hard stop. | External pricing and provider behavior can drift after the snapshot date. |
 | Paywall or license bypass | Unpaywall/local authorized inputs only; access and license states are separate; unknown rights do not become export permission. | Users remain responsible for lawful access and downstream use. |
+| Licensed-provider access exceeds entitlement | AccessPolicySnapshot records terms version, access path, automation permission, entitlement capabilities, limits, and redistribution state; the evaluator blocks missing/expired/revoked credentials, absent capability, or limit overrun. | A snapshot can become stale or misrepresent a private contract; provider-specific packages need current legal and technical review. |
+| Browser login, CAPTCHA, or rate-limit circumvention | No generic browser-scraping or login Adapter is shipped; official API, supported export, and user-authorized file are the only access paths. | Users can operate external software outside this package; those actions are not validated or claimed by the project. |
+| Proprietary discipline resource enters a public package | Every Domain Package rule declares provenance and license; release scanning and authoring rules exclude private Skills, credentials, paths, and restricted content. | A false provenance declaration still requires maintainer and rights-holder review. |
 | Evidence fabrication or promotion | Evidence-level enum, locator invariants, exact excerpt match, source/parser hashes, citation state and artifact gates. | Model interpretation can still be wrong; human review remains required. |
 | Malicious/corrupt PDF | Signature/content/size checks, isolated parser result states, no automatic OCR upload. | PDF.js remains a complex dependency; process-level sandboxing is not provided. |
 | Dependency or proprietary asset leakage | Exact direct pins, lock-derived SPDX SBOM/notices, allowed Skill list, package-content scan. | A newly disclosed dependency vulnerability requires a new review/release. |
@@ -48,7 +51,7 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 
 Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
 
-Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, backups, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. A restricted project should disable model egress and external writes unless a destination-bound approval explicitly permits them. v1.0 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
+Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, backups, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. A restricted project should disable model egress and external writes unless a destination-bound approval explicitly permits them. v1.1 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
 
 ## Security non-goals
 
@@ -57,4 +60,4 @@ Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Ob
 - Circumventing authentication, robots controls, CAPTCHAs, paywalls, or provider terms.
 - Certifying academic correctness, legal compliance, privacy compliance, or publication readiness without human review.
 
-Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and host-mediated staging. That protocol is not claimed by v1.0; the isolated Adapter protocol is a v1.5 milestone.
+Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and host-mediated staging. That protocol is not claimed by v1.1; the isolated Adapter protocol is a v1.5 milestone.

@@ -1,0 +1,76 @@
+{
+  "benchmark": "pi-research-agent-v1.1",
+  "generatedAt": "2026-08-07T00:47:24.878Z",
+  "schemaVersion": "1.1.0",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "fixture": {
+    "domainRules": 10000,
+    "accessDecisions": 10000
+  },
+  "results": {
+    "domainResolution": {
+      "samples": 20,
+      "measurementsMs": [
+        7.27,
+        2.702,
+        1.9,
+        2.918,
+        1.334,
+        1.428,
+        1.493,
+        1.516,
+        1.721,
+        1.524,
+        2.099,
+        1.441,
+        1.417,
+        1.436,
+        1.504,
+        1.501,
+        1.535,
+        1.995,
+        1.414,
+        1.431
+      ],
+      "p95Ms": 2.918,
+      "thresholdMs": 2000,
+      "passed": true
+    },
+    "accessPolicy": {
+      "samples": 20,
+      "measurementsMs": [
+        0.486,
+        0.108,
+        0.142,
+        0.103,
+        0.117,
+        0.133,
+        0.132,
+        0.134,
+        0.15,
+        0.064,
+        0.038,
+        0.06,
+        0.038,
+        0.073,
+        0.066,
+        0.06,
+        0.062,
+        0.038,
+        0.037,
+        0.038
+      ],
+      "p95Ms": 0.15,
+      "thresholdMs": 2000,
+      "passed": true
+    }
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

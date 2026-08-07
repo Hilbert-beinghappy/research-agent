@@ -14,4 +14,4 @@ Pi packages execute in the host process. The policy engine, approval ledger, gov
 
 The package does not store provider secrets in project state. Credentials are resolved from configured environment aliases for the duration of a request. Project exports and backups must still be reviewed because canonical records can contain research metadata, excerpts, local filenames, participant material, and user-authored text.
 
-See `docs/threat-model.md` for the v1.0 threat model, sensitive-project defaults, and non-goals. Do not load unknown in-process Adapters: v1.0 provides governance controls, not code isolation.
+See `docs/threat-model.md` for the v1.1 threat model, sensitive-project defaults, and non-goals. Do not load unknown in-process Adapters: v1.1 provides governance controls, not code isolation.

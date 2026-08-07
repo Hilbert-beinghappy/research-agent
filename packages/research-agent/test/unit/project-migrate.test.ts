@@ -81,7 +81,7 @@ afterEach(async () => {
 	await rm(temporaryDirectory, { recursive: true, force: true });
 });
 
-describe("v0.x to v1.0 project migration", () => {
+describe("supported historical projects to v1.1 migration", () => {
 	it.each(RESEARCH_MIGRATABLE_SCHEMA_VERSIONS)(
 		"prepares %s without manifest mutation, resumes, and retains a hash-bound backup",
 		async (version) => {
@@ -112,6 +112,10 @@ describe("v0.x to v1.0 project migration", () => {
 			const migrated = await openProject(projectRoot);
 			expect(migrated).toMatchObject({ mode: "read-write", compatibility: "current" });
 			if (migrated.compatibility !== "current") throw new Error("Expected current project");
+			expect(migrated.manifest.domain).toMatchObject({
+				templatePackage: "pi-research-domain-public-administration",
+				templateVersion: RESEARCH_SCHEMA_VERSION,
+			});
 			expect(migrated.manifest.recordSets.map(({ kind }) => kind)).toEqual(
 				INITIAL_RECORD_SETS.map(({ kind }) => kind),
 			);
@@ -140,6 +144,22 @@ describe("v0.x to v1.0 project migration", () => {
 		await expect(migrateProject(projectRoot)).resolves.toMatchObject({
 			migrationIds: [migrationId],
 			recovered: true,
+		});
+	});
+
+	it("preserves a custom package reference without inventing a missing version", async () => {
+		await downgrade("1.0.0");
+		const manifestPath = join(projectRoot, PROJECT_MANIFEST_PATH);
+		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+			domain: { templatePackage: string | null; templateVersion: string | null };
+		};
+		manifest.domain.templatePackage = "research-domain-local";
+		manifest.domain.templateVersion = null;
+		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+		await migrateProject(projectRoot);
+		await expect(openProject(projectRoot)).resolves.toMatchObject({
+			manifest: { domain: { templatePackage: "research-domain-local", templateVersion: null } },
 		});
 	});
 

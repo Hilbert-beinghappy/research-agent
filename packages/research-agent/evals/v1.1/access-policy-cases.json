@@ -1,0 +1,41 @@
+{
+  "format": "pi-research-authorized-source-policy-evaluation",
+  "version": 1,
+  "basePolicy": {
+    "format": "pi-research-access-policy",
+    "version": 1,
+    "providerId": "licensed-provider-fixture",
+    "providerVersion": "1.0.0",
+    "policyVersion": "fixture-terms-1",
+    "capturedAt": "2026-08-07T00:00:00.000Z",
+    "accessPath": "official_api",
+    "automationAllowed": true,
+    "termsReference": "https://provider.example/terms",
+    "downloadLimit": { "maxRequests": 10, "maxItems": 100, "maxBytes": 1000, "period": "day" },
+    "entitlement": { "credentialRequired": true, "metadata": true, "abstract": true, "fullText": false, "export": false },
+    "redistributionAllowed": false
+  },
+  "baseRequest": {
+    "action": "metadata",
+    "entitlementState": "active",
+    "requestsUsed": 0,
+    "itemsUsed": 0,
+    "bytesUsed": 0,
+    "requestedItems": 1,
+    "requestedBytes": 100
+  },
+  "cases": [
+    { "caseId": "active-metadata", "expectedCode": "ACCESS_ALLOWED" },
+    { "caseId": "active-abstract", "request": { "action": "abstract" }, "expectedCode": "ACCESS_ALLOWED" },
+    { "caseId": "fulltext-not-entitled", "request": { "action": "fulltext" }, "expectedCode": "ENTITLEMENT_BLOCKED" },
+    { "caseId": "export-not-entitled", "request": { "action": "export" }, "expectedCode": "ENTITLEMENT_BLOCKED" },
+    { "caseId": "credential-missing", "request": { "entitlementState": "missing" }, "expectedCode": "AUTHENTICATION_BLOCKED" },
+    { "caseId": "credential-expired", "request": { "entitlementState": "expired" }, "expectedCode": "AUTHENTICATION_BLOCKED" },
+    { "caseId": "credential-revoked", "request": { "entitlementState": "revoked" }, "expectedCode": "AUTHENTICATION_BLOCKED" },
+    { "caseId": "automation-forbidden", "policy": { "automationAllowed": false }, "expectedCode": "AUTOMATION_BLOCKED" },
+    { "caseId": "request-limit", "request": { "requestsUsed": 10 }, "expectedCode": "DOWNLOAD_LIMIT_BLOCKED" },
+    { "caseId": "item-limit", "request": { "itemsUsed": 100 }, "expectedCode": "DOWNLOAD_LIMIT_BLOCKED" },
+    { "caseId": "byte-limit", "request": { "bytesUsed": 1000 }, "expectedCode": "DOWNLOAD_LIMIT_BLOCKED" },
+    { "caseId": "metadata-not-entitled", "policy": { "entitlement": { "metadata": false } }, "expectedCode": "ENTITLEMENT_BLOCKED" }
+  ]
+}

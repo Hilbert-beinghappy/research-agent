@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   v1-core:
-    name: v1.0 core (${{ matrix.os }})
+    name: v1.1 core (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -51,7 +51,7 @@ jobs:
           npm run test:e2e -w packages/research-agent
           npm run test:compat -w packages/research-agent
 
-      - name: Replay v0.1 through v1.0 release gates
+      - name: Replay v0.1 through v1.1 release gates
         run: |
           npm run eval -w packages/research-agent -- v0.1
           npm run eval:v0.2 -w packages/research-agent -- v0.2
@@ -59,8 +59,9 @@ jobs:
           npm run eval:v0.4 -w packages/research-agent -- v0.4
           npm run eval:v0.5 -w packages/research-agent -- v0.5
           npm run eval:v1.0 -w packages/research-agent -- v1.0
+          npm run eval:v1.1 -w packages/research-agent -- v1.1
 
-      - name: Benchmark v0.1 through v1.0
+      - name: Benchmark v0.1 through v1.1
         run: |
           node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark-v0.1.json
           node packages/research-agent/scripts/benchmark-v0.2.ts --output research-agent-benchmark-v0.2.json
@@ -68,6 +69,7 @@ jobs:
           node packages/research-agent/scripts/benchmark-v0.4.ts --output research-agent-benchmark-v0.4.json
           node packages/research-agent/scripts/benchmark-v0.5.ts --output research-agent-benchmark-v0.5.json
           node packages/research-agent/scripts/benchmark-v1.0.ts --output research-agent-benchmark-v1.0.json
+          node packages/research-agent/scripts/benchmark-v1.1.ts --output research-agent-benchmark-v1.1.json
 
       - name: Qualify installed Python and R runtimes
         if: runner.os != 'Windows'
@@ -84,6 +86,7 @@ jobs:
             research-agent-benchmark-v0.4.json
             research-agent-benchmark-v0.5.json
             research-agent-benchmark-v1.0.json
+            research-agent-benchmark-v1.1.json
 
       - name: Qualify release package
         run: |

@@ -651,7 +651,23 @@ describe("research tools", () => {
 		opened = await openProject(temporaryDirectory);
 		if (opened.compatibility !== "current") throw new Error("Expected current project");
 		const source = await readRecord(opened.root, "source", sourceId);
-		expect(source).toMatchObject({ ok: true, value: { sourceId, duplicateStatus: "canonical" } });
+		expect(source).toMatchObject({
+			ok: true,
+			value: {
+				sourceId,
+				duplicateStatus: "canonical",
+				discovery: [
+					{
+						accessPath: "official_api",
+						accessPolicy: {
+							format: "pi-research-access-policy",
+							providerId: "crossref",
+							entitlement: { metadata: true, fullText: false },
+						},
+					},
+				],
+			},
+		});
 		const validation = await validateProject(opened.root);
 		expect(validation.issues).toEqual([]);
 		expect(validation).toMatchObject({ valid: true, pendingTransactionIds: [] });

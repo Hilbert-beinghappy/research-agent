@@ -1,0 +1,37 @@
+{
+	"format": "pi-research-domain-package",
+	"manifestVersion": 1,
+	"packageId": "pi-research-domain-public-administration",
+	"packageVersion": "1.1.0",
+	"displayName": "Public Administration",
+	"domainId": "public-administration",
+	"domainLabel": "Public Administration",
+	"languages": ["en", "zh"],
+	"licenseExpression": "Apache-2.0",
+	"resources": [
+		{
+			"ruleId": "pa-search-terms",
+			"resourceType": "search_synonym",
+			"key": "governance",
+			"value": ["public administration", "public management", "administrative governance", "公共管理", "行政管理"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent public administration template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "pa-unit-of-analysis",
+			"resourceType": "terminology",
+			"key": "unit-of-analysis",
+			"value": ["agency", "program", "policy", "street-level organization", "jurisdiction"],
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent public administration template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		},
+		{
+			"ruleId": "pa-method-boundary",
+			"resourceType": "method_rubric",
+			"key": "accountability-claims",
+			"value": {"required": ["institutional context", "authority", "implementation mechanism", "alternative explanation"]},
+			"precedence": 100,
+			"provenance": {"origin": "maintainer_authored", "sourceTitle": "Pi Research Agent public administration template", "sourceUrl": null, "licenseExpression": "Apache-2.0", "reviewedAt": "2026-08-07"}
+		}
+	]
+}

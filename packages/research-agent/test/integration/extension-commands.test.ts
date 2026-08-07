@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import researchExtension from "../../extensions/research.ts";
@@ -156,6 +157,7 @@ describe("research extension commands", () => {
 		expect([...harness.commands.keys()].sort()).toEqual([
 			"research-backup",
 			"research-doctor",
+			"research-domain",
 			"research-init",
 			"research-migrate",
 			"research-model-route",
@@ -346,6 +348,86 @@ describe("research extension commands", () => {
 				-1,
 			),
 		).toMatchObject({ block: true });
+	});
+
+	it("initializes and changes a domain only through a confirmed manifest update", async () => {
+		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-domain-command-"));
+		const projectRoot = join(temporaryDirectory, "domain-project");
+		await mkdir(projectRoot);
+		const harness = createHarness();
+		const ctx = harness.context(projectRoot);
+		await harness.commands.get("research-init")?.('--domain sociology "Domain Fixture"', ctx);
+		expect(await openProject(projectRoot)).toMatchObject({
+			manifest: {
+				title: "Domain Fixture",
+				domain: {
+					id: "sociology",
+					templatePackage: "pi-research-domain-sociology",
+					templateVersion: RESEARCH_SCHEMA_VERSION,
+				},
+			},
+		});
+
+		const managementManifest = fileURLToPath(new URL("../../domains/management/domain.json", import.meta.url));
+		const noUiContext = harness.context(projectRoot, false);
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		await harness.commands.get("research-domain")?.(`set "${managementManifest}"`, noUiContext);
+		const blocked = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as Record<string, unknown>;
+		stdout.mockRestore();
+		expect(blocked).toMatchObject({
+			ok: false,
+			status: "PERMISSION_BLOCKED",
+			errors: [{ code: "DOMAIN_CONFIRMATION_REQUIRED" }],
+		});
+
+		harness.confirm.mockResolvedValueOnce(false);
+		await harness.commands.get("research-domain")?.(`set "${managementManifest}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: false,
+			errors: [{ code: "DOMAIN_UPDATE_DENIED" }],
+		});
+		expect(await openProject(projectRoot)).toMatchObject({ manifest: { domain: { id: "sociology" } } });
+
+		await harness.commands.get("research-domain")?.(`set "${managementManifest}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: {
+				domain: {
+					id: "management",
+					templatePackage: "pi-research-domain-management",
+					templateVersion: "1.1.0",
+				},
+				approvalId: expect.any(String),
+			},
+		});
+		expect(await openProject(projectRoot)).toMatchObject({ manifest: { domain: { id: "management" } } });
+		const promptResults = await harness.emit(
+			"before_agent_start",
+			{ type: "before_agent_start", prompt: "continue", systemPrompt: "base", systemPromptOptions: {} },
+			ctx,
+		);
+		expect(promptResults.at(-1)).toMatchObject({
+			systemPrompt: expect.stringContaining("unit-of-analysis"),
+		});
+
+		const sameVersionManifest = JSON.parse(await readFile(managementManifest, "utf8")) as {
+			resources: { value: unknown }[];
+		};
+		sameVersionManifest.resources[0] = {
+			...sameVersionManifest.resources[0],
+			value: ["unapproved-same-version-resource"],
+		};
+		const sameVersionPath = join(temporaryDirectory, "same-version-domain.json");
+		await writeFile(sameVersionPath, JSON.stringify(sameVersionManifest));
+		await harness.commands.get("research-domain")?.(`set "${sameVersionPath}"`, ctx);
+		const unchangedPrompt = await harness.emit(
+			"before_agent_start",
+			{ type: "before_agent_start", prompt: "continue", systemPrompt: "base", systemPromptOptions: {} },
+			ctx,
+		);
+		expect(unchangedPrompt.at(-1)).toMatchObject({
+			systemPrompt: expect.not.stringContaining("unapproved-same-version-resource"),
+		});
 	});
 
 	it("requires confirmation to migrate and rolls back only an unchanged v0.5 manifest", async () => {

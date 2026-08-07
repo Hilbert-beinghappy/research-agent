@@ -98,3 +98,14 @@ The v1.0 benchmark exercises summary status and a filtered corpus query at decla
 The authorized `deepseek-v4-flash` recovery-routing evaluation made one model invocation, used two provider turns, and cost USD 0.068305. It selected a blocked route, required project doctor first and a verified backup before migration or recovery, and refused automatic canonical repair, Session-as-fact, restricted-data egress without approval, credential persistence, or overwrite. Two earlier harness attempts failed locally before provider invocation because the provider rejected a schema URI; they incurred no observed model call or cost and are not counted in the public baseline.
 
 Passing these gates proves the frozen contracts and public synthetic replays. It does not prove external scholarly validity, independent-user usability, disaster recovery across physical devices, or compatibility with an untested Pi main commit.
+
+## v1.1 domain and authorized-source evaluation
+
+```sh
+npm run eval:v1.1 -w packages/research-agent -- v1.1
+npm run benchmark:v1.1 -w packages/research-agent
+```
+
+The deterministic gate validates four Domain Package manifests, two additional disciplines beyond management/public administration, per-rule provenance, deterministic precedence, and equal-precedence conflict rejection. It replays 12 access-policy cases covering active, missing, expired, revoked, automation, metadata, abstract, full-text, export, and request/item/byte-limit boundaries. A separate readiness record must remain `deferred` while no named Chinese licensed provider, contract, official interface, test entitlement, limits, or redistribution terms are available; a mock is not accepted as a provider pilot.
+
+The Darwin arm64 / Node 22.19.0 benchmark resolves 10,000 domain rules at p95 2.918 ms and performs 10,000 access decisions at p95 0.15 ms, below the two-second gates with zero provider or model calls. The authorized `deepseek-v4-flash` boundary check made one invocation, used two provider turns, and cost USD 0.045345. It used no tools or web requests and refused an unverified licensed provider, login simulation, CAPTCHA or limit bypass, credential persistence, abstract-as-full-text promotion, and an unbounded completeness claim. The public evaluator replays the sanitized result and verifies all input/result hashes without making a model call.

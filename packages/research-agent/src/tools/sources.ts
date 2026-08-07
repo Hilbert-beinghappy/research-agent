@@ -2,6 +2,7 @@
 
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import type {
+	AccessPolicySnapshot,
 	FileRef,
 	HashValue,
 	JsonValue,
@@ -37,6 +38,7 @@ export interface SourceCandidateInput extends Omit<MetadataCandidateInput, "cand
 	rank: number | null;
 	requestOperationId: string;
 	abstractRights: SourceRecord["abstractRights"];
+	accessPolicy: AccessPolicySnapshot;
 }
 
 export interface SourceCandidateRejection {
@@ -122,6 +124,8 @@ function discoveries(inputs: readonly SourceCandidateInput[]): SourceDiscoveryEv
 			rank: input.rank,
 			rawRecord: input.rawRecord,
 			requestOperationId: input.requestOperationId,
+			accessPath: input.accessPolicy.accessPath,
+			accessPolicy: input.accessPolicy,
 		})),
 		(value) => canonicalStringify(value),
 	);

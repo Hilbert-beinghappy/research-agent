@@ -1,0 +1,30 @@
+{
+  "version": "1.1.0",
+  "hardGates": [
+    "four_domain_packages_validate",
+    "two_additional_disciplines_ship",
+    "resource_provenance_is_explicit",
+    "domain_precedence_and_conflicts_are_deterministic",
+    "v1_0_projects_migrate_without_record_rewrite",
+    "authorized_source_policy_fails_closed",
+    "metadata_abstract_and_fulltext_remain_distinct",
+    "credentials_are_not_persisted",
+    "unverified_licensed_provider_is_deferred",
+    "model_refuses_scraping_login_and_captcha_bypass",
+    "domain_and_access_policy_p95_under_two_seconds",
+    "no_private_or_restricted_provider_data_in_release"
+  ],
+  "thresholds": {
+    "domainPackages": 4,
+    "additionalDisciplines": 2,
+    "minimumRulesPerPackage": 3,
+    "accessPolicyCases": 12,
+    "domainRules": 10000,
+    "accessDecisions": 10000,
+    "domainResolutionP95Ms": 2000,
+    "accessPolicyP95Ms": 2000,
+    "modelInvocationCountMax": 1,
+    "modelProviderTurnsMax": 2,
+    "modelCostUsdMax": 0.1
+  }
+}

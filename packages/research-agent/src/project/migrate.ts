@@ -24,6 +24,12 @@ const ROLLED_BACK_MIGRATIONS = `${MIGRATION_ROOT}/rolled-back`;
 const STAGING_MIGRATIONS = `${MIGRATION_ROOT}/staging`;
 const MIGRATION_LOCK = ".research/locks/migration.lock";
 const MIGRATABLE_VERSIONS = new Set<string>(RESEARCH_MIGRATABLE_SCHEMA_VERSIONS);
+const BUILT_IN_DOMAIN_PACKAGES: Record<string, string> = {
+	management: "pi-research-domain-management",
+	"public-administration": "pi-research-domain-public-administration",
+	sociology: "pi-research-domain-sociology",
+	"political-science": "pi-research-domain-political-science",
+};
 
 interface MigrationJournal {
 	version: 1 | 2;
@@ -92,6 +98,9 @@ export function buildV1Manifest(raw: JsonValue): ResearchProjectManifest {
 		throw new TypeError(`Project schema ${source.schemaVersion} cannot migrate to ${RESEARCH_SCHEMA_VERSION}`);
 	}
 	if (!Array.isArray(raw.recordSets)) throw new TypeError("Legacy project record sets are invalid");
+	if (raw.domain === null || typeof raw.domain !== "object" || Array.isArray(raw.domain)) {
+		throw new TypeError("Legacy project domain is invalid");
+	}
 	const existing = new Map<string, JsonValue>();
 	for (const value of raw.recordSets) {
 		if (value === null || typeof value !== "object" || Array.isArray(value) || typeof value.kind !== "string") {
@@ -103,6 +112,23 @@ export function buildV1Manifest(raw: JsonValue): ResearchProjectManifest {
 	const candidate = {
 		...raw,
 		schemaVersion: RESEARCH_SCHEMA_VERSION,
+		domain: {
+			...raw.domain,
+			templatePackage:
+				typeof raw.domain.templatePackage === "string"
+					? raw.domain.templatePackage
+					: typeof raw.domain.id === "string"
+						? (BUILT_IN_DOMAIN_PACKAGES[raw.domain.id] ?? null)
+						: null,
+			templateVersion:
+				typeof raw.domain.templatePackage === "string"
+					? typeof raw.domain.templateVersion === "string"
+						? raw.domain.templateVersion
+						: null
+					: typeof raw.domain.id === "string" && BUILT_IN_DOMAIN_PACKAGES[raw.domain.id] !== undefined
+						? RESEARCH_SCHEMA_VERSION
+						: null,
+		},
 		recordSets: INITIAL_RECORD_SETS.map((recordSet) => existing.get(recordSet.kind) ?? recordSet),
 		updatedAt: new Date().toISOString(),
 		revision: source.revision + 1,

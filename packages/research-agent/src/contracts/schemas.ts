@@ -2,19 +2,24 @@
 
 import { type Static, type TSchema, type TUnsafe, Type } from "typebox";
 
-export const RESEARCH_SCHEMA_VERSION = "1.0.0" as const;
+export const RESEARCH_SCHEMA_VERSION = "1.1.0" as const;
+export const RESEARCH_V1_0_SCHEMA_VERSION = "1.0.0" as const;
 export const RESEARCH_V0_5_SCHEMA_VERSION = "0.5.0" as const;
 export const RESEARCH_LEGACY_SCHEMA_VERSION = RESEARCH_V0_5_SCHEMA_VERSION;
 export const RESEARCH_V0_4_SCHEMA_VERSION = "0.4.0" as const;
 export const RESEARCH_V0_3_SCHEMA_VERSION = "0.3.0" as const;
 export const RESEARCH_V0_2_SCHEMA_VERSION = "0.2.0" as const;
 export const RESEARCH_V0_1_SCHEMA_VERSION = "0.1.0" as const;
-export const RESEARCH_MIGRATABLE_SCHEMA_VERSIONS = [
+export const RESEARCH_V1_0_MIGRATABLE_SCHEMA_VERSIONS = [
 	RESEARCH_V0_1_SCHEMA_VERSION,
 	RESEARCH_V0_2_SCHEMA_VERSION,
 	RESEARCH_V0_3_SCHEMA_VERSION,
 	RESEARCH_V0_4_SCHEMA_VERSION,
 	RESEARCH_V0_5_SCHEMA_VERSION,
+] as const;
+export const RESEARCH_MIGRATABLE_SCHEMA_VERSIONS = [
+	...RESEARCH_V1_0_MIGRATABLE_SCHEMA_VERSIONS,
+	RESEARCH_V1_0_SCHEMA_VERSION,
 ] as const;
 
 const PersistedObject = <const Properties extends Parameters<typeof Type.Object>[0]>(properties: Properties) =>
@@ -88,6 +93,7 @@ const ExistingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DesignRecordSchemaVersionSchema = Type.Union([
@@ -95,21 +101,25 @@ const DesignRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DataRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const WritingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const KnowledgeRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 
@@ -278,6 +288,84 @@ export const ResearchPolicyConfigSchema = PersistedObject({
 });
 export type ResearchPolicyConfig = Static<typeof ResearchPolicyConfigSchema>;
 
+export const ResourceRuleProvenanceSchema = PersistedObject({
+	origin: Type.Union([
+		Type.Literal("maintainer_authored"),
+		Type.Literal("redistribution_approved"),
+		Type.Literal("public_domain"),
+		Type.Literal("user_local"),
+	]),
+	sourceTitle: NonEmptyStringSchema,
+	sourceUrl: Nullable(NonEmptyStringSchema),
+	licenseExpression: NonEmptyStringSchema,
+	reviewedAt: NonEmptyStringSchema,
+});
+export type ResourceRuleProvenance = Static<typeof ResourceRuleProvenanceSchema>;
+
+export const DomainResourceRuleSchema = PersistedObject({
+	ruleId: NonEmptyStringSchema,
+	resourceType: NonEmptyStringSchema,
+	key: NonEmptyStringSchema,
+	value: JsonValueSchema,
+	precedence: Type.Integer(),
+	provenance: ResourceRuleProvenanceSchema,
+});
+export type DomainResourceRule = Static<typeof DomainResourceRuleSchema>;
+
+export const DomainPackageManifestSchema = PersistedObject({
+	format: Type.Literal("pi-research-domain-package"),
+	manifestVersion: Type.Literal(1),
+	packageId: NonEmptyStringSchema,
+	packageVersion: NonEmptyStringSchema,
+	displayName: NonEmptyStringSchema,
+	domainId: NonEmptyStringSchema,
+	domainLabel: NonEmptyStringSchema,
+	languages: Type.Array(NonEmptyStringSchema, { minItems: 1 }),
+	licenseExpression: NonEmptyStringSchema,
+	resources: Type.Array(DomainResourceRuleSchema, { minItems: 1 }),
+});
+export type DomainPackageManifest = Static<typeof DomainPackageManifestSchema>;
+
+export const AccessPathSchema = Type.Union([
+	Type.Literal("official_api"),
+	Type.Literal("supported_export"),
+	Type.Literal("user_authorized_file"),
+]);
+export type AccessPath = Static<typeof AccessPathSchema>;
+
+export const DownloadLimitSchema = PersistedObject({
+	maxRequests: Nullable(NonNegativeIntegerSchema),
+	maxItems: Nullable(NonNegativeIntegerSchema),
+	maxBytes: Nullable(NonNegativeIntegerSchema),
+	period: Nullable(Type.Union([Type.Literal("operation"), Type.Literal("day"), Type.Literal("month")])),
+});
+export type DownloadLimit = Static<typeof DownloadLimitSchema>;
+
+export const EntitlementCapabilitySchema = PersistedObject({
+	credentialRequired: Type.Boolean(),
+	metadata: Type.Boolean(),
+	abstract: Type.Boolean(),
+	fullText: Type.Boolean(),
+	export: Type.Boolean(),
+});
+export type EntitlementCapability = Static<typeof EntitlementCapabilitySchema>;
+
+export const AccessPolicySnapshotSchema = PersistedObject({
+	format: Type.Literal("pi-research-access-policy"),
+	version: Type.Literal(1),
+	providerId: NonEmptyStringSchema,
+	providerVersion: NonEmptyStringSchema,
+	policyVersion: NonEmptyStringSchema,
+	capturedAt: NonEmptyStringSchema,
+	accessPath: AccessPathSchema,
+	automationAllowed: Type.Boolean(),
+	termsReference: Nullable(NonEmptyStringSchema),
+	downloadLimit: DownloadLimitSchema,
+	entitlement: EntitlementCapabilitySchema,
+	redistributionAllowed: Type.Boolean(),
+});
+export type AccessPolicySnapshot = Static<typeof AccessPolicySnapshotSchema>;
+
 export const ProjectDirectoriesSchema = PersistedObject({
 	sources: RelativePathSchema,
 	documents: RelativePathSchema,
@@ -395,6 +483,8 @@ export const SourceDiscoveryEventSchema = PersistedObject({
 	rank: Nullable(NonNegativeIntegerSchema),
 	rawRecord: FileRefSchema,
 	requestOperationId: NonEmptyStringSchema,
+	accessPath: Type.Optional(AccessPathSchema),
+	accessPolicy: Type.Optional(AccessPolicySnapshotSchema),
 });
 export type SourceDiscoveryEvent = Static<typeof SourceDiscoveryEventSchema>;
 
