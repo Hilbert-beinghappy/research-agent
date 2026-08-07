@@ -414,6 +414,7 @@ export async function executeAnalysis(
 					...launch,
 					cwd: executionDirectory,
 					readRoots: [dirname(dirname(detected.executable))],
+					allowProcessFork: specification.runtime === "r",
 				});
 			} catch (error) {
 				if (options.allowHostExecution === true) {

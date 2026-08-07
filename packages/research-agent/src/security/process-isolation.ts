@@ -8,6 +8,7 @@ export interface StrongProcessLaunch {
 	args: string[];
 	cwd: string;
 	readRoots?: string[];
+	allowProcessFork?: boolean;
 }
 
 function sandboxString(value: string): string {
@@ -35,11 +36,14 @@ export async function createStrongProcessLaunch(
 	const readRoots = await existingRealPaths(launch.readRoots ?? []);
 	if (process.platform === "darwin") {
 		await access("/usr/bin/sandbox-exec");
+		const launcherExecutables =
+			launch.allowProcessFork === true ? '(literal "/bin/bash") (literal "/bin/sh") (literal "/usr/bin/sed")' : "";
 		const profile = [
 			"(version 1)",
 			'(import "system.sb")',
 			"(deny default)",
-			`(allow process-exec (literal ${sandboxString(executable)}) (subpath ${sandboxString(runtimeRoot)}))`,
+			`(allow process-exec (literal ${sandboxString(executable)}) ${launcherExecutables} (subpath ${sandboxString(runtimeRoot)}))`,
+			launch.allowProcessFork === true ? "(allow process-fork)" : "",
 			"(allow process-info*)",
 			"(allow file-read-metadata)",
 			`(allow file-read* (subpath ${sandboxString(cwd)}) (subpath "/System") (subpath "/usr/lib") (subpath "/Library") (subpath ${sandboxString(runtimeRoot)}) ${readRoots.map((path) => `(subpath ${sandboxString(path)})`).join(" ")})`,
@@ -68,9 +72,9 @@ export async function createStrongProcessLaunch(
 				if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
 			}
 		}
-		const args = ["--die-with-parent", "--new-session", "--unshare-net"];
+		const args = ["--die-with-parent", "--new-session", "--unshare-net", "--tmpfs", "/tmp"];
 		for (const root of systemRoots) args.push("--ro-bind", root, root);
-		args.push("--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", cwd, cwd, "--chdir", cwd);
+		args.push("--proc", "/proc", "--dev", "/dev", "--bind", cwd, cwd, "--chdir", cwd);
 		return { executable: "/usr/bin/bwrap", args: [...args, executable, ...launch.args] };
 	}
 	throw new Error("Strong process isolation is unavailable on this platform");

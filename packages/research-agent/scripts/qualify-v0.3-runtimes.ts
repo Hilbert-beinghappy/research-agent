@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -145,7 +145,13 @@ async function qualify(runtime: RuntimeKind) {
 				outcome.run === null ? [] : [...outcome.run.outputs, ...outcome.run.logs],
 			);
 			if (!outcome.result.ok || outcome.run === null || outcome.run.status !== "succeeded") {
-				throw new Error(`${runtime} qualification run ${run + 1} failed`);
+				const stderr = outcome.run?.logs.find(({ path }) => path.endsWith("/stderr.log"));
+				const details = outcome.result.errors.map(({ code, message }) => `${code}: ${message}`).join("; ");
+				const processError =
+					stderr === undefined ? "" : (await readFile(join(projectRoot, stderr.path), "utf8")).trim();
+				throw new Error(
+					[`${runtime} qualification run ${run + 1} failed`, details, processError].filter(Boolean).join("\n"),
+				);
 			}
 			const hash = outcome.run.outputs[0]?.hash?.value;
 			if (hash === undefined) throw new Error(`${runtime} qualification output is missing its hash`);
