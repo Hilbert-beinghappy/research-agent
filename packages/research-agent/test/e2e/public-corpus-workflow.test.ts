@@ -432,7 +432,14 @@ describe.runIf(process.env.RESEARCH_AGENT_PUBLIC_CORPUS === "1")("licensed publi
 					],
 			analysis.run === null ? [] : [...analysis.run.outputs, ...analysis.run.logs],
 		);
-		if (!analysis.result.ok || analysis.run === null) throw new Error(JSON.stringify(analysis.result.errors));
+		if (!analysis.result.ok || analysis.run === null) {
+			const stderrLog = analysis.run?.logs.find(({ path }) => path.endsWith("/stderr.log"));
+			const stderr =
+				stderrLog === undefined
+					? null
+					: await readFile(await resolveProjectPath(projectRoot, stderrLog.path), "utf8");
+			throw new Error(JSON.stringify({ errors: analysis.result.errors, stderr }));
+		}
 
 		const manuscriptOperationId = await begin("qualification.public-corpus.manuscript");
 		const manuscript = await createManuscriptRevision(projectRoot, {
