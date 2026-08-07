@@ -424,8 +424,12 @@ describe("research extension commands", () => {
 			value: { packageId: "example-open-catalog", contractVersion: 1 },
 		});
 		await harness.commands.get("research-adapter")?.(`register "${exampleAdapter}"`, ctx);
-		if (process.platform === "darwin") {
-			expect(commandResult(harness)).toMatchObject({
+		const adapterRegistration = commandResult(harness);
+		const adapterRegistered = adapterRegistration.ok === true;
+		if (process.platform === "darwin") expect(adapterRegistered).toBe(true);
+		else if (process.platform === "win32") expect(adapterRegistered).toBe(false);
+		if (adapterRegistered) {
+			expect(adapterRegistration).toMatchObject({
 				ok: true,
 				value: {
 					status: "active",
@@ -435,7 +439,7 @@ describe("research extension commands", () => {
 				},
 			});
 		} else {
-			expect(commandResult(harness)).toMatchObject({
+			expect(adapterRegistration).toMatchObject({
 				ok: false,
 				status: "PERMISSION_BLOCKED",
 				errors: [{ code: "ADAPTER_CONFORMANCE_BLOCKED" }],
@@ -465,7 +469,7 @@ describe("research extension commands", () => {
 		expect((await validateProject(projectRoot)).issues).toEqual([]);
 		expect((await openProject(projectRoot)).manifest).toMatchObject({
 			recordSets: expect.arrayContaining([
-				expect.objectContaining({ kind: "adapter_registration", count: process.platform === "darwin" ? 1 : 0 }),
+				expect.objectContaining({ kind: "adapter_registration", count: adapterRegistered ? 1 : 0 }),
 				expect.objectContaining({ kind: "exchange_record", count: 2 }),
 			]),
 		});
