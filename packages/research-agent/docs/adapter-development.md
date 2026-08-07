@@ -13,11 +13,11 @@ my-adapter/
 
 `adapter.json` must declare contract version 1, package and Adapter identity/version, category, entry point, capability requirements, required Host brokers, supported isolation profiles, SPDX license expression, provenance, package hash, and optional SBOM path/hash. Paths are portable relative paths; symlinks, traversal, case collisions, empty packages, and a mismatched package or SBOM hash are rejected.
 
-The package hash covers distributable regular files other than `adapter.json` and `node_modules`; a separate canonical manifest hash binds every `adapter.json` field. Recompute the package hash after changing the entry point, README, or SBOM. The three complete public examples are under `examples/adapters/`.
+The package hash covers distributable regular files other than `adapter.json` and `node_modules`; a separate canonical manifest hash binds every `adapter.json` field. Recompute the package hash after changing the entry point, README, or SBOM. Four complete public examples are under `examples/adapters/`, including the brokered-HTTP Source Adapter used by Scenario E.
 
 ## Process behavior
 
-The v1.5 runner launches the entry point with the current Node.js runtime. The entry point reads one JSON object per line from stdin and writes one JSON object per line to stdout. It must answer:
+The v2.0 package's Adapter v1 runner launches the entry point with the current Node.js runtime. The entry point reads one JSON object per line from stdin and writes one JSON object per line to stdout. It must answer:
 
 - `capabilities`, then `search` for a Source Adapter;
 - `capabilities`, then `execute` for an Analysis Runtime Adapter;

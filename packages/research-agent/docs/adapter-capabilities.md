@@ -1,10 +1,10 @@
-# Adapter capability matrix v1.1
+# Adapter capability matrix v2.0
 
-Capabilities are runtime observations, not permanent claims about an external service. Dates and prices below are the implementation snapshot retained by v1.1; run health checks and inspect operation receipts before relying on a provider.
+Capabilities are runtime observations, not permanent claims about an external service. Dates and prices below are the implementation snapshot retained by v2.0; run health checks and inspect operation receipts before relying on a provider.
 
 The Zotero path follows the official [Web API v3 basics](https://www.zotero.org/support/dev/web_api/v3/basics) and [write-request contract](https://www.zotero.org/support/dev/web_api/v3/write_requests) for user/group prefixes, API headers, 50-object batches, write tokens, indexed result maps, and version conflicts.
 
-| Adapter/component | v1.1 capability | Credential | Cost model | Pagination/resume | Data egress | Explicit degradation |
+| Adapter/component | v2.0 capability | Credential | Cost model | Pagination/resume | Data egress | Explicit degradation |
 |---|---|---|---|---|---|---|
 | Crossref `0.1.0` | Health, DOI search/lookup, bibliographic metadata, update/retraction relations. | Optional `CROSSREF_MAILTO`. | Recorded as USD 0 for the public endpoint. | Cursor pages; cursor expires after five minutes. | Query and identifiers sent to Crossref. | Missing/invalid fields, 429/5xx, cursor loss, status ambiguity and parse errors are structured. |
 | OpenAlex `0.1.0` | Health, search/lookup, OpenAlex/DOI IDs, retraction flag, topic and OA metadata. | Required `OPENALEX_API_KEY`. | Search snapshot USD 0.001/call as of 2026-08-06; explicit request budget and broker accounting. | Cursor pages and resumable spend cursor. | Query and identifiers sent to OpenAlex. | No key degrades to Crossref/local; price drift, budget exhaustion, auth, rate limit and provider-cost conflict block or warn. |
@@ -26,10 +26,10 @@ The Zotero path follows the official [Web API v3 basics](https://www.zotero.org/
 
 ## Trust and contract status
 
-Crossref and OpenAlex implement the exported experimental `SourceAdapter` contract and receive only an `AdapterContext` with a governed HTTP broker. Unpaywall and Zotero use the same governed broker boundary for document lookup and external writes. Analysis, qualitative, portable-format, catalog, monitoring, backup, doctor, and model-routing components are built-in internal paths, not the stable third-party Adapter contract planned for v1.5. Built-in code is reviewed and runs in process.
+Crossref and OpenAlex implement the built-in `SourceAdapter` contract and receive only an `AdapterContext` with a governed HTTP broker. Unpaywall and Zotero use the same governed broker boundary for document lookup and external writes. Analysis, qualitative, portable-format, catalog, monitoring, backup, doctor, and model-routing components remain reviewed built-in paths. Third-party packages implement Source, Analysis Runtime, or Artifact Adapter v1 and communicate through the JSONL process protocol.
 
-The TypeScript contract cannot prevent arbitrary third-party in-process code from calling Node filesystem, network, environment, or process APIs directly. v1.1 therefore does not load unknown Adapters or claim sandbox isolation. The stable third-party contract, conformance kit, and strong-isolation protocol are v1.5/v2.0 work.
+The TypeScript contract cannot prevent arbitrary in-process code from calling Node filesystem, network, environment, or process APIs directly. Unknown third-party Adapters therefore never run in process. Ordinary JSONL process separation is not a sandbox; governed registration requires the tested macOS strong-isolation profile and Host-mediated effects.
 
-## Not present in v1.1
+## Not present in v2.0
 
 No Semantic Scholar, CORE, DataCite, Europe PMC, licensed Chinese database, Zotero SQLite integration, OCR service, notebook server, hosted compute, dependency installer, background daemon, cloud sync, real-time collaboration, vector database, or generic web-scraping Adapter is shipped. A Chinese licensed-provider Adapter is deferred until a named provider, contract terms, official interface, test entitlement, limits, and redistribution rights are supplied. Local proprietary Skills are neither copied nor included in the tarball.

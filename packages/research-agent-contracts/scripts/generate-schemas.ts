@@ -20,8 +20,10 @@ import {
 	ModelRouteDecisionSchema,
 	PersistedRecordSchema,
 } from "../src/schemas.ts";
+import { ResearchRpcRequestSchema, ResearchRpcResponseSchema, ResearchSdkCapabilitySchema } from "../src/sdk-rpc.ts";
 
 const directory = fileURLToPath(new URL("../schemas/v1.5/", import.meta.url));
+const v2Directory = fileURLToPath(new URL("../schemas/v2.0/", import.meta.url));
 const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
 const schemas = [
 	["persisted-record", "Pi Research Agent persisted record v1.5", PersistedRecordSchema],
@@ -41,10 +43,21 @@ const schemas = [
 ] as const;
 
 await mkdir(directory, { recursive: true });
+await mkdir(v2Directory, { recursive: true });
 await Promise.all(
-	schemas.map(([name, title, schema]) =>
+	[
+		...schemas.map(([name, title, schema]) => [directory, name, title, schema] as const),
+		[v2Directory, "research-rpc-request", "Pi Research Agent RPC request v1", ResearchRpcRequestSchema] as const,
+		[v2Directory, "research-rpc-response", "Pi Research Agent RPC response v1", ResearchRpcResponseSchema] as const,
+		[
+			v2Directory,
+			"research-sdk-capabilities",
+			"Pi Research Agent SDK capabilities v1",
+			ResearchSdkCapabilitySchema,
+		] as const,
+	].map(([target, name, title, schema]) =>
 		writeFile(
-			`${directory}${name}.schema.json`,
+			`${target}${name}.schema.json`,
 			`${JSON.stringify({ $schema: jsonSchema, title, ...schema }, null, 2)}\n`,
 		),
 	),

@@ -1,0 +1,25 @@
+{
+  "qualification": "pi-research-agent-v2.0-release",
+  "generatedAt": "2026-08-07T04:31:19.398Z",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "agent": {
+    "entryCount": 310,
+    "entryManifestHash": "ae620bf9f4afa0f6c66572e8419d38ec015d5d361b618cebe00b0bc27e25f9f0",
+    "entryManifestMatches": true,
+    "tarballBytesMatch": true
+  },
+  "contracts": {
+    "entryCount": 28,
+    "entryManifestHash": "9ab72befd28632ae7e119ad702507783f3bcd9fda83a6c7d80e8c51be56accbd",
+    "entryManifestMatches": true,
+    "tarballBytesMatch": true
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Compile } from "typebox/compile";
 import { describe, expect, it } from "vitest";
 import {
 	AdapterPackageManifestSchema,
@@ -8,16 +9,60 @@ import {
 	hashCanonicalJson,
 	ModelRouteDecisionSchema,
 	RESEARCH_SCHEMA_VERSION,
+	ResearchRpcRequestSchema,
+	ResearchRpcResponseSchema,
+	ResearchSdkCapabilitySchema,
 	validatePersistedRecord,
 } from "../src/index.ts";
 
 describe("public contracts", () => {
-	it("exports the frozen v1.5 contract surface", () => {
+	it("exports the frozen project and v2.0 SDK/RPC contract surface", () => {
 		expect(RESEARCH_SCHEMA_VERSION).toBe("1.5.0");
 		expect(AdapterPackageManifestSchema).toBeDefined();
 		expect(CollaborationChangeSetSchema).toBeDefined();
 		expect(ExchangeBundleManifestSchema).toBeDefined();
 		expect(ModelRouteDecisionSchema).toBeDefined();
+	});
+
+	it("validates the stable SDK and RPC v1 envelopes", () => {
+		const request = Compile(ResearchRpcRequestSchema);
+		const response = Compile(ResearchRpcResponseSchema);
+		const capabilities = Compile(ResearchSdkCapabilitySchema);
+		expect(
+			request.Check({
+				protocol: "pi-research-rpc",
+				version: 1,
+				requestId: "request-1",
+				method: "records.read",
+				params: { projectId: "project-1", kind: "source", id: "source-1" },
+			}),
+		).toBe(true);
+		expect(
+			response.Check({
+				protocol: "pi-research-rpc",
+				version: 1,
+				requestId: "request-1",
+				result: {
+					ok: true,
+					status: "SUCCESS",
+					value: null,
+					errors: [],
+					meta: { operationId: null, taskId: null, warnings: [] },
+				},
+			}),
+		).toBe(true);
+		expect(
+			capabilities.Check({
+				format: "pi-research-sdk-capabilities",
+				version: 1,
+				packageVersion: "2.0.0",
+				projectSchemaVersion: "1.5.0",
+				methods: ["projects.list"],
+				access: "configured-projects",
+				mutations: "pi-governed-surfaces-only",
+				experimental: [],
+			}),
+		).toBe(true);
 	});
 
 	it("rejects an Adapter registration whose conformance identity was replaced", () => {

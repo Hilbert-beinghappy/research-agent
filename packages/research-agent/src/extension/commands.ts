@@ -994,6 +994,14 @@ export function registerResearchCommands(
 		let conformance: Awaited<ReturnType<typeof conformAdapterPackage>>;
 		try {
 			conformance = await conformAdapterPackage(packageRoot, "strong_isolation", manifest);
+			if (!conformance.report.passed) {
+				throw new Error(
+					conformance.report.checks
+						.filter(({ passed }) => !passed)
+						.map(({ message }) => message)
+						.join("; ") || "Adapter conformance failed",
+				);
+			}
 		} catch (error) {
 			const failed = failureResult<JsonValue>(
 				"PERMISSION_BLOCKED",

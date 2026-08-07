@@ -1,0 +1,25 @@
+{
+  "qualification": "pi-research-agent-v2.0-scenario-e",
+  "generatedAt": "2026-08-07T03:59:31.811Z",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "input": {
+    "testSha256": "03e2f463a284f45205552faf73583b3ed51a42983cf6ca78007eae3351a12a5a",
+    "adapterPackageHash": "0ae3ebd022a91300968fde790d8a7f5e163bd0ea62b97e5b10e99ea5c507831c",
+    "isolationBaselineSha256": "09236bff37398ff063fc0db6edcc48dbf80ec3924a5918d2d60326d9e910e318"
+  },
+  "checks": {
+    "publicAdapterPackageVerified": true,
+    "approvalRequiredBeforeHttpBrokerSuccess": true,
+    "adapterDenialAndCrashDoNotBreakCore": true,
+    "sdkRemainsUsableAfterAdapterCrash": true,
+    "directNetworkPrivateReadProjectWriteCredentialAndSubprocessDenied": true
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

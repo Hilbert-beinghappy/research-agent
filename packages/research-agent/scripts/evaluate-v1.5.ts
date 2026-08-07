@@ -123,7 +123,7 @@ const contractsManifest = await json<{ name: string; version: string; license: s
 );
 check(
 	contractsManifest.name === "@research-agent/contracts" &&
-		contractsManifest.version === "1.5.0" &&
+		(contractsManifest.version === "1.5.0" || contractsManifest.version.startsWith("2.")) &&
 		contractsManifest.license === "Apache-2.0",
 	"Public contracts package metadata changed",
 );

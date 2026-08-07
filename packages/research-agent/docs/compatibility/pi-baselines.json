@@ -1,7 +1,7 @@
 {
 	"format": "pi-research-agent-compatibility",
 	"version": 1,
-	"researchAgentVersion": "1.5.0",
+	"researchAgentVersion": "2.0.0",
 	"node": ">=22.19.0",
 	"architectureBaseline": {
 		"piCommit": "97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53"
@@ -27,7 +27,8 @@
 		"session_link_resume",
 		"custom_entry_excluded_from_model_context",
 		"active_tool_restore",
-		"machine_result_v1"
+		"machine_result_v1",
+		"sdk_rpc_v1_parity"
 	],
 	"mainHead": {
 		"blocking": false,

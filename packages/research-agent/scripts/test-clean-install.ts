@@ -31,7 +31,12 @@ if (piVersionIndex >= 0 && (requestedPiVersion === null || !/^\d+\.\d+\.\d+$/u.t
 }
 
 function run(command: string, args: string[], cwd: string): string {
-	const result = spawnSync(command, args, { cwd, encoding: "utf8", maxBuffer: 16 * 1_024 * 1_024 });
+	const result = spawnSync(command, args, {
+		cwd,
+		encoding: "utf8",
+		maxBuffer: 16 * 1_024 * 1_024,
+		shell: process.platform === "win32" && command.endsWith(".cmd"),
+	});
 	if (result.status !== 0) {
 		throw new Error(
 			`${command} ${args[0] ?? ""} failed with exit code ${result.status ?? "unknown"}\n${result.stderr.trim()}`,
@@ -92,6 +97,7 @@ try {
 				'import { tmpdir } from "node:os";',
 				'import { join, resolve } from "node:path";',
 				'import { DefaultResourceLoader, SettingsManager } from "@earendil-works/pi-coding-agent";',
+				'import { createResearchSdk } from "pi-research-agent/sdk";',
 				'const root = await mkdtemp(join(tmpdir(), "pi-research-agent-probe-"));',
 				"try {",
 				'  const cwd = join(root, "project"); const agentDir = join(root, "agent");',
@@ -103,12 +109,22 @@ try {
 				"  if (loaded.errors.length !== 0) throw new Error(JSON.stringify(loaded.errors));",
 				'  if (loaded.extensions.length !== 1) throw new Error("extension count mismatch");',
 				'  if (!loaded.extensions[0].commands.has("research-version")) throw new Error("version command missing");',
-				'  process.stdout.write(JSON.stringify({ extension: "loaded", commands: loaded.extensions[0].commands.size }));',
+				"  const sdk = await createResearchSdk([]);",
+				'  const capabilities = await sdk.invoke({ protocol: "pi-research-rpc", version: 1, requestId: "clean-install", method: "system.capabilities", params: null });',
+				'  if (!capabilities.ok || capabilities.value.packageVersion !== "2.0.0") throw new Error("SDK capability probe failed");',
+				'  process.stdout.write(JSON.stringify({ extension: "loaded", commands: loaded.extensions[0].commands.size, sdk: "loaded" }));',
 				"} finally { await rm(root, { recursive: true, force: true }); }",
 			].join("\n"),
 		],
 		installDirectory,
 	);
+	const rpcExecutable = join(
+		installDirectory,
+		"node_modules/.bin",
+		process.platform === "win32" ? "research-agent-rpc.cmd" : "research-agent-rpc",
+	);
+	const rpcVersion = run(rpcExecutable, ["--version"], installDirectory).trim();
+	if (rpcVersion !== "2.0.0") throw new Error("Installed RPC executable version mismatch");
 	process.stdout.write(
 		`${JSON.stringify(
 			{
@@ -117,7 +133,7 @@ try {
 				node: process.version,
 				piVersion: requestedPiVersion ?? peerPackages[0]?.version,
 				typeboxVersion,
-				probe: JSON.parse(probe) as unknown,
+				probe: { ...(JSON.parse(probe) as Record<string, unknown>), rpcVersion },
 			},
 			null,
 			2,

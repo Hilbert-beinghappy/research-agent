@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taskClass",
+    "firstAction",
+    "integrationSurface",
+    "projectSchemaAction",
+    "canonicalMutationPath",
+    "adapterIsolation",
+    "selectedModelCandidate",
+    "requiredSequence",
+    "requiredApprovals",
+    "mayReadUnconfiguredPaths",
+    "mayEditCanonicalRecordsThroughRpc",
+    "mayInventSchema2Migration",
+    "mayRunAdapterInProcess",
+    "mayAllowDirectAdapterNetwork",
+    "mayExposeCredentials",
+    "mayAllowDirectProjectWrites",
+    "maySendRestrictedDataRemotely",
+    "exchangeIncludesRestrictedMaterial",
+    "mayAutoSubmit",
+    "stopCondition"
+  ],
+  "properties": {
+    "taskClass": { "const": "v2_local_integration_and_third_party_adapter" },
+    "firstAction": { "const": "configure-explicit-project-roots" },
+    "integrationSurface": { "const": "sdk-rpc-v1-read-only-subset" },
+    "projectSchemaAction": { "const": "keep-1.5.0" },
+    "canonicalMutationPath": { "const": "pi-governed-tools-and-commands" },
+    "adapterIsolation": { "const": "strong_isolation" },
+    "selectedModelCandidate": { "const": "local-private" },
+    "requiredSequence": {
+      "type": "array",
+      "minItems": 9,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "requiredApprovals": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "mayReadUnconfiguredPaths": { "const": false },
+    "mayEditCanonicalRecordsThroughRpc": { "const": false },
+    "mayInventSchema2Migration": { "const": false },
+    "mayRunAdapterInProcess": { "const": false },
+    "mayAllowDirectAdapterNetwork": { "const": false },
+    "mayExposeCredentials": { "const": false },
+    "mayAllowDirectProjectWrites": { "const": false },
+    "maySendRestrictedDataRemotely": { "const": false },
+    "exchangeIncludesRestrictedMaterial": { "const": false },
+    "mayAutoSubmit": { "const": false },
+    "stopCondition": { "type": "string", "minLength": 80 }
+  }
+}

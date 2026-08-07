@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-07
+
+### Added
+
+- Stable inspection-only SDK and local stdio RPC v1 with seven parity-tested methods over explicitly configured projects.
+- SDK/RPC request, response, and capability contracts plus generated v2.0 protocol schemas; canonical project schema remains v1.5.
+- Public brokered-HTTP Source Adapter example, macOS Scenario E qualification, two-project replay, multi-project benchmark, reproducible-package check, and sanitized `deepseek-v4-flash` boundary baseline.
+- SDK/RPC, release-boundary, and two-project example documentation plus clean-install probes for the SDK and RPC executable.
+
+### Changed
+
+- Package, Extension, and public contracts package versions advance to 2.0.0 without changing or migrating canonical project schema 1.5.0.
+- Release CI replays v0.1–v2.0 gates, validates the public third-party Adapter, checks Scenario E on macOS, and packs both npm packages reproducibly.
+
+### Known limitations
+
+- The stable SDK/RPC subset is read-only; canonical mutations remain on Pi-governed Tool/command surfaces.
+- Strong third-party Adapter isolation remains macOS-only. `jsonl_process` is not an operating-system sandbox.
+- v2.0 adds no hosted service, network RPC server, database, account system, required custom UI, real-time CRDT, marketplace, automatic submission, or general multi-Agent runtime.
+
+## [1.5.0] - 2026-08-07
+
 ### Added
 
 - Data-only `@research-agent/contracts` package with seven public entry points, generated v1.5 schemas, and frozen Source, Analysis Runtime, Artifact, JSONL, exchange, collaboration, and model-route contracts.

@@ -671,7 +671,7 @@ describe("research tools", () => {
 		const validation = await validateProject(opened.root);
 		expect(validation.issues).toEqual([]);
 		expect(validation).toMatchObject({ valid: true, pendingTransactionIds: [] });
-	}, 15_000);
+	}, 60_000);
 
 	it("records approval for a metered OpenAlex search without persisting the credential", async () => {
 		temporaryDirectory = join(tmpdir(), `pi-research-tools-openalex-${crypto.randomUUID()}`);

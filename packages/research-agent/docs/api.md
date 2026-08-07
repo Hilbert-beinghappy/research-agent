@@ -1,8 +1,8 @@
-# Public API v1.5
+# Public API v2.0
 
-Pi Research Agent exposes a deliberately small public surface. Files under `src/` that are not reachable through a package export are internal and may change within v1.x.
+Pi Research Agent exposes a deliberately small public surface. Files under `src/` that are not reachable through a package export are internal.
 
-## Stable v1 exports
+## Stable exports
 
 | Package entry | Contract |
 |---|---|
@@ -14,9 +14,12 @@ Pi Research Agent exposes a deliberately small public surface. Files under `src/
 | `pi-research-agent/adapters/registration` | Persist a matching successful conformance report as project registration. Embedders own approval when bypassing Pi commands. |
 | `pi-research-agent/exchange` | Exchange pack/read/unpack and record-only collaboration create/read/merge APIs. |
 | `pi-research-agent/routing/models` | `parseResearchModelRouteInput`, `selectResearchModelRoute`, their TypeBox schemas, and route/result types. |
+| `pi-research-agent/sdk` | `createResearchSdk`, the seven documented inspection methods, package/schema capability metadata, and the shared request dispatcher. |
+| `pi-research-agent/rpc` | Local stdio JSONL server over the same SDK dispatcher; no network listener. |
 | `pi-research-agent/domains` | `loadDomainPackage`, `resolveDomainResources`, and resolved-resource types. |
 | `pi-research-agent/access` | `evaluateAuthorizedSourceAccess`, built-in policy snapshot construction, request/decision types, and access-policy contracts. |
 | `pi-research-agent/schemas/v1.5/*` | Generated JSON Schema for persisted records, machine results, project catalogs/backups, Adapter packages/protocol, exchange, collaboration, and model routes. |
+| `pi-research-agent/schemas/v2.0/*` | SDK/RPC v1 request, response, and capability schemas. |
 
 The v1 compatibility promise covers backward reading of published 1.x minor records, direct migration from 0.1–1.1 projects, Adapter contract v1, and the machine-readable `ResearchResult` envelope. A security fix may reject input that an older validator accepted; release notes must identify the tightened rule.
 
@@ -26,7 +29,7 @@ The v1 compatibility promise covers backward reading of published 1.x minor reco
 
 ## Extension boundary
 
-The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and sixteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. Project doctor, backup, migration, transaction internals, and filesystem layout helpers are not public SDK APIs in v1.5; automation uses Pi command/Tool surfaces until the v2.0 SDK/RPC release.
+The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and sixteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. The v2.0 SDK/RPC subset exposes project open/validate/doctor and record list/read operations for explicitly configured projects. Backup, migration, transaction, Adapter registration, exchange, collaboration merge, and all other mutations remain Pi-governed or internal library surfaces.
 
 ## Change process
 

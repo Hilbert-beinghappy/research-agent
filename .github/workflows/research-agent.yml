@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  v1-core:
-    name: v1.5 core (${{ matrix.os }})
+  v2-core:
+    name: v2.0 core (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +36,12 @@ jobs:
         with:
           node-version: 22.19.0
           cache: npm
+
+      - name: Setup R
+        if: runner.os != 'Windows'
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          r-version: release
 
       - name: Install dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
@@ -56,7 +62,7 @@ jobs:
           npm run test:e2e -w packages/research-agent
           npm run test:compat -w packages/research-agent
 
-      - name: Replay v0.1 through v1.5 release gates
+      - name: Replay v0.1 through v2.0 release gates
         run: |
           npm run eval -w packages/research-agent -- v0.1
           npm run eval:v0.2 -w packages/research-agent -- v0.2
@@ -66,8 +72,9 @@ jobs:
           npm run eval:v1.0 -w packages/research-agent -- v1.0
           npm run eval:v1.1 -w packages/research-agent -- v1.1
           npm run eval:v1.5 -w packages/research-agent -- v1.5
+          npm run eval:v2.0 -w packages/research-agent -- v2.0
 
-      - name: Benchmark v0.1 through v1.5
+      - name: Benchmark v0.1 through v2.0
         run: |
           node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark-v0.1.json
           node packages/research-agent/scripts/benchmark-v0.2.ts --output research-agent-benchmark-v0.2.json
@@ -77,16 +84,25 @@ jobs:
           node packages/research-agent/scripts/benchmark-v1.0.ts --output research-agent-benchmark-v1.0.json
           node packages/research-agent/scripts/benchmark-v1.1.ts --output research-agent-benchmark-v1.1.json
           node packages/research-agent/scripts/benchmark-v1.5.ts --output research-agent-benchmark-v1.5.json
+          node packages/research-agent/scripts/benchmark-v2.0.ts --output research-agent-benchmark-v2.0.json
 
       - name: Run Adapter v1 conformance
         run: |
           npm run conform:adapter -w packages/research-agent -- examples/adapters/open-catalog
           npm run conform:adapter -w packages/research-agent -- examples/adapters/repro-runtime
           npm run conform:adapter -w packages/research-agent -- examples/adapters/json-artifact
+          npm run conform:adapter -w packages/research-agent -- examples/adapters/community-http-source
 
       - name: Qualify strong Adapter isolation
         if: runner.os == 'macOS'
         run: node packages/research-agent/scripts/qualify-v1.5-isolation.ts --output research-agent-isolation-v1.5.json
+
+      - name: Qualify Scenario E
+        if: runner.os == 'macOS'
+        run: node packages/research-agent/scripts/qualify-v2.0-scenario-e.ts --output research-agent-scenario-e-v2.0.json
+
+      - name: Qualify reproducible release
+        run: node packages/research-agent/scripts/qualify-v2.0-release.ts --output research-agent-release-v2.0.json
 
       - name: Qualify installed Python and R runtimes
         if: runner.os != 'Windows'
@@ -105,7 +121,10 @@ jobs:
             research-agent-benchmark-v1.0.json
             research-agent-benchmark-v1.1.json
             research-agent-benchmark-v1.5.json
+            research-agent-benchmark-v2.0.json
             research-agent-isolation-v1.5.json
+            research-agent-scenario-e-v2.0.json
+            research-agent-release-v2.0.json
 
       - name: Qualify release package
         run: |

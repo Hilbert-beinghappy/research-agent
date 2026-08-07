@@ -2,7 +2,7 @@
 
 ## Pi commands
 
-| Command | Actual v1.5 behavior | State change |
+| Command | Actual v2.0 behavior | State change |
 |---|---|---|
 | `/research-version` | Show the loaded package version. | None |
 | `/research-init [--domain <id>] [title]` | Initialize the current empty directory with a built-in domain, create the bootstrap task and operation, and link the Pi Session. The default is public administration. | Adds a project; no overwrite |
@@ -26,7 +26,7 @@
 
 All commands except the version notification return the v1 canonical `ResearchResult` JSON envelope. Its stable fields are `ok`, `status`, `value`, `errors`, and `meta`; `meta` carries `operationId`, `taskId`, and warnings. In non-interactive mode, actions requiring confirmation return `PERMISSION_BLOCKED`; they do not infer consent.
 
-There is no `/research-export` command in v1.5. Deterministic research outputs use `research_artifacts`; profiles, Zotero reconciliation, and cross-project catalogs use `research_knowledge`; whole-project portability uses `/research-exchange`. Record-only collaboration is a TypeScript API in v1.5 rather than an automatic sync command.
+There is no `/research-export` command in v2.0. Deterministic research outputs use `research_artifacts`; profiles, Zotero reconciliation, and cross-project catalogs use `research_knowledge`; whole-project portability uses `/research-exchange`. Record-only collaboration is a TypeScript API rather than an automatic sync command. The optional `research-agent-rpc` executable is a separate inspection-only stdio interface documented in `sdk-rpc.md`; it adds no mutation command.
 
 ## Skills and prompts
 

@@ -115,6 +115,7 @@ export async function runAdapterProcess(options: RunAdapterProcessOptions): Prom
 		let outputBytes = 0;
 		let result: AdapterProtocolResult | null = null;
 		let settled = false;
+		let stopped: ResearchResult<JsonValue> | null = null;
 		const finish = (value: ResearchResult<JsonValue>): void => {
 			if (settled) return;
 			settled = true;
@@ -123,8 +124,9 @@ export async function runAdapterProcess(options: RunAdapterProcessOptions): Prom
 			resolve(value);
 		};
 		const stop = (value: ResearchResult<JsonValue>): void => {
-			child.kill("SIGTERM");
-			finish(value);
+			if (settled || stopped !== null) return;
+			stopped = value;
+			child.kill("SIGKILL");
 		};
 		const accountOutput = (value: string): boolean => {
 			outputBytes += Buffer.byteLength(value);
@@ -234,6 +236,7 @@ export async function runAdapterProcess(options: RunAdapterProcessOptions): Prom
 			stderr += chunk;
 		});
 		child.stdin.once("error", (error) => {
+			if (stopped !== null) return;
 			finish(protocolFailure("ADAPTER_STDIN_FAILED", error.message, options.request.messageId));
 		});
 		child.once("error", (error) => {
@@ -241,6 +244,10 @@ export async function runAdapterProcess(options: RunAdapterProcessOptions): Prom
 		});
 		child.once("close", (exitCode) => {
 			if (settled) return;
+			if (stopped !== null) {
+				finish(stopped);
+				return;
+			}
 			if (stdoutBuffer.trim() !== "") {
 				void handleLine(stdoutBuffer).then(() => {
 					if (!settled) complete(exitCode);

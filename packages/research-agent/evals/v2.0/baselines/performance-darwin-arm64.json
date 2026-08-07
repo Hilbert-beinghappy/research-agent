@@ -1,0 +1,59 @@
+{
+  "benchmark": "pi-research-agent-v2.0",
+  "generatedAt": "2026-08-07T03:59:24.445Z",
+  "projectSchemaVersion": "1.5.0",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "fixture": {
+    "projects": 25,
+    "samples": 10
+  },
+  "results": {
+    "sdkInitialization": {
+      "elapsedMs": 14.637,
+      "thresholdMs": 2000,
+      "passed": true
+    },
+    "sdkProjectList": {
+      "measurementsMs": [
+        15.509,
+        14.587,
+        15.302,
+        14.621,
+        14.779,
+        14.218,
+        14.529,
+        14.221,
+        14.524,
+        14.414
+      ],
+      "p95Ms": 15.509,
+      "thresholdMs": 2000,
+      "passed": true
+    },
+    "rpcProjectList": {
+      "measurementsMs": [
+        17.09,
+        14.811,
+        15.12,
+        14.879,
+        14.536,
+        14.459,
+        14.544,
+        14.5,
+        14.597,
+        14.83
+      ],
+      "p95Ms": 17.09,
+      "thresholdMs": 2000,
+      "passed": true
+    }
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

@@ -1,14 +1,14 @@
 # Pi Research Agent
 
-Pi Research Agent is a local-first Pi package for evidence-based research. v1.5 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, Zotero reconciliation, and user-triggered literature monitoring. Replaceable Domain Packages cover management, public administration, sociology, and political science. Public Adapter contracts, deterministic model routing, portable exchange bundles, and record-only collaboration extend the project without changing Pi core. It uses no database or separate UI.
+Pi Research Agent is a local-first Pi package for evidence-based research. v2.0 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, Zotero reconciliation, and user-triggered literature monitoring. Replaceable Domain Packages cover management, public administration, sociology, and political science. Public Adapter contracts, deterministic model routing, portable exchange bundles, record-only collaboration, and a multi-project SDK/stdio RPC facade extend the project without changing Pi core. It uses no database or required separate UI.
 
 The package is evidence-first: metadata, abstract text, acquired full text, located excerpts, and verified citations are distinct states. Missing full text, unresolved metadata, paywalls, retractions, and insufficient evidence remain explicit; they are never converted into success by model wording.
 
 ## Requirements and trust boundary
 
 - Node.js 22.19.0 or newer.
-- A compatible Pi installation. v1.5 is qualified against the package baseline `0.83.0`, the latest tested stable package `0.84.0`, and the architecture baseline Pi commit `97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53`.
-- Review the package before loading it. The Pi Extension and built-in code run in the Pi host process. A third-party Adapter can run through the JSONL process boundary; governed registration additionally requires the macOS strong-isolation profile in v1.5.
+- A compatible Pi installation. v2.0 is qualified against the package baseline `0.83.0`, the latest tested stable package `0.84.0`, and the architecture baseline Pi commit `97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53`.
+- Review the package before loading it. The Pi Extension and built-in code run in the Pi host process. A third-party Adapter can run through the JSONL process boundary; governed registration requires the shipped macOS strong-isolation profile.
 
 ## Run from a source checkout
 
@@ -31,7 +31,7 @@ Then initialize and load the intake workflow:
 Expected version notification:
 
 ```text
-pi-research-agent v1.5.0
+pi-research-agent v2.0.0
 ```
 
 The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes fourteen governed aggregate Tools; users do not edit canonical `.research/records` files directly. Sixteen administration commands cover project state, migration, domains, Adapter inspection/registration, deterministic model routing, and exchange.
@@ -58,6 +58,7 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [Adapter protocol and isolation](docs/adapter-protocol.md)
 - [Exchange and collaboration](docs/exchange-collaboration.md)
 - [Model routing](docs/model-routing.md)
+- [SDK and stdio RPC](docs/sdk-rpc.md)
 - [Project format and recovery](docs/project-format.md)
 - [Install, upgrade, and recovery](docs/install-upgrade-recovery.md)
 - [Backup and restore](docs/backup-restore.md)
@@ -67,7 +68,7 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [Authorized academic sources](docs/authorized-sources.md)
 - [Asset provenance](docs/asset-provenance.md)
 - [Evidence evaluation](docs/evaluation.md)
-- [v1.5 threat model](docs/threat-model.md)
+- [v2.0 threat model](docs/threat-model.md)
 - [v0.1 release evidence and limitations](docs/release-v0.1.md)
 - [v0.2 release evidence and limitations](docs/release-v0.2.md)
 - [v0.3 release evidence and limitations](docs/release-v0.3.md)
@@ -76,15 +77,17 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [v1.0 release evidence and limitations](docs/release-v1.0.md)
 - [v1.1 release evidence and limitations](docs/release-v1.1.md)
 - [v1.5 release evidence and limitations](docs/release-v1.5.md)
+- [v2.0 release evidence and limitations](docs/release-v2.0.md)
 - [Literature monitoring and scheduling](docs/monitoring.md)
 - [Manuscript review rubrics](docs/review-rubrics.md)
 - [Submission gate](docs/submission-gate.md)
 - [AI disclosure template](docs/ai-disclosure-template.md)
 - [Runnable example requests](examples/README.md)
+- [v2.0 full-workflow example](examples/full-workflow-v2.0/README.md)
 
 ## Public contracts
 
-`@research-agent/contracts` publishes the v1.5 data-only contract surface through seven explicit entry points. It covers persisted records, results, Source/Analysis Runtime/Artifact Adapter v1, the JSONL protocol, exchange bundles, collaboration change sets, model-route decisions, canonical JSON, hashing, and validation. Generated schemas live under `schemas/v1.5`; immutable v0.1–v1.1 schemas remain committed and migrate without rewriting canonical records.
+`@research-agent/contracts` publishes the data-only contract surface through eight explicit entry points. It covers persisted records, results, Source/Analysis Runtime/Artifact Adapter v1, Adapter and RPC JSONL protocols, SDK capabilities, exchange bundles, collaboration change sets, model-route decisions, canonical JSON, hashing, and validation. Canonical project schemas remain under `schemas/v1.5`; SDK/RPC protocol schemas are under `schemas/v2.0`. Immutable v0.1–v1.1 schemas remain committed and migrate without rewriting canonical records.
 
 ```sh
 npm run generate:schemas -w packages/research-agent-contracts
@@ -93,7 +96,7 @@ npm run generate:schemas -w packages/research-agent
 npm run test:unit -w packages/research-agent -- contracts
 ```
 
-The deterministic model router is exported from `pi-research-agent/routing/models`; exchange and collaboration helpers are exported from `pi-research-agent/exchange`. Package conformance, registration, and process-runner entry points are public Host integration surfaces. Domain manifest loading/resolution is exported from `pi-research-agent/domains`; authorization evaluation is exported from `pi-research-agent/access`. Zotero, monitor, project doctor, migration, and backup implementations remain governed built-in paths rather than third-party contracts.
+The deterministic model router is exported from `pi-research-agent/routing/models`; exchange and collaboration helpers are exported from `pi-research-agent/exchange`. `pi-research-agent/sdk` and `pi-research-agent/rpc` expose the documented inspection-only facade. Package conformance, registration, and process-runner entry points are public Host integration surfaces. Domain manifest loading/resolution is exported from `pi-research-agent/domains`; authorization evaluation is exported from `pi-research-agent/access`. Zotero, monitor, migration, backup, and canonical mutation implementations remain governed built-in paths rather than third-party contracts.
 
 ## Release checks
 
@@ -123,6 +126,10 @@ npm run benchmark:v1.1 -w packages/research-agent
 npm run eval:v1.5 -w packages/research-agent -- v1.5
 npm run benchmark:v1.5 -w packages/research-agent
 npm run qualify:isolation:v1.5 -w packages/research-agent
+npm run eval:v2.0 -w packages/research-agent -- v2.0
+npm run benchmark:v2.0 -w packages/research-agent
+npm run qualify:scenario-e:v2.0 -w packages/research-agent
+npm run qualify:release:v2.0 -w packages/research-agent
 npm run scan:release -w packages/research-agent
 npm run test:clean-install -w packages/research-agent
 npm run test:clean-install:latest -w packages/research-agent

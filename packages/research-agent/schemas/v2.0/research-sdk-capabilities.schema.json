@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent SDK capabilities v1",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "packageVersion",
+    "projectSchemaVersion",
+    "methods",
+    "access",
+    "mutations",
+    "experimental"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "pi-research-sdk-capabilities"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "packageVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectSchemaVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "methods": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "system.capabilities"
+          },
+          {
+            "type": "string",
+            "const": "projects.list"
+          },
+          {
+            "type": "string",
+            "const": "project.open"
+          },
+          {
+            "type": "string",
+            "const": "project.validate"
+          },
+          {
+            "type": "string",
+            "const": "project.doctor"
+          },
+          {
+            "type": "string",
+            "const": "records.list"
+          },
+          {
+            "type": "string",
+            "const": "records.read"
+          }
+        ]
+      }
+    },
+    "access": {
+      "type": "string",
+      "const": "configured-projects"
+    },
+    "mutations": {
+      "type": "string",
+      "const": "pi-governed-surfaces-only"
+    },
+    "experimental": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": false
+}

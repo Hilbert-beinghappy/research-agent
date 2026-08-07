@@ -1,10 +1,10 @@
-# Research project format v1.5
+# Research project format 1.5 in package v2.0
 
 ## Source of truth
 
 `research-project.json` and the versioned JSON records under `.research/records/` are the canonical research state. Pi Session stores only a link to the project ID, manifest path, observed revision, and last operation. A Session can be discarded without losing research facts; a project can be reopened from another Session with `/research-open`.
 
-The current schema version is `1.5.0`. Public JSON Schemas are under `schemas/v1.5`, generated from `@research-agent/contracts`; the committed v0.1–v1.1 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.1–v1.1 versions migrate directly to the v1.5 manifest shape without rewriting canonical record files.
+The current schema version is `1.5.0`. Package v2.0 adds SDK/RPC protocol schemas under `schemas/v2.0` but does not change canonical project state. Public project JSON Schemas are under `schemas/v1.5`, generated from `@research-agent/contracts`; the committed v0.1–v1.1 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.1–v1.1 versions migrate directly to the v1.5 manifest shape without rewriting canonical record files.
 
 ## Layout
 

@@ -125,3 +125,20 @@ The macOS qualification executes untrusted fixture code under the actual `strong
 The Darwin arm64 / Node 22.19.0 benchmark creates 10,000 canonical Source records and runs three real exchange pack/import/full-validation samples. The frozen export p95 is 1,827.620 ms and import-plus-validation p95 is 9,960.572 ms, below the 60-second limit with zero model or API calls.
 
 The authorized `deepseek-v4-flash` boundary check made one invocation, used two provider turns, and cost USD 0.054175. It required static inspection and package verification, exact approval, strong conformance, then registration; chose the privacy-eligible local route; and required approvals for unknown code, paid model use, and external exchange. It refused in-process execution, direct Adapter network/credential/project authority, restricted-data egress, Session/secret export, and approval bypass. The public evaluator verifies hashes and replays the sanitized result without another provider call.
+
+## v2.0 SDK/RPC, third-party extension, and release evaluation
+
+```sh
+npm run eval:v2.0 -w packages/research-agent -- v2.0
+npm run benchmark:v2.0 -w packages/research-agent
+npm run qualify:scenario-e:v2.0 -w packages/research-agent
+npm run qualify:release:v2.0 -w packages/research-agent
+```
+
+The deterministic gate keeps canonical project schema 1.5.0 while checking package/contracts 2.0.0, seven SDK/RPC methods, generated protocol schemas, all seven published migration inputs, two separate management/public-administration project exchange replays, SDK/RPC parity, explicit-project restriction, and the public brokered-HTTP Source Adapter. The two project replays create, pack, import, reopen, validate, and compare distinct artifact hashes; they are public workflow fixtures, not evidence of external scholarly validity.
+
+The 25-project Darwin arm64 / Node 22.19.0 benchmark recorded SDK initialization at 14.637 ms, SDK list p95 at 15.509 ms, and RPC list p95 at 17.09 ms against a two-second gate, with zero provider/model calls. Release qualification packs both public packages twice and requires identical entry manifests and tarball bytes. Clean-install qualification separately loads the Pi Extension, SDK, and RPC executable from packed tarballs against both tested Pi releases.
+
+On macOS, Scenario E runs the public Source Adapter without a core patch, denies the first HTTP broker request without approval, allows a matching approved Host request, maps a crash to `ADAPTER_CRASH`, and validates the canonical project afterward. It binds the existing strong-isolation attack baseline, where direct network, private reads, project writes, credential inheritance, and subprocess execution all remain denied. Linux and Windows run protocol conformance but make no strong-isolation claim.
+
+The authorized `deepseek-v4-flash` boundary evaluation made one invocation, used two provider turns, and cost USD 0.05508. It selected the read-only SDK/RPC surface, retained schema 1.5.0, kept mutations on Pi-governed Tools/commands, selected a privacy-eligible local route, and refused direct Adapter authority, restricted-data egress, credential exposure, unconfigured paths, and automatic submission. The public evaluator verifies the sanitized result and all input hashes without another provider call.

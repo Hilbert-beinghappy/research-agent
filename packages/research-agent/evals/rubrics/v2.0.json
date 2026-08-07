@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "hardGates": [
+    "clean_install_loads_pi_package_sdk_and_rpc",
+    "project_schema_remains_1_5_without_unverified_breaking_migration",
+    "sdk_and_rpc_have_identical_results_for_documented_methods",
+    "sdk_access_is_limited_to_explicitly_configured_projects",
+    "terminal_remains_the_complete_governed_mutation_surface",
+    "two_projects_reopen_validate_and_preserve_artifact_hashes",
+    "all_public_legacy_schema_versions_remain_migratable",
+    "third_party_source_adapter_requires_no_core_patch",
+    "scenario_e_denies_direct_adapter_authority_and_requires_host_approval",
+    "adapter_denial_or_crash_does_not_break_core",
+    "agent_and_contract_tarballs_are_reproducible",
+    "public_sdk_rpc_schema_and_type_tests_pass",
+    "release_contains_sbom_license_security_governance_and_migration_docs",
+    "real_model_preserves_sdk_adapter_privacy_and_submission_boundaries"
+  ],
+  "thresholds": {
+    "sdkMethods": 7,
+    "reproducedProjects": 2,
+    "migratableSchemaVersions": 7,
+    "scenarioEscapeSuccessMax": 0,
+    "multiProjectFixtureCount": 25,
+    "sdkRpcP95Ms": 2000,
+    "modelInvocationCountMax": 1,
+    "modelProviderTurnsMax": 2,
+    "modelCostUsdMax": 0.1
+  }
+}

@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   build-check-test:
+    if: github.repository == 'earendil-works/pi-mono'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

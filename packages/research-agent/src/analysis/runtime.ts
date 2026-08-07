@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { access, chmod, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import type {
 	AnalysisRun,
@@ -155,18 +155,19 @@ export async function executeRuntimeProcess(request: RuntimeProcessRequest): Pro
 
 async function executablePath(name: string): Promise<string | null> {
 	try {
-		if (name.includes("/")) {
+		if (isAbsolute(name) || name.includes("/") || name.includes("\\")) {
 			await access(name);
 			return name;
 		}
 		const result = await executeRuntimeProcess({
-			executable: "/usr/bin/which",
+			executable: process.platform === "win32" ? "where.exe" : "/usr/bin/which",
 			args: [name],
 			cwd: process.cwd(),
 			env: { PATH: process.env.PATH },
 			timeoutMs: 5_000,
 		});
-		return result.exitCode === 0 ? result.stdout.trim() || null : null;
+		const firstMatch = result.stdout.trim().split(/\r?\n/u)[0];
+		return result.exitCode === 0 && firstMatch ? firstMatch : null;
 	} catch {
 		return null;
 	}

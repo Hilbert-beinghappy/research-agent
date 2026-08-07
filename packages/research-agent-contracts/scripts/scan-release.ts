@@ -16,6 +16,7 @@ const packed = spawnSync(npm, ["pack", "--dry-run", "--json"], {
 	cwd: packageRoot,
 	encoding: "utf8",
 	maxBuffer: 4 * 1024 * 1024,
+	shell: process.platform === "win32",
 });
 if (packed.status !== 0) throw new Error(`npm pack failed with exit code ${packed.status ?? "unknown"}`);
 const result = (JSON.parse(packed.stdout) as PackResult[])[0];
@@ -28,6 +29,7 @@ for (const path of [
 	"src/index.ts",
 	"src/adapter-protocol.ts",
 	"src/adapters.ts",
+	"src/sdk-rpc.ts",
 	"src/schemas.ts",
 	"src/validators.ts",
 	"schemas/v1.5/adapter-package.schema.json",
@@ -35,6 +37,9 @@ for (const path of [
 	"schemas/v1.5/exchange-bundle.schema.json",
 	"schemas/v1.5/collaboration-change-set.schema.json",
 	"schemas/v1.5/model-route-decision.schema.json",
+	"schemas/v2.0/research-rpc-request.schema.json",
+	"schemas/v2.0/research-rpc-response.schema.json",
+	"schemas/v2.0/research-sdk-capabilities.schema.json",
 ]) {
 	if (!paths.has(path)) throw new Error(`Contracts release is missing: ${path}`);
 }
@@ -61,5 +66,5 @@ for (const file of result.files) {
 	}
 }
 process.stdout.write(
-	`${JSON.stringify({ status: "passed", entryCount: result.entryCount, scannedBytes, schemas: 14 }, null, 2)}\n`,
+	`${JSON.stringify({ status: "passed", entryCount: result.entryCount, scannedBytes, schemas: 17 }, null, 2)}\n`,
 );

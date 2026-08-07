@@ -30,7 +30,7 @@ Subprocess execution is not a broker. An Adapter cannot request arbitrary Host c
 | `strong_isolation` | Yes | Denied | Environment is stripped | Only declared package roots, runtime libraries, and staging are readable | Staging only | Built-in implementation and qualification on macOS |
 | `legacy_trusted` | No public untrusted-code guarantee | Host authority | Host authority | Host authority | Host authority | Trusted legacy declaration only |
 
-Strong isolation currently uses the native macOS sandbox profile. Qualification demonstrates denial of direct network, undeclared private reads, project writes, credential inheritance, and subprocess execution. Linux and Windows strong profiles are not claimed in v1.5. If the requested profile is unavailable, the operation is blocked; the runner does not weaken isolation automatically.
+Strong isolation currently uses the native macOS sandbox profile. Qualification demonstrates denial of direct network, undeclared private reads, project writes, credential inheritance, and subprocess execution. Linux and Windows strong profiles are not claimed in v2.0. If the requested profile is unavailable, the operation is blocked; the runner does not weaken isolation automatically.
 
 The isolation profile controls direct process authority. Governed effects still require Host broker policy and approval. Conversely, `jsonl_process` is a protocol boundary, not protection from malicious code.
 

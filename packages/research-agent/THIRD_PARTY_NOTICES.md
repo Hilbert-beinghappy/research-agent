@@ -23,10 +23,11 @@ Generated from the production dependency closure in the repository package lock.
 | @napi-rs/canvas-linux-x64-musl | 0.1.100 | MIT | [npm](https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-0.1.100.tgz) |
 | @napi-rs/canvas-win32-arm64-msvc | 0.1.100 | MIT | [npm](https://registry.npmjs.org/@napi-rs/canvas-win32-arm64-msvc/-/canvas-win32-arm64-msvc-0.1.100.tgz) |
 | @napi-rs/canvas-win32-x64-msvc | 0.1.100 | MIT | [npm](https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.100.tgz) |
-| @research-agent/contracts | 1.5.0 | Apache-2.0 | lockfile |
+| @research-agent/contracts | 2.0.0 | Apache-2.0 | lockfile |
 | data-uri-to-buffer | 4.0.1 | MIT | [npm](https://registry.npmjs.org/data-uri-to-buffer/-/data-uri-to-buffer-4.0.1.tgz) |
 | fetch-blob | 3.2.0 | MIT | [npm](https://registry.npmjs.org/fetch-blob/-/fetch-blob-3.2.0.tgz) |
 | formdata-polyfill | 4.0.10 | MIT | [npm](https://registry.npmjs.org/formdata-polyfill/-/formdata-polyfill-4.0.10.tgz) |
+| jiti | 2.7.0 | MIT | [npm](https://registry.npmjs.org/jiti/-/jiti-2.7.0.tgz) |
 | moo | 0.5.3 | BSD-3-Clause | [npm](https://registry.npmjs.org/moo/-/moo-0.5.3.tgz) |
 | node-domexception | 1.0.0 | MIT | [npm](https://registry.npmjs.org/node-domexception/-/node-domexception-1.0.0.tgz) |
 | node-fetch | 3.3.2 | MIT | [npm](https://registry.npmjs.org/node-fetch/-/node-fetch-3.3.2.tgz) |

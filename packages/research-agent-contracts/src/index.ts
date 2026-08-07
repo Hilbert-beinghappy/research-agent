@@ -5,4 +5,5 @@ export * from "./adapters.ts";
 export * from "./canonical-json.ts";
 export * from "./integrity.ts";
 export * from "./schemas.ts";
+export * from "./sdk-rpc.ts";
 export * from "./validators.ts";

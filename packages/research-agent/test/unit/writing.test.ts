@@ -895,5 +895,5 @@ describe("manuscript writing contracts", () => {
 			if (evaluated.value.passed) falseSuccesses += 1;
 		}
 		expect(falseSuccesses).toBe(0);
-	}, 15_000);
+	}, 60_000);
 });

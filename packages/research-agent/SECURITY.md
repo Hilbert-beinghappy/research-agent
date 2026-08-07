@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The current v1.x release line receives security fixes. v0.x project formats remain migration inputs but the v0.x package lines are not supported runtimes.
+The current v2.x release line receives security fixes. Published v1.x project formats remain readable or supported migration inputs, but superseded package lines are not supported runtimes.
 
 ## Reporting
 
@@ -10,8 +10,8 @@ Report vulnerabilities through the repository's private security-advisory channe
 
 ## Security boundary
 
-Pi packages execute in the host process. The policy engine, approval ledger, governed file transactions, and HTTP broker reduce accidental or model-initiated misuse, but they do not isolate malicious Pi Extensions, compromised built-in code, a compromised host, or a user who edits project files outside Pi. Third-party Adapter v1 execution uses a separate JSONL process; governed registration additionally requires the tested macOS strong-isolation profile. Ordinary process separation is not an OS sandbox, and unsupported strong-isolation platforms block rather than downgrade.
+Pi packages execute in the host process. The policy engine, approval ledger, governed file transactions, and HTTP broker reduce accidental or model-initiated misuse, but they do not isolate malicious Pi Extensions, compromised built-in code, a compromised host, or a user who edits project files outside Pi. Third-party Adapter v1 execution uses a separate JSONL process; governed registration additionally requires the tested macOS strong-isolation profile. Ordinary process separation is not an OS sandbox, and unsupported strong-isolation platforms block rather than downgrade. SDK/RPC v1 is a local inspection facade over explicitly configured project roots; it opens no socket and is not a boundary against the host user.
 
 The package does not store provider secrets in project state. Credentials are resolved from configured environment aliases for the duration of a request. Project exports and backups must still be reviewed because canonical records can contain research metadata, excerpts, local filenames, participant material, and user-authored text.
 
-See `docs/threat-model.md` for the v1.5 threat model, sensitive-project defaults, and non-goals. Do not load unknown code as a Pi Extension or built-in Adapter. For third-party Adapter v1 packages, use static inspection, exact-hash approval, successful strong conformance, and Host-mediated effects.
+See `docs/threat-model.md` for the v2.0 threat model, sensitive-project defaults, and non-goals. Do not load unknown code as a Pi Extension or built-in Adapter. For third-party Adapter v1 packages, use static inspection, exact-hash approval, successful strong conformance, and Host-mediated effects.

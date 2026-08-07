@@ -2,6 +2,11 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import {
+	ResearchRpcRequestSchema,
+	ResearchRpcResponseSchema,
+	ResearchSdkCapabilitySchema,
+} from "@research-agent/contracts/sdk-rpc";
 import { AdapterProtocolMessageSchema } from "../src/contracts/adapter-protocol.ts";
 import {
 	AdapterPackageManifestSchema,
@@ -16,10 +21,12 @@ import {
 } from "../src/contracts/schemas.ts";
 
 const schemaDir = fileURLToPath(new URL(`../schemas/v${RESEARCH_SCHEMA_VERSION.slice(0, 3)}/`, import.meta.url));
+const v2SchemaDir = fileURLToPath(new URL("../schemas/v2.0/", import.meta.url));
 const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
 const schemaLabel = `v${RESEARCH_SCHEMA_VERSION.slice(0, 3)}`;
 
 await mkdir(schemaDir, { recursive: true });
+await mkdir(v2SchemaDir, { recursive: true });
 await Promise.all([
 	writeFile(
 		`${schemaDir}persisted-record.schema.json`,
@@ -56,5 +63,17 @@ await Promise.all([
 	writeFile(
 		`${schemaDir}model-route-decision.schema.json`,
 		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent model route decision v1", ...ModelRouteDecisionSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${v2SchemaDir}research-rpc-request.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent RPC request v1", ...ResearchRpcRequestSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${v2SchemaDir}research-rpc-response.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent RPC response v1", ...ResearchRpcResponseSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${v2SchemaDir}research-sdk-capabilities.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent SDK capabilities v1", ...ResearchSdkCapabilitySchema }, null, 2)}\n`,
 	),
 ]);

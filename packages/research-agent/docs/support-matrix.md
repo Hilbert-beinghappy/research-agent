@@ -1,4 +1,4 @@
-# v1.5 support matrix
+# v2.0 support matrix
 
 | Capability | Ubuntu | macOS | Windows |
 |---|---|---|---|
@@ -14,7 +14,10 @@
 | Adapter contract v1 and ordinary JSONL conformance | Required CI; process boundary is not a sandbox | Required CI; process boundary is not a sandbox | Required CI; process boundary is not a sandbox |
 | Strong-isolation Adapter qualification and governed registration | Not claimed; registration blocks | Required qualification: direct network, private read, project write, credential inheritance, and subprocess denied | Not claimed; registration blocks |
 | Exchange Bundle and record-only collaboration | Required deterministic tests | Required deterministic tests plus 10,000-record benchmark | Required deterministic tests |
+| Inspection-only SDK and local stdio RPC v1 | Required type/schema, parity, malformed-request, and clean-install tests | Same plus 25-project benchmark | Required type/schema, parity, malformed-request, and clean-install tests |
+| Public brokered-HTTP Source Adapter example | Ordinary JSONL conformance; direct process authority is not sandboxed | Ordinary conformance plus Scenario E approval/crash and strong-isolation qualification | Ordinary JSONL conformance; direct process authority is not sandboxed |
+| Reproducible Agent/contracts tarballs | Two-pack byte and entry-manifest comparison | Same | Same |
 
 Node.js 22.19.0 or newer is required. Python, R, and Stata are discovered capabilities, never installed by this package. The default CI uses synthetic or redistribution-approved fixtures and no provider credentials. Live provider availability, prices, entitlements, and user runtime packages remain outside the static support promise.
 
-Unknown third-party code never runs in-process through the v1 Adapter runner. Strong registration has no automatic fallback: Linux and Windows remain blocked until a platform profile passes the same attack qualification.
+Unknown third-party code never runs in-process through the v1 Adapter runner. Strong registration has no automatic fallback: Linux and Windows remain blocked until a platform profile passes the same attack qualification. SDK/RPC trusts the host user, opens no socket, accepts only configured projects, and exposes no canonical mutation method.
