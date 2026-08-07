@@ -5,10 +5,11 @@ import type { RecordKind } from "../contracts/schemas.ts";
 
 export const ID_STRATEGY = "prefixed-uuid-v4" as const;
 
-export type OpaqueIdKind = RecordKind | "project";
+export type OpaqueIdKind = RecordKind | "project" | "backup";
 
 const prefixes: Record<OpaqueIdKind, string> = {
 	project: "prj",
+	backup: "backup",
 	source: "src",
 	document: "doc",
 	evidence: "ev",

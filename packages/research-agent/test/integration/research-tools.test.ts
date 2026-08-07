@@ -863,7 +863,7 @@ describe("research tools", () => {
 			ok: true,
 			value: { status: "awaiting_confirmation", confirmation: { decision: null } },
 		});
-		await harness.commands.get("research-status")?.("", ctx);
+		await harness.commands.get("research-status")?.("full", ctx);
 		expect(JSON.parse(String(harness.notify.mock.calls.at(-1)?.[0]))).toMatchObject({
 			ok: true,
 			value: { stage: "research_design", designByStatus: { rejected: 1, awaiting_confirmation: 1 } },

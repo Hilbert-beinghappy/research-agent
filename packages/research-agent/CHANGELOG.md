@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-07
+
+### Added
+
+- Direct, backup-bound migration from every v0.1–v0.5 project, with a project lock, interruption recovery, immutable historical records, and Scenario D's 15-case migration matrix.
+- Hash-bound project backup/restore, a categorized project doctor, deterministic policy-aware model routing, fast summary status, and rebuildable source/evidence/claim query indexes.
+- Public v1 schemas and API documentation, Pi baseline/latest compatibility manifest, install/upgrade/recovery and support guides, threat model 1.0, governance policy, and RFC template.
+- A 10,000-source/50,000-evidence performance gate and a sanitized `deepseek-v4-flash` recovery-routing boundary evaluation.
+
+### Changed
+
+- New projects and generated schemas use v1.0 while v0.1–v0.5 projects migrate directly without rewriting canonical records.
+- Query cursors bind to the relevant canonical record-set fingerprint, so unrelated Operation writes no longer invalidate source, evidence, or claim pagination.
+- Package and Extension versions advance to 1.0.0. Existing artifact generator algorithms retain their independent versions.
+
+### Known limitations
+
+- Public lifecycle and scale evidence uses synthetic, redistribution-safe fixtures; it does not establish external scholarly validity or independent-user usability.
+- SourceAdapter remains experimental and in-process. Stable isolated third-party Adapters, exchange bundles, and SDK/RPC remain v1.5/v2.0 work.
+- v1.0 has no database, custom UI, hosted service, account server, background Agent, or default multi-Agent scheduler.
+
 ## [0.5.0] - 2026-08-06
 
 ### Added

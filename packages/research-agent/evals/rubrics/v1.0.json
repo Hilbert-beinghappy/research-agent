@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "hardGates": [
+    "all_v0_schemas_migrate",
+    "scenario_d_no_mixed_state",
+    "backup_root_hash_verified",
+    "canonical_record_hashes_unchanged",
+    "doctor_categories_explicit",
+    "ten_session_rebinds",
+    "status_and_query_under_two_seconds",
+    "model_route_respects_policy_and_cost",
+    "canonical_conflicts_require_user_resolution",
+    "clean_install_baseline_and_latest_pi",
+    "no_database_or_second_ui",
+    "no_private_configuration_in_release"
+  ],
+  "thresholds": {
+    "historicalSchemas": 5,
+    "migrationInterruptionPoints": 3,
+    "scenarioDCases": 15,
+    "sessionRebinds": 10,
+    "failureInjectionCases": 12,
+    "canonicalCorruptionMax": 0,
+    "sources": 10000,
+    "evidence": 50000,
+    "statusP95Ms": 2000,
+    "queryP95Ms": 2000,
+    "modelInvocationCountMax": 1,
+    "modelProviderTurnsMax": 2,
+    "modelCostUsdMax": 0.1
+  }
+}

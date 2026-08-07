@@ -234,7 +234,7 @@ describe("Pi manuscript and review tools", () => {
 		expect(testHarness.confirm).toHaveBeenCalledTimes(4);
 		const current = await openProject(projectRoot);
 		if (current.compatibility !== "current") throw new Error("Expected current project");
-		expect(await projectStatus(current)).toMatchObject({
+		expect(await projectStatus(current, "full")).toMatchObject({
 			manuscriptVersions: 2,
 			reviewFindingsBySeverity: { P1: 1 },
 			submissionGatesByPublishability: { submission_candidate: 1 },

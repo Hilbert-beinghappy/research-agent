@@ -1,0 +1,36 @@
+{
+	"format": "pi-research-agent-compatibility",
+	"version": 1,
+	"researchAgentVersion": "1.0.0",
+	"node": ">=22.19.0",
+	"architectureBaseline": {
+		"piCommit": "97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53"
+	},
+	"packageLanes": [
+		{
+			"name": "baseline",
+			"piVersion": "0.83.0",
+			"blocking": true
+		},
+		{
+			"name": "stable",
+			"piVersion": "0.84.0",
+			"blocking": true
+		}
+	],
+	"requiredBehaviors": [
+		"package_discovery",
+		"extension_load_reload",
+		"command_registration",
+		"tool_execute_update_abort",
+		"tool_call_governance_hook",
+		"session_link_resume",
+		"custom_entry_excluded_from_model_context",
+		"active_tool_restore",
+		"machine_result_v1"
+	],
+	"mainHead": {
+		"blocking": false,
+		"status": "not_qualified"
+	}
+}

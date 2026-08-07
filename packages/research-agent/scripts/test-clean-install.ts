@@ -23,6 +23,11 @@ interface PackageManifest {
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const piVersionIndex = process.argv.indexOf("--pi-version");
+const requestedPiVersion = piVersionIndex < 0 ? null : (process.argv[piVersionIndex + 1] ?? null);
+if (piVersionIndex >= 0 && (requestedPiVersion === null || !/^\d+\.\d+\.\d+$/u.test(requestedPiVersion))) {
+	throw new TypeError("--pi-version requires an exact semantic version");
+}
 
 function run(command: string, args: string[], cwd: string): string {
 	const result = spawnSync(command, args, { cwd, encoding: "utf8", maxBuffer: 16 * 1_024 * 1_024 });
@@ -65,7 +70,7 @@ try {
 			"--no-fund",
 			"--package-lock=false",
 			join(packDirectory, filename),
-			...peerPackages.map(({ name, version }) => `${name}@${version}`),
+			...peerPackages.map(({ name, version }) => `${name}@${requestedPiVersion ?? version}`),
 			`typebox@${typeboxVersion}`,
 		],
 		installDirectory,
@@ -103,6 +108,7 @@ try {
 				status: "passed",
 				platform: process.platform,
 				node: process.version,
+				piVersion: requestedPiVersion ?? peerPackages[0]?.version,
 				typeboxVersion,
 				probe: JSON.parse(probe) as unknown,
 			},

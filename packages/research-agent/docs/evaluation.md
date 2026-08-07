@@ -81,3 +81,20 @@ npm run benchmark:v0.5 -w packages/research-agent
 The deterministic gate replays three declared failure cases: partial Zotero write reconciliation, explicit Unicode-PDF degradation, and a rate-limited monitor that cannot advance its cursor. The integration suite covers RIS/BibTeX stable-ID hints, portable Office/Obsidian structures, external item mapping and retry state, five successful monitor checkpoints, a failed checkpoint, cross-project DOI duplication, and canonical project validation. The benchmark loads, validates, and queries a 10,000-source JSON catalog twenty times; the frozen Darwin arm64/Node 22.19.0 p95 is 20.486 ms against a 2-second gate with zero API/model calls.
 
 The authorized `deepseek-v4-flash` boundary evaluation used no tools or web requests. Its first response preserved every safety boundary but used workflow labels because the initial Prompt omitted the registered Tool inventory; that response was rejected. After the Prompt named the actual available Tools, the validated response selected `research_knowledge` and `research_monitor`, required destination-bound approval and an environment credential alias, preserved a failed cursor, and refused a daemon or automatic manuscript edit. Both observed invocations are counted: four provider turns, USD 0.08349 total, with no unobserved cost.
+
+## v1.0 recovery, compatibility, and scale evaluation
+
+```sh
+npm run eval:v1.0 -w packages/research-agent -- v1.0
+npm run benchmark:v1.0 -w packages/research-agent
+npm run test:clean-install -w packages/research-agent
+npm run test:clean-install:latest -w packages/research-agent
+```
+
+Scenario D executes 15 migration cases: each v0.1–v0.5 schema at staged-write, record-replace, and manifest-commit interruption boundaries. Because the direct v1.0 migration never rewrites canonical records, the record-replace boundary proves that the record file list and hashes remain unchanged. Every case validates the resulting project, checks the doctor report, verifies the backup root, restores the exact old state into an empty directory, and rejects mixed state. The evaluator also binds two public long-running replay specifications to all six lifecycle stages, five release gates, and a minimum of ten Session rebinds.
+
+The v1.0 benchmark exercises summary status and a filtered corpus query at declared scale: a 10,000-source manifest and a deterministic 50,000-evidence derived index. On Darwin arm64 with Node 22.19.0, summary-status p95 was 3.365 ms and filtered-query p95 was 215.477 ms, both below the two-second gate; migration plus backup took 37.747 ms. The scale benchmark deliberately prebuilds the disposable index instead of committing 60,000 canonical fixture files. Canonical integrity and end-to-end persistence are tested separately by Scenario A and Scenario D. The benchmark makes zero model or provider calls.
+
+The authorized `deepseek-v4-flash` recovery-routing evaluation made one model invocation, used two provider turns, and cost USD 0.068305. It selected a blocked route, required project doctor first and a verified backup before migration or recovery, and refused automatic canonical repair, Session-as-fact, restricted-data egress without approval, credential persistence, or overwrite. Two earlier harness attempts failed locally before provider invocation because the provider rejected a schema URI; they incurred no observed model call or cost and are not counted in the public baseline.
+
+Passing these gates proves the frozen contracts and public synthetic replays. It does not prove external scholarly validity, independent-user usability, disaster recovery across physical devices, or compatibility with an untested Pi main commit.

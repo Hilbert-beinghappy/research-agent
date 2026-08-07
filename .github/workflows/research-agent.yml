@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  v0-3-core:
-    name: v0.3 core (${{ matrix.os }})
+  v1-core:
+    name: v1.0 core (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -44,31 +44,34 @@ jobs:
       - name: Check package
         run: npm run check -w packages/research-agent
 
-      - name: Run unit and integration tests
+      - name: Run deterministic tests
         run: |
           npm run test:unit -w packages/research-agent
           npm run test:integration -w packages/research-agent
+          npm run test:e2e -w packages/research-agent
+          npm run test:compat -w packages/research-agent
 
-      - name: Repeat Scenario A and quality gate three times
+      - name: Replay v0.1 through v1.0 release gates
         run: |
-          npm run test:e2e -w packages/research-agent -- scenario-a
           npm run eval -w packages/research-agent -- v0.1
-          npm run test:e2e -w packages/research-agent -- scenario-a
-          npm run eval -w packages/research-agent -- v0.1
-          npm run test:e2e -w packages/research-agent -- scenario-a
-          npm run eval -w packages/research-agent -- v0.1
+          npm run eval:v0.2 -w packages/research-agent -- v0.2
+          npm run eval:v0.3 -w packages/research-agent -- v0.3
+          npm run eval:v0.4 -w packages/research-agent -- v0.4
+          npm run eval:v0.5 -w packages/research-agent -- v0.5
+          npm run eval:v1.0 -w packages/research-agent -- v1.0
 
-      - name: Run v0.2 method-boundary gate
-        run: npm run eval:v0.2 -w packages/research-agent -- v0.2
-
-      - name: Run v0.3 data-and-methods gate
-        run: npm run eval:v0.3 -w packages/research-agent -- v0.3
-
-      - name: Benchmark v0.1 through v0.3
+      - name: Benchmark v0.1 through v1.0
         run: |
           node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark-v0.1.json
           node packages/research-agent/scripts/benchmark-v0.2.ts --output research-agent-benchmark-v0.2.json
           node packages/research-agent/scripts/benchmark-v0.3.ts --output research-agent-benchmark-v0.3.json
+          node packages/research-agent/scripts/benchmark-v0.4.ts --output research-agent-benchmark-v0.4.json
+          node packages/research-agent/scripts/benchmark-v0.5.ts --output research-agent-benchmark-v0.5.json
+          node packages/research-agent/scripts/benchmark-v1.0.ts --output research-agent-benchmark-v1.0.json
+
+      - name: Qualify installed Python and R runtimes
+        if: runner.os != 'Windows'
+        run: npm run qualify:runtimes:v0.3 -w packages/research-agent
 
       - name: Upload benchmark report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -78,9 +81,12 @@ jobs:
             research-agent-benchmark-v0.1.json
             research-agent-benchmark-v0.2.json
             research-agent-benchmark-v0.3.json
+            research-agent-benchmark-v0.4.json
+            research-agent-benchmark-v0.5.json
+            research-agent-benchmark-v1.0.json
 
       - name: Qualify release package
         run: |
           npm run scan:release -w packages/research-agent
           npm run test:clean-install -w packages/research-agent
-          npm run test:compat -w packages/research-agent
+          npm run test:clean-install:latest -w packages/research-agent

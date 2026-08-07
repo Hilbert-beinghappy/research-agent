@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "scenario": "scenario-d",
+  "historicalSchemas": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"],
+  "interruptionPoints": ["staged_write", "record_replace_boundary", "manifest_commit"],
+  "expectedCases": 15,
+  "recordReplacePolicy": "v1.0 migration changes the manifest only; canonical record files must retain their exact hashes",
+  "requiredChecks": [
+    "interrupted root is the complete old or complete new canonical state",
+    "backup root hash validates",
+    "restored project opens as the original historical schema",
+    "migrated project validates with no pending migration",
+    "project doctor reports healthy",
+    "source and operation hashes are unchanged"
+  ]
+}

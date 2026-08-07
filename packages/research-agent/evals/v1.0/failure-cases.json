@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "status": "passed",
+  "cases": [
+    {
+      "caseId": "future-schema-read-only",
+      "expectedState": "blocked_with_upgrade_instruction",
+      "category": "schema",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "record-set-hash-mismatch",
+      "expectedState": "doctor_blocked_user_resolution",
+      "category": "hash",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "missing-canonical-file",
+      "expectedState": "doctor_blocked_restore_exact_bytes",
+      "category": "missing_file",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "pending-transaction",
+      "expectedState": "recover_by_hash",
+      "category": "pending_transaction",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "incomplete-migration-staging",
+      "expectedState": "discard_staging_and_retry_from_old_project",
+      "category": "pending_migration",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "manifest-installed-journal-pending",
+      "expectedState": "finish_journal_commit_idempotently",
+      "category": "pending_migration",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "migration-lock-present",
+      "expectedState": "block_second_writer",
+      "category": "pending_migration",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "backup-file-tampered",
+      "expectedState": "restore_refused",
+      "category": "hash",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "restore-destination-nonempty",
+      "expectedState": "restore_refused_without_overwrite",
+      "category": "data_conflict",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "enabled-adapter-unavailable",
+      "expectedState": "attention_disable_or_install_adapter",
+      "category": "adapter_absence",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "external-item-drift",
+      "expectedState": "attention_reconcile_without_rewriting_canonical",
+      "category": "external_drift",
+      "canonicalCorruption": false
+    },
+    {
+      "caseId": "model-route-denied-or-over-budget",
+      "expectedState": "blocked_with_candidate_reasons",
+      "category": "policy",
+      "canonicalCorruption": false
+    }
+  ]
+}

@@ -366,7 +366,7 @@ function locatedDraft(fixture: FixtureProject, operationId: string): EvidenceCar
 }
 
 describe("corpus query and evidence cards", () => {
-	it("keeps metadata, abstract, and located full text distinct with revision-bound pagination", async () => {
+	it("keeps metadata, abstract, and located full text distinct with corpus-bound pagination", async () => {
 		const fixture = await createFixtureProject();
 		const queryOperationId = await createRunningOperation("corpus.query");
 		const result = await queryCorpus(projectRoot, {
@@ -417,7 +417,27 @@ describe("corpus query and evidence cards", () => {
 			cursor: null,
 		});
 		if (!firstPage.ok || firstPage.value.nextCursor === null) throw new Error("expected query cursor");
-		await createRunningOperation("project.revision.change");
+		const revisionOperationId = await createRunningOperation("project.revision.change");
+		await expect(
+			queryCorpus(projectRoot, {
+				operationId: queryOperationId,
+				query: "transparency",
+				scope: "sources",
+				filters: {},
+				limit: 1,
+				maxCharsPerHit: 200,
+				cursor: firstPage.value.nextCursor,
+			}),
+		).resolves.toMatchObject({ ok: true, value: { hits: [expect.any(Object)] } });
+		const currentSource = await readRecord(projectRoot, "source", fixture.source.sourceId);
+		if (!currentSource.ok || currentSource.value.kind !== "source") throw new Error("expected source");
+		const sourceUpdate = await updateRecord(projectRoot, "source", fixture.source.sourceId, {
+			expectedManifestRevision: (await manifest()).revision,
+			expectedRecordRevision: currentSource.value.audit.revision,
+			operationId: revisionOperationId,
+			changes: { title: `${currentSource.value.title} revised` },
+		});
+		if (!sourceUpdate.ok) throw new Error(sourceUpdate.errors[0].message);
 		await expect(
 			queryCorpus(projectRoot, {
 				operationId: queryOperationId,

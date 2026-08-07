@@ -1,0 +1,92 @@
+{
+  "benchmark": "pi-research-agent-v1.0",
+  "generatedAt": "2026-08-06T23:55:58.282Z",
+  "schemaVersion": "1.0.0",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "fixture": {
+    "sources": 10000,
+    "evidence": 50000,
+    "filteredMatches": 10
+  },
+  "results": {
+    "manifestStatus": {
+      "samples": 30,
+      "measurementsMs": [
+        1.811,
+        1.391,
+        1.337,
+        1.353,
+        1.156,
+        3.365,
+        5.889,
+        0.868,
+        0.854,
+        0.809,
+        0.747,
+        1.024,
+        0.905,
+        0.847,
+        0.883,
+        0.838,
+        0.74,
+        0.69,
+        0.76,
+        0.689,
+        0.807,
+        0.887,
+        0.879,
+        0.824,
+        0.861,
+        0.688,
+        0.905,
+        0.731,
+        0.679,
+        0.732
+      ],
+      "p95Ms": 3.365,
+      "thresholdMs": 2000,
+      "passed": true
+    },
+    "filteredCorpusQuery": {
+      "samples": 20,
+      "measurementsMs": [
+        171.79,
+        169.403,
+        194.907,
+        180.081,
+        179.557,
+        182.716,
+        182.113,
+        204.879,
+        180.231,
+        178.787,
+        201.275,
+        192.13,
+        218.247,
+        191.078,
+        183.565,
+        185.548,
+        215.477,
+        188.774,
+        195.188,
+        198.6
+      ],
+      "p95Ms": 215.477,
+      "thresholdMs": 2000,
+      "passed": true
+    },
+    "migrationWithBackup": {
+      "samples": 1,
+      "elapsedMs": 37.747,
+      "recovered": false
+    }
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

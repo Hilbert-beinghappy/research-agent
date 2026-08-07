@@ -1,0 +1,20 @@
+{
+	"format": "pi-research-agent-public-replay-set",
+	"version": 1,
+	"projects": [
+		{
+			"slug": "algorithm-transparency-public-trust",
+			"topicFixture": "../algorithm-transparency-public-trust/request.json",
+			"stages": ["topic", "literature", "design", "analysis", "writing", "delivery"],
+			"minimumSessions": 10,
+			"gates": ["scenario-a", "scenario-d", "backup-restore", "clean-install", "export"]
+		},
+		{
+			"slug": "public-sector-ai-accountability",
+			"topicFixture": "../public-sector-ai-accountability/request.json",
+			"stages": ["topic", "literature", "design", "analysis", "writing", "delivery"],
+			"minimumSessions": 10,
+			"gates": ["scenario-a", "scenario-d", "backup-restore", "clean-install", "export"]
+		}
+	]
+}

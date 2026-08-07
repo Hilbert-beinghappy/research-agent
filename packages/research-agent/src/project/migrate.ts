@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, rename } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import {
 	type JsonValue,
-	RESEARCH_LEGACY_SCHEMA_VERSION,
+	RESEARCH_MIGRATABLE_SCHEMA_VERSIONS,
 	RESEARCH_SCHEMA_VERSION,
 	type ResearchProjectManifest,
 } from "../contracts/schemas.ts";
@@ -13,6 +13,7 @@ import { validatePersistedRecord } from "../contracts/validators.ts";
 import { hashBytes, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { atomicWriteFile } from "./atomic-write.ts";
+import { createProjectBackup, readProjectBackup } from "./backup.ts";
 import { INITIAL_RECORD_SETS, PROJECT_LAYOUT_DIRECTORIES, PROJECT_MANIFEST_PATH } from "./layout.ts";
 import { type OpenedProject, openProject } from "./open.ts";
 
@@ -21,21 +22,26 @@ const PENDING_MIGRATIONS = `${MIGRATION_ROOT}/pending`;
 const COMMITTED_MIGRATIONS = `${MIGRATION_ROOT}/committed`;
 const ROLLED_BACK_MIGRATIONS = `${MIGRATION_ROOT}/rolled-back`;
 const STAGING_MIGRATIONS = `${MIGRATION_ROOT}/staging`;
+const MIGRATION_LOCK = ".research/locks/migration.lock";
+const MIGRATABLE_VERSIONS = new Set<string>(RESEARCH_MIGRATABLE_SCHEMA_VERSIONS);
 
 interface MigrationJournal {
-	version: 1;
+	version: 1 | 2;
 	migrationId: string;
-	fromVersion: typeof RESEARCH_LEGACY_SCHEMA_VERSION;
-	toVersion: typeof RESEARCH_SCHEMA_VERSION;
+	fromVersion: string;
+	toVersion: string;
 	fromRevision: number;
 	toRevision: number;
 	oldManifestHash: string;
 	newManifestHash: string;
+	backupId: string | null;
+	backupRootHash: string | null;
 	createdAt: string;
 }
 
 export interface ProjectMigrationResult {
 	migrationId: string | null;
+	migrationIds: string[];
 	fromVersion: string;
 	toVersion: typeof RESEARCH_SCHEMA_VERSION;
 	revision: number;
@@ -43,7 +49,7 @@ export interface ProjectMigrationResult {
 }
 
 function migrationDirectory(parent: string, migrationId: string): string {
-	if (!/^migration_[0-9a-f-]{36}$/.test(migrationId)) throw new TypeError(`Invalid migration ID: ${migrationId}`);
+	if (!/^migration_[0-9a-f-]{36}$/u.test(migrationId)) throw new TypeError(`Invalid migration ID: ${migrationId}`);
 	return `${parent}/${migrationId}`;
 }
 
@@ -59,19 +65,33 @@ async function readDirectoryNames(projectRoot: string, directory: string): Promi
 	}
 }
 
-export function buildV0_5Manifest(raw: JsonValue): ResearchProjectManifest {
-	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-		throw new TypeError("Legacy project manifest must be an object");
-	}
+function manifestVersion(raw: JsonValue): { schemaVersion: string; revision: number } {
 	if (
+		raw === null ||
+		typeof raw !== "object" ||
+		Array.isArray(raw) ||
 		raw.kind !== "research_project_manifest" ||
-		raw.schemaVersion !== RESEARCH_LEGACY_SCHEMA_VERSION ||
+		typeof raw.schemaVersion !== "string" ||
 		typeof raw.revision !== "number" ||
 		!Number.isInteger(raw.revision) ||
-		!Array.isArray(raw.recordSets)
+		raw.revision < 0
 	) {
-		throw new TypeError("Project is not a valid v0.4 migration source");
+		throw new TypeError("Project migration manifest is invalid");
 	}
+	return { schemaVersion: raw.schemaVersion, revision: raw.revision };
+}
+
+export function buildV1Manifest(raw: JsonValue): ResearchProjectManifest {
+	const source = manifestVersion(raw);
+	if (
+		!MIGRATABLE_VERSIONS.has(source.schemaVersion) ||
+		raw === null ||
+		typeof raw !== "object" ||
+		Array.isArray(raw)
+	) {
+		throw new TypeError(`Project schema ${source.schemaVersion} cannot migrate to ${RESEARCH_SCHEMA_VERSION}`);
+	}
+	if (!Array.isArray(raw.recordSets)) throw new TypeError("Legacy project record sets are invalid");
 	const existing = new Map<string, JsonValue>();
 	for (const value of raw.recordSets) {
 		if (value === null || typeof value !== "object" || Array.isArray(value) || typeof value.kind !== "string") {
@@ -80,13 +100,12 @@ export function buildV0_5Manifest(raw: JsonValue): ResearchProjectManifest {
 		if (existing.has(value.kind)) throw new TypeError(`Legacy project has duplicate ${value.kind} record sets`);
 		existing.set(value.kind, value);
 	}
-	const recordSets = INITIAL_RECORD_SETS.map((recordSet) => existing.get(recordSet.kind) ?? recordSet);
 	const candidate = {
 		...raw,
 		schemaVersion: RESEARCH_SCHEMA_VERSION,
-		recordSets,
+		recordSets: INITIAL_RECORD_SETS.map((recordSet) => existing.get(recordSet.kind) ?? recordSet),
 		updatedAt: new Date().toISOString(),
-		revision: raw.revision + 1,
+		revision: source.revision + 1,
 	};
 	const validation = validatePersistedRecord(candidate);
 	if (!validation.ok || validation.value.kind !== "research_project_manifest") {
@@ -107,10 +126,10 @@ async function readJournal(projectRoot: string, parent: string, migrationId: str
 		raw === null ||
 		typeof raw !== "object" ||
 		Array.isArray(raw) ||
-		raw.version !== 1 ||
+		(raw.version !== 1 && raw.version !== 2) ||
 		raw.migrationId !== migrationId ||
-		raw.fromVersion !== RESEARCH_LEGACY_SCHEMA_VERSION ||
-		raw.toVersion !== RESEARCH_SCHEMA_VERSION ||
+		typeof raw.fromVersion !== "string" ||
+		typeof raw.toVersion !== "string" ||
 		typeof raw.fromRevision !== "number" ||
 		typeof raw.toRevision !== "number" ||
 		typeof raw.oldManifestHash !== "string" ||
@@ -119,7 +138,24 @@ async function readJournal(projectRoot: string, parent: string, migrationId: str
 	) {
 		throw new TypeError(`Invalid migration journal: ${migrationId}`);
 	}
-	return raw as unknown as MigrationJournal;
+	const backupId = raw.version === 2 && typeof raw.backupId === "string" ? raw.backupId : null;
+	const backupRootHash = raw.version === 2 && typeof raw.backupRootHash === "string" ? raw.backupRootHash : null;
+	if (raw.version === 2 && (backupId === null || backupRootHash === null)) {
+		throw new TypeError(`Migration backup reference is invalid: ${migrationId}`);
+	}
+	return {
+		version: raw.version,
+		migrationId,
+		fromVersion: raw.fromVersion,
+		toVersion: raw.toVersion,
+		fromRevision: raw.fromRevision,
+		toRevision: raw.toRevision,
+		oldManifestHash: raw.oldManifestHash,
+		newManifestHash: raw.newManifestHash,
+		backupId,
+		backupRootHash,
+		createdAt: raw.createdAt,
+	};
 }
 
 async function locateMigration(projectRoot: string, migrationId: string): Promise<string | null> {
@@ -133,17 +169,26 @@ export async function listPendingProjectMigrations(projectRoot: string): Promise
 	return readDirectoryNames(projectRoot, PENDING_MIGRATIONS);
 }
 
+export async function listStagedProjectMigrations(projectRoot: string): Promise<string[]> {
+	return readDirectoryNames(projectRoot, STAGING_MIGRATIONS);
+}
+
 export async function prepareProjectMigration(projectRoot: string): Promise<string> {
 	const opened = await openProject(projectRoot);
-	if (opened.compatibility !== "migration_required" || opened.schemaVersion !== RESEARCH_LEGACY_SCHEMA_VERSION) {
+	if (opened.compatibility !== "migration_required" || !MIGRATABLE_VERSIONS.has(opened.schemaVersion)) {
 		throw new TypeError(
-			`Only v${RESEARCH_LEGACY_SCHEMA_VERSION} projects can migrate to v${RESEARCH_SCHEMA_VERSION}`,
+			`Project schema ${opened.compatibility === "current" ? RESEARCH_SCHEMA_VERSION : opened.schemaVersion} cannot migrate to ${RESEARCH_SCHEMA_VERSION}`,
 		);
 	}
 	const oldManifest = await readFile(opened.manifestPath, "utf8");
 	const raw = canonicalizeJson(JSON.parse(oldManifest));
-	const targetManifest = buildV0_5Manifest(raw);
+	const source = manifestVersion(raw);
+	const targetManifest = buildV1Manifest(raw);
 	const target = `${canonicalStringify(targetManifest)}\n`;
+	const backup = await createProjectBackup(
+		opened.root,
+		`Before migration ${source.schemaVersion} to ${RESEARCH_SCHEMA_VERSION}`,
+	);
 	const migrationId = `migration_${randomUUID()}`;
 	await Promise.all(
 		[PENDING_MIGRATIONS, COMMITTED_MIGRATIONS, ROLLED_BACK_MIGRATIONS, STAGING_MIGRATIONS].map(async (directory) =>
@@ -153,14 +198,16 @@ export async function prepareProjectMigration(projectRoot: string): Promise<stri
 	const staging = migrationDirectory(STAGING_MIGRATIONS, migrationId);
 	await mkdir(await resolveProjectPath(projectRoot, staging));
 	const journal: MigrationJournal = {
-		version: 1,
+		version: 2,
 		migrationId,
-		fromVersion: RESEARCH_LEGACY_SCHEMA_VERSION,
+		fromVersion: source.schemaVersion,
 		toVersion: RESEARCH_SCHEMA_VERSION,
-		fromRevision: targetManifest.revision - 1,
+		fromRevision: source.revision,
 		toRevision: targetManifest.revision,
 		oldManifestHash: hashBytes(oldManifest).value,
 		newManifestHash: hashBytes(target).value,
+		backupId: backup.backupId,
+		backupRootHash: backup.rootHash.value,
 		createdAt: new Date().toISOString(),
 	};
 	await atomicWriteFile(await resolveProjectPath(projectRoot, `${staging}/manifest.before.json`), oldManifest);
@@ -176,17 +223,9 @@ export async function prepareProjectMigration(projectRoot: string): Promise<stri
 	return migrationId;
 }
 
-export async function commitPreparedProjectMigration(
-	projectRoot: string,
-	migrationId: string,
-): Promise<Extract<OpenedProject, { compatibility: "current" }>> {
+export async function commitPreparedProjectMigration(projectRoot: string, migrationId: string): Promise<OpenedProject> {
 	const parent = await locateMigration(projectRoot, migrationId);
-	if (parent === COMMITTED_MIGRATIONS) {
-		const current = await openProject(projectRoot);
-		if (current.compatibility !== "current")
-			throw new TypeError("Committed migration did not produce a current project");
-		return current;
-	}
+	if (parent === COMMITTED_MIGRATIONS) return openProject(projectRoot);
 	if (parent !== PENDING_MIGRATIONS) throw new TypeError(`Pending migration not found: ${migrationId}`);
 	const journal = await readJournal(projectRoot, parent, migrationId);
 	const directory = migrationDirectory(parent, migrationId);
@@ -199,9 +238,14 @@ export async function commitPreparedProjectMigration(
 	) {
 		throw new Error(`Migration snapshot hash mismatch: ${migrationId}`);
 	}
-	const validation = validatePersistedRecord(canonicalizeJson(JSON.parse(after)));
-	if (!validation.ok || validation.value.kind !== "research_project_manifest") {
+	const target = manifestVersion(canonicalizeJson(JSON.parse(after)));
+	if (target.schemaVersion !== journal.toVersion || target.revision !== journal.toRevision) {
 		throw new TypeError(`Migration target manifest is invalid: ${migrationId}`);
+	}
+	if (journal.backupId !== null) {
+		const backup = await readProjectBackup(projectRoot, journal.backupId);
+		if (backup.rootHash.value !== journal.backupRootHash)
+			throw new Error(`Migration backup hash mismatch: ${migrationId}`);
 	}
 	const manifestPath = await resolveProjectPath(projectRoot, PROJECT_MANIFEST_PATH);
 	const currentHash = (await hashFile(manifestPath)).value;
@@ -213,7 +257,6 @@ export async function commitPreparedProjectMigration(
 	}
 	if (currentHash === journal.oldManifestHash) await atomicWriteFile(manifestPath, after);
 	const migrated = await openProject(projectRoot, journal.toRevision);
-	if (migrated.compatibility !== "current") throw new TypeError("Migration did not produce a current project");
 	await rename(
 		await resolveProjectPath(projectRoot, directory),
 		await resolveProjectPath(projectRoot, migrationDirectory(COMMITTED_MIGRATIONS, migrationId)),
@@ -230,10 +273,15 @@ export async function rollbackProjectMigration(projectRoot: string, migrationId:
 	if ((await hashFile(beforePath)).value !== journal.oldManifestHash) {
 		throw new Error(`Migration backup hash mismatch: ${migrationId}`);
 	}
+	if (journal.backupId !== null) {
+		const backup = await readProjectBackup(projectRoot, journal.backupId);
+		if (backup.rootHash.value !== journal.backupRootHash)
+			throw new Error(`Migration backup hash mismatch: ${migrationId}`);
+	}
 	const manifestPath = await resolveProjectPath(projectRoot, PROJECT_MANIFEST_PATH);
 	const currentHash = (await hashFile(manifestPath)).value;
 	if (currentHash !== journal.newManifestHash && currentHash !== journal.oldManifestHash) {
-		throw new Error("DATA_CONFLICT: v0.5 project changed after migration; rollback would be lossy");
+		throw new Error("DATA_CONFLICT: project changed after migration; rollback would be lossy");
 	}
 	if (currentHash === journal.newManifestHash) await atomicWriteFile(manifestPath, await readFile(beforePath));
 	const rolledBack = await openProject(projectRoot, journal.fromRevision);
@@ -244,29 +292,88 @@ export async function rollbackProjectMigration(projectRoot: string, migrationId:
 	return rolledBack;
 }
 
-export async function migrateProject(projectRoot: string): Promise<ProjectMigrationResult> {
-	const opened = await openProject(projectRoot);
+async function migrateProjectUnlocked(projectRoot: string): Promise<ProjectMigrationResult> {
+	let opened = await openProject(projectRoot);
+	const staged = await listStagedProjectMigrations(opened.root);
+	for (const migrationId of staged) {
+		await rm(await resolveProjectPath(opened.root, migrationDirectory(STAGING_MIGRATIONS, migrationId)), {
+			recursive: true,
+		});
+	}
+	let recovered = staged.length > 0;
 	if (opened.compatibility === "current") {
+		const pending = await listPendingProjectMigrations(opened.root);
+		if (pending.length > 1) throw new TypeError("Project has multiple pending migrations");
+		if (pending[0] !== undefined) {
+			const journal = await readJournal(opened.root, PENDING_MIGRATIONS, pending[0]);
+			opened = await commitPreparedProjectMigration(opened.root, pending[0]);
+			if (opened.compatibility !== "current")
+				throw new TypeError("Recovered migration did not produce a current project");
+			return {
+				migrationId: pending[0],
+				migrationIds: [pending[0]],
+				fromVersion: journal.fromVersion,
+				toVersion: RESEARCH_SCHEMA_VERSION,
+				revision: opened.manifest.revision,
+				recovered: true,
+			};
+		}
 		return {
 			migrationId: null,
+			migrationIds: [],
 			fromVersion: RESEARCH_SCHEMA_VERSION,
 			toVersion: RESEARCH_SCHEMA_VERSION,
 			revision: opened.manifest.revision,
-			recovered: false,
+			recovered,
 		};
 	}
-	if (opened.compatibility !== "migration_required" || opened.schemaVersion !== RESEARCH_LEGACY_SCHEMA_VERSION) {
+	if (opened.compatibility !== "migration_required" || !MIGRATABLE_VERSIONS.has(opened.schemaVersion)) {
 		throw new TypeError(`No migration path from schema ${opened.schemaVersion}`);
 	}
-	const pending = await listPendingProjectMigrations(opened.root);
-	const migrationId = pending.length === 0 ? await prepareProjectMigration(opened.root) : pending[0];
-	if (migrationId === undefined || pending.length > 1) throw new TypeError("Project has multiple pending migrations");
-	const migrated = await commitPreparedProjectMigration(opened.root, migrationId);
+	const fromVersion = opened.schemaVersion;
+	const migrationIds: string[] = [];
+	while (opened.compatibility !== "current") {
+		const pending = await listPendingProjectMigrations(opened.root);
+		if (pending.length > 1) throw new TypeError("Project has multiple pending migrations");
+		const existing = pending[0];
+		const migrationId = existing ?? (await prepareProjectMigration(opened.root));
+		recovered ||= existing !== undefined;
+		migrationIds.push(migrationId);
+		opened = await commitPreparedProjectMigration(opened.root, migrationId);
+		if (opened.compatibility === "newer_schema")
+			throw new TypeError(`Migration produced unsupported schema ${opened.schemaVersion}`);
+		if (opened.compatibility === "migration_required" && !MIGRATABLE_VERSIONS.has(opened.schemaVersion)) {
+			throw new TypeError(`No migration path from schema ${opened.schemaVersion}`);
+		}
+	}
 	return {
-		migrationId,
-		fromVersion: RESEARCH_LEGACY_SCHEMA_VERSION,
+		migrationId: migrationIds.at(-1) ?? null,
+		migrationIds,
+		fromVersion,
 		toVersion: RESEARCH_SCHEMA_VERSION,
-		revision: migrated.manifest.revision,
-		recovered: pending.length === 1,
+		revision: opened.manifest.revision,
+		recovered,
 	};
+}
+
+export async function migrateProject(projectRoot: string): Promise<ProjectMigrationResult> {
+	await mkdir(await resolveProjectPath(projectRoot, ".research/locks"), { recursive: true });
+	const lockPath = await resolveProjectPath(projectRoot, MIGRATION_LOCK);
+	let lock: Awaited<ReturnType<typeof open>>;
+	try {
+		lock = await open(lockPath, "wx");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+			throw new Error("MIGRATION_LOCKED: another project migration is active or requires manual recovery");
+		}
+		throw error;
+	}
+	try {
+		await lock.writeFile(`${canonicalStringify({ pid: process.pid, startedAt: new Date().toISOString() })}\n`);
+		await lock.sync();
+		return await migrateProjectUnlocked(projectRoot);
+	} finally {
+		await lock.close();
+		await rm(lockPath, { force: true });
+	}
 }

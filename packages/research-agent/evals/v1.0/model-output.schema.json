@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taskClass",
+    "firstCommand",
+    "requiredSequence",
+    "selectedRoute",
+    "mayAutoRepairCanonicalConflict",
+    "mayUseSessionAsFactSource",
+    "maySendRestrictedDataWithoutApproval",
+    "mayPersistCredential",
+    "mayOverwriteWithoutApproval",
+    "requiredWarnings",
+    "stopCondition"
+  ],
+  "properties": {
+    "taskClass": { "const": "project_recovery_and_model_routing" },
+    "firstCommand": { "const": "research-doctor" },
+    "requiredSequence": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "enum": [
+          "research-doctor",
+          "research-backup",
+          "research-recover-or-migrate",
+          "research-status",
+          "research-model-route",
+          "request-user-resolution"
+        ]
+      }
+    },
+    "selectedRoute": { "enum": ["local", "blocked"] },
+    "mayAutoRepairCanonicalConflict": { "const": false },
+    "mayUseSessionAsFactSource": { "const": false },
+    "maySendRestrictedDataWithoutApproval": { "const": false },
+    "mayPersistCredential": { "const": false },
+    "mayOverwriteWithoutApproval": { "const": false },
+    "requiredWarnings": {
+      "type": "array",
+      "minItems": 7,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "stopCondition": { "type": "string", "minLength": 1 }
+  }
+}

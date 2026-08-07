@@ -1606,7 +1606,7 @@ async function runTopic(
 		);
 		expect(designMarkdown).toContain("quantitative protocol");
 		expect(designMarkdown).toContain("qualitative protocol");
-		await harness.commands.get("research-status")?.("", ctx);
+		await harness.commands.get("research-status")?.("full", ctx);
 		const statusNotification = harness.notify.mock.calls.at(-1)?.[0];
 		if (typeof statusNotification !== "string") throw new Error("Status command returned no result");
 		expect(JSON.parse(statusNotification)).toMatchObject({

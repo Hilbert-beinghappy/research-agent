@@ -21,6 +21,8 @@ import { validatePersistedRecord } from "../contracts/validators.ts";
 import { createOpaqueId } from "../kernel/identity.ts";
 import { operationTransitionPatch } from "../kernel/operations.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
+import { createProjectBackup, listProjectBackups, readProjectBackup, restoreProjectBackup } from "../project/backup.ts";
+import { doctorProject } from "../project/doctor.ts";
 import { initializeProject } from "../project/init.ts";
 import { migrateProject, rollbackProjectMigration } from "../project/migrate.ts";
 import { type OpenedProject, openProject } from "../project/open.ts";
@@ -33,6 +35,7 @@ import {
 	rollbackPreparedTransaction,
 } from "../project/transactions.ts";
 import { validateProject } from "../project/validate.ts";
+import { parseResearchModelRouteInput, selectResearchModelRoute } from "../routing/models.ts";
 import { createActionRequest } from "../security/policy.ts";
 import { isDesignRecord } from "../tools/design.ts";
 import {
@@ -266,7 +269,55 @@ function countValues(values: readonly string[]): Record<string, number> {
 	return counts;
 }
 
-export async function projectStatus(project: CurrentProject): Promise<JsonValue> {
+export async function projectStatus(
+	project: CurrentProject,
+	detail: "summary" | "full" = "summary",
+): Promise<JsonValue> {
+	const recordCounts = Object.fromEntries(project.manifest.recordSets.map(({ kind, count }) => [kind, count]));
+	const summary = {
+		format: "pi-research-status",
+		version: 1,
+		detail,
+		projectId: project.manifest.projectId,
+		title: project.manifest.title,
+		stage: project.manifest.currentStage,
+		projectStatus: project.manifest.projectStatus,
+		revision: project.manifest.revision,
+		recordCounts,
+		activeTaskCount: project.manifest.activeTaskIds.length,
+		lastCommittedOperationId: project.manifest.lastCommittedOperationId,
+		flow: {
+			literature:
+				(recordCounts.source ?? 0) +
+				(recordCounts.document ?? 0) +
+				(recordCounts.evidence ?? 0) +
+				(recordCounts.citation_verification ?? 0),
+			design:
+				(recordCounts.research_question_version ?? 0) +
+				(recordCounts.concept ?? 0) +
+				(recordCounts.theory_relation ?? 0) +
+				(recordCounts.design_decision ?? 0) +
+				(recordCounts.protocol ?? 0),
+			analysis:
+				(recordCounts.dataset ?? 0) +
+				(recordCounts.analysis_specification ?? 0) +
+				(recordCounts.analysis_run ?? 0) +
+				(recordCounts.qualitative_material ?? 0) +
+				(recordCounts.coding_decision ?? 0),
+			writing:
+				(recordCounts.manuscript ?? 0) +
+				(recordCounts.section ?? 0) +
+				(recordCounts.claim_occurrence ?? 0) +
+				(recordCounts.review_finding ?? 0) +
+				(recordCounts.revision_decision ?? 0),
+			knowledge:
+				(recordCounts.adapter_export_profile ?? 0) +
+				(recordCounts.external_item_link ?? 0) +
+				(recordCounts.monitor_subscription ?? 0) +
+				(recordCounts.monitor_run ?? 0),
+		},
+	};
+	if (detail === "summary") return asJson(summary);
 	const [
 		tasks,
 		operations,
@@ -305,12 +356,7 @@ export async function projectStatus(project: CurrentProject): Promise<JsonValue>
 			(budgetActual[task.budget.actual.currency] ?? 0) + task.budget.actual.amount;
 	}
 	return asJson({
-		projectId: project.manifest.projectId,
-		title: project.manifest.title,
-		stage: project.manifest.currentStage,
-		projectStatus: project.manifest.projectStatus,
-		revision: project.manifest.revision,
-		recordCounts: Object.fromEntries(project.manifest.recordSets.map(({ kind, count }) => [kind, count])),
+		...summary,
 		tasksByStatus: countValues(taskRecords.map(({ status }) => status)),
 		operationsByStatus: countValues(
 			operations.filter((record) => record.kind === "operation").map(({ status }) => status),
@@ -398,7 +444,10 @@ export function registerResearchCommands(
 		activePolicy = opened.manifest.policy;
 		governanceBlocked = false;
 		restrictTools(opened.manifest.policy);
-		ctx.ui.setStatus("research-agent", `${opened.manifest.title} r${opened.manifest.revision}`);
+		ctx.ui.setStatus(
+			"research-agent",
+			`${opened.manifest.title} · ${opened.manifest.currentStage} · r${opened.manifest.revision}`,
+		);
 		return opened;
 	};
 
@@ -446,7 +495,7 @@ export function registerResearchCommands(
 
 	register(
 		"research-migrate",
-		"Migrate a v0.4 project to v0.5 or roll back an unchanged migration",
+		"Migrate a v0.x project to v1.0 or roll back an unchanged migration",
 		async (args, ctx) => {
 			const [action, migrationId] = args.split(/\s+/, 2);
 			if (action === "rollback") {
@@ -463,7 +512,7 @@ export function registerResearchCommands(
 				}
 				const confirmed = await ctx.ui.confirm(
 					"Roll back research project migration",
-					`Restore the v0.4 manifest snapshot from ${migrationId}? Rollback is refused if any v0.5 state was written.`,
+					`Restore the pre-migration manifest snapshot from ${migrationId}? Rollback is refused after later project writes.`,
 				);
 				if (!confirmed) {
 					return failureResult(
@@ -533,6 +582,76 @@ export function registerResearchCommands(
 		},
 	);
 
+	register("research-backup", "List or create a hash-bound project backup", async (args, ctx) => {
+		const project = await requireProject(ctx);
+		if (args === "" || args === "list") {
+			const backups = await Promise.all(
+				(await listProjectBackups(project.root)).map(async (backupId) => {
+					const backup = await readProjectBackup(project.root, backupId);
+					return {
+						backupId,
+						createdAt: backup.createdAt,
+						label: backup.label,
+						projectSchemaVersion: backup.projectSchemaVersion,
+						projectRevision: backup.projectRevision,
+						rootHash: backup.rootHash,
+					};
+				}),
+			);
+			return successResult(asJson({ backups }), null);
+		}
+		if (args !== "create" && !args.startsWith("create ")) {
+			throw new TypeError("Usage: /research-backup [list | create [label]]");
+		}
+		const label = args === "create" ? null : stripOuterQuotes(args.slice("create ".length));
+		const backup = await createProjectBackup(project.root, label);
+		return successResult(asJson(backup), null);
+	});
+
+	register("research-restore", "Restore a verified backup into an empty directory", async (args, ctx) => {
+		const [backupId, ...destinationParts] = args.split(/\s+/u);
+		const destinationValue = stripOuterQuotes(destinationParts.join(" "));
+		if (backupId === undefined || destinationValue.length === 0) {
+			throw new TypeError("Usage: /research-restore <backup-id> <empty-destination>");
+		}
+		const project = await requireProject(ctx);
+		const restored = await restoreProjectBackup(project.root, backupId, resolve(ctx.cwd, destinationValue));
+		return successResult(asJson(restored), null);
+	});
+
+	register(
+		"research-doctor",
+		"Diagnose schema, integrity, recovery, adapter, and external-state issues",
+		async (args, ctx) => {
+			const linked = latestSessionProjectLink(ctx);
+			const target =
+				args.length > 0
+					? resolve(ctx.cwd, stripOuterQuotes(args))
+					: (activeProjectRoot ?? (linked === null ? ctx.cwd : dirname(linked.manifestPath)));
+			const report = await doctorProject(target);
+			return report.status === "blocked"
+				? failureResult(
+						"PERMANENT_FAILURE",
+						"PROJECT_DOCTOR_BLOCKED",
+						"integrity",
+						`Project doctor found ${report.issues.length} blocking or actionable issue(s)`,
+						null,
+						asJson(report),
+					)
+				: successResult(asJson(report), null);
+		},
+	);
+
+	register("research-model-route", "Select one deterministic model route under project policy", async (args, ctx) => {
+		if (args.length === 0) throw new TypeError("Usage: /research-model-route <v1-json-input>");
+		const project = await requireProject(ctx);
+		const input = parseResearchModelRouteInput(canonicalizeJson(JSON.parse(args)));
+		return successResult(
+			asJson(selectResearchModelRoute(project.manifest.policy, input.request, input.candidates)),
+			null,
+		);
+	});
+
 	register("research-init", "Initialize a governed research project in the current directory", async (args, ctx) => {
 		const title = stripOuterQuotes(args) || basename(ctx.cwd);
 		let project = await initializeProject(ctx.cwd, { title });
@@ -578,8 +697,9 @@ export function registerResearchCommands(
 		);
 	});
 
-	register("research-status", "Show canonical research project status", async (_args, ctx) => {
-		return successResult(await projectStatus(await requireProject(ctx)), null);
+	register("research-status", "Show fast summary status or a full canonical scan", async (args, ctx) => {
+		if (args !== "" && args !== "full") throw new TypeError("Usage: /research-status [full]");
+		return successResult(await projectStatus(await requireProject(ctx), args === "full" ? "full" : "summary"), null);
 	});
 
 	register("research-monitor", "List monitors or run one confirmed batch", async (args, ctx) => {

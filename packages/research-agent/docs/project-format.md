@@ -1,10 +1,10 @@
-# Research project format v0.5
+# Research project format v1.0
 
 ## Source of truth
 
 `research-project.json` and the versioned JSON records under `.research/records/` are the canonical research state. Pi Session stores only a link to the project ID, manifest path, observed revision, and last operation. A Session can be discarded without losing research facts; a project can be reopened from another Session with `/research-open`.
 
-The current schema version is `0.5.0`. Public JSON Schemas are under `schemas/v0.5`, generated from `src/contracts/schemas.ts`; the committed v0.1–v0.4 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. A v0.4 manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. Migrations never skip schema generations.
+The current schema version is `1.0.0`. Public JSON Schemas are under `schemas/v1.0`, generated from `src/contracts/schemas.ts`; the committed v0.1–v0.5 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. A v0.x manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.x versions migrate directly to the same v1.0 manifest shape without rewriting canonical record files.
 
 ## Layout
 
@@ -37,7 +37,7 @@ README.md
   runs/<operation-or-analysis-run-id>/
   transactions/{pending,committed,failed}/
   migrations/{pending,committed,rolled-back,staging}/
-  backups/
+  backups/{staging,committed}/
   locks/
   cache/
 sources/
@@ -90,9 +90,11 @@ Canonical writes use expected manifest and record revisions. A multi-file transa
 
 Original PDFs, imported CSV/text, analysis scripts/environments, and raw provider receipts are content-addressed immutable inputs. Analysis executes copies and rechecks every original hash afterward; a mutation attempt fails the run and restores the original bytes. Derived parsed text, outputs, exports, and indexes can be rebuilt from their input hashes and generator versions. Raw files and excerpts retain their access and redistribution status; project ownership does not imply public redistribution rights.
 
-## v0.4 to v0.5 migration
+## v0.x to v1.0 migration
 
-Migration changes only the manifest schema version, revision, record-set declarations, and required adapter/monitor/artifact directories. It does not create profiles, infer external IDs, schedule searches, export data, advance a cursor, reinterpret an existing Artifact, or modify a v0.4 record. Preparation stores hash-bound before/after snapshots; an interrupted pending migration can resume. Rollback restores the v0.4 manifest only when the current manifest still exactly matches the migrated snapshot. Any later v0.5 manifest write makes rollback lossy and therefore blocked.
+Migration changes only the manifest schema version, revision, record-set declarations, and required directories. It does not create records, infer missing facts, move data, or reinterpret a v0.x record. Preparation creates a full hash-bound project backup and hash-bound before/after manifest snapshots. One project-scoped migration lock prevents concurrent writers. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores the old manifest only when no later v1.0 write occurred.
+
+The migration matrix covers v0.1–v0.5 at staged-write, record-replace, and manifest-commit interruption points. v1.0 has no record-replace step, so that kill point asserts that no canonical record is rewritten. At every point the project root is either the complete old state or the complete new state, never mixed.
 
 Design, analysis-specification, codebook, and theme confirmation are record states, not chat implications. Headless confirmation leaves the record at `awaiting_confirmation`; `/research-resume` returns its kind, ID, and revision. Rejected or superseded records remain auditable. A model suggestion is immutable and never becomes a human coding decision through confirmation by inference.
 
@@ -100,4 +102,8 @@ Design, analysis-specification, codebook, and theme confirmation are record stat
 
 Manifest paths and file references use normalized project-relative POSIX paths. Absolute paths, parent traversal, symlink escape, and case-colliding portable paths are rejected. A `reference` import can intentionally remain machine-local and is marked non-portable; use `copy` for a self-contained project when rights permit it.
 
-Session files, credential values, caches, locks, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v0.5 includes only credential aliases and external item IDs/versions. Obsidian, Office, PDF, and project-catalog files are derived and may be deleted/rebuilt; Zotero remains external. v0.5 does not claim container-level reproducibility or define the v1.5 exchange bundle format.
+Session files, credential values, caches, locks, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v1.0 stores only credential aliases and external item IDs/versions. Obsidian, Office, PDF, project-catalog, and corpus-index files are derived and may be deleted/rebuilt; Zotero remains external. A project backup includes canonical state and project-local immutable inputs but excludes caches, locks, and nested backups. The v1.5 exchange bundle remains a separate future contract.
+
+## Derived corpus index
+
+Source, evidence, and claim queries may use `.research/cache/corpus-*-v1.json`. Each file is bound to the relevant canonical record-set fingerprint and its own content hash. A missing, corrupt, or stale cache is rebuilt from canonical files. PDF blocks remain hash-checked from their live parsed documents. The cache is never a source of truth and may be deleted; v1.0 does not require SQLite or another database.

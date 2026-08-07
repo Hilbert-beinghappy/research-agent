@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe("project initialization and opening", () => {
-	it("initializes the fixed v0.5 layout and reopens idempotently", async () => {
+	it("initializes the fixed v1.0 layout and reopens idempotently", async () => {
 		const created = await initializeProject(projectRoot, {
 			title: "Algorithmic transparency and public trust",
 			domain: "public-administration",
@@ -109,18 +109,18 @@ describe("project initialization and opening", () => {
 		const manifestPath = join(projectRoot, PROJECT_MANIFEST_PATH);
 		const current = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
 
-		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "0.0.9" }));
+		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "0.5.0" }));
 		await expect(openProject(projectRoot)).resolves.toMatchObject({
 			mode: "read-only",
 			compatibility: "migration_required",
-			schemaVersion: "0.0.9",
+			schemaVersion: "0.5.0",
 		});
 
-		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "0.6.0" }));
+		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "1.1.0" }));
 		await expect(openProject(projectRoot)).resolves.toMatchObject({
 			mode: "read-only",
 			compatibility: "newer_schema",
-			schemaVersion: "0.6.0",
+			schemaVersion: "1.1.0",
 		});
 
 		await writeFile(manifestPath, JSON.stringify({ ...current, schemaVersion: "next" }));

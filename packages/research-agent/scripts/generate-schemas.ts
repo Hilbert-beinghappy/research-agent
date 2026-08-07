@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
 	JsonResearchResultSchema,
 	PersistedRecordSchema,
+	ProjectBackupManifestSchema,
 	ProjectCatalogSchema,
 	RESEARCH_SCHEMA_VERSION,
 } from "../src/contracts/schemas.ts";
@@ -26,5 +27,9 @@ await Promise.all([
 	writeFile(
 		`${schemaDir}project-catalog.schema.json`,
 		`${JSON.stringify({ $schema: jsonSchema, title: `Pi Research Agent project catalog ${schemaLabel}`, ...ProjectCatalogSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${schemaDir}project-backup.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: `Pi Research Agent project backup ${schemaLabel}`, ...ProjectBackupManifestSchema }, null, 2)}\n`,
 	),
 ]);

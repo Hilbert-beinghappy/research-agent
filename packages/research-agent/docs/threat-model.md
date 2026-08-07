@@ -1,16 +1,16 @@
-# Threat model v0.5
+# Threat model v1.0
 
 ## Assets
 
 - Canonical project records, manifest revisions, input/output hashes, transaction ledger, and recovery state.
 - Local papers, excerpts, bibliographic imports, provider responses, research questions, datasets, qualitative materials, scripts, runtime logs, and model-authored drafts or coding suggestions.
 - Provider credentials, approval decisions, action budgets, publication-status checks, and provenance.
-- External item mappings, export bundles, monitor queries/cursors, and derived cross-project catalogs.
+- External item mappings, export bundles, monitor queries/cursors, backups, migration journals, model-routing decisions, and derived cross-project catalogs or corpus indexes.
 
 ## Trust boundaries
 
 1. **Pi host and user account:** trusted to read and modify accessible files. Pi Extensions have full host-process authority.
-2. **Research Package kernel:** trusted built-in code validates schemas, paths, revisions, hashes, policy and transactions.
+2. **Research Package kernel:** trusted built-in code validates schemas, paths, revisions, hashes, policy, transactions, migration locks, backups, and deterministic model routes.
 3. **Model and Skills:** untrusted decision inputs. They can request only registered Tools while governed mode is active; their text is not canonical state.
 4. **Built-in Adapters and external services:** Adapter code is trusted in process; provider data and availability are untrusted. Network side effects go through the HTTP broker.
 5. **Imported files:** untrusted bytes. Format, size, path and PDF parser outcomes are validated before evidence use.
@@ -20,11 +20,13 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 
 ## Enforced controls
 
-| Threat | v0.1 control | Residual risk |
+| Threat | v1.0 control | Residual risk |
 |---|---|---|
 | Model writes canonical files directly | Governed mode removes write/edit/bash tools; canonical mutations use transactions and expected revisions. | Other host code can still write files. |
 | Path escape or overwrite | Portable relative-path validation, symlink checks, protected paths, action fingerprints, confirmation for overwrite/delete. | Host-level changes outside Pi are not prevented. |
 | Partial or mixed project state | Staged multi-file transactions, manifest-last commit, hashes, pending recovery, explicit validate/recover. | Disk or filesystem failure can still require manual recovery. |
+| Concurrent or interrupted migration | One exclusive project lock, a pre-migration hash-bound backup, immutable before/after snapshots, manifest-last commit, and interruption-matrix tests. | A stale lock after process termination needs diagnosis and explicit operator removal; the doctor never guesses that the process is dead. |
+| Corrupt or incomplete backup | Per-file hashes, a root hash, project identity check, and restore only into an empty destination. | Backup storage on the same failed physical device is not disaster recovery; copy a verified project backup to separate storage under the user's own policy. |
 | Secret leakage | Project stores credential aliases only; broker rejects raw credential headers/query fields and records redacted intent. Release tarball scans common secret and personal-path patterns. | Environment, model prompts, or provider bodies can contain sensitive data if the user supplies them. |
 | Unapproved network or spend | Policy evaluation, destination/action scope, explicit budgets, approval ledger, request/cost accounting and hard stop. | External pricing and provider behavior can drift after the snapshot date. |
 | Paywall or license bypass | Unpaywall/local authorized inputs only; access and license states are separate; unknown rights do not become export permission. | Users remain responsible for lawful access and downstream use. |
@@ -38,13 +40,15 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 | Unapproved or duplicate Zotero write | Credential aliases are resolved only by the broker; POST is classified as external write; approval is bound to destination/action/data; a write token and ExternalItemLink hash reconcile retries and partial responses. | Zotero can change or delete items outside this package; a remote service may accept a request but fail before returning a receipt. Reconciliation remains required. |
 | Monitor skips, duplicates, or advances after failure | Query hash, immutable subscription revisions, latest-revision check, canonical dedup, one-page confirmed runs, atomic run/checkpoint commit, and retry task. Failed runs retain the previous cursor. | Provider cursors can expire or providers can reorder results; source discovery is not a guarantee of historical completeness. |
 | Derived export or catalog becomes a second source of truth | Office/Obsidian/catalog outputs carry stable IDs or input hashes and are explicitly rebuildable; validators follow canonical records, not exports. | Users can edit exported files; reimport treats them as external input and does not silently overwrite canonical facts. |
+| Derived corpus cache replaces canonical evidence | Cache entries are bound to the corresponding canonical record-set fingerprint and a content hash; stale or corrupt files rebuild, while PDF blocks are checked live. | A malicious same-account process can rewrite cache and hashes; malicious local users and compromised hosts are out of scope. Delete the cache and validate the project when in doubt. |
+| Sensitive request routed to an unsafe or unaffordable model | The deterministic router filters by project egress policy, data class, required capability, context, availability, and budget before preferring local and lower-cost candidates. No eligible candidate returns `blocked`. | Candidate capability, pricing, and locality are supplied observations; stale or dishonest metadata can yield a poor route and must be refreshed by the host. |
 | Commercial software/license leakage | Stata is detected by executable path only, never bundled, and its license content is not inspected. Every run requires commercial-runtime approval. | Users remain responsible for installation, licensing and permitted use. |
 
 ## Privacy defaults
 
 Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
 
-Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. v0.5 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
+Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, backups, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. A restricted project should disable model egress and external writes unless a destination-bound approval explicitly permits them. v1.0 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
 
 ## Security non-goals
 
@@ -53,4 +57,4 @@ Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Ob
 - Circumventing authentication, robots controls, CAPTCHAs, paywalls, or provider terms.
 - Certifying academic correctness, legal compliance, privacy compliance, or publication readiness without human review.
 
-Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and host-mediated staging. That protocol is not claimed by v0.1.
+Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and host-mediated staging. That protocol is not claimed by v1.0; the isolated Adapter protocol is a v1.5 milestone.

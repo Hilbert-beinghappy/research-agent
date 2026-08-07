@@ -2,11 +2,20 @@
 
 import { type Static, type TSchema, type TUnsafe, Type } from "typebox";
 
-export const RESEARCH_SCHEMA_VERSION = "0.5.0" as const;
-export const RESEARCH_LEGACY_SCHEMA_VERSION = "0.4.0" as const;
+export const RESEARCH_SCHEMA_VERSION = "1.0.0" as const;
+export const RESEARCH_V0_5_SCHEMA_VERSION = "0.5.0" as const;
+export const RESEARCH_LEGACY_SCHEMA_VERSION = RESEARCH_V0_5_SCHEMA_VERSION;
+export const RESEARCH_V0_4_SCHEMA_VERSION = "0.4.0" as const;
 export const RESEARCH_V0_3_SCHEMA_VERSION = "0.3.0" as const;
 export const RESEARCH_V0_2_SCHEMA_VERSION = "0.2.0" as const;
 export const RESEARCH_V0_1_SCHEMA_VERSION = "0.1.0" as const;
+export const RESEARCH_MIGRATABLE_SCHEMA_VERSIONS = [
+	RESEARCH_V0_1_SCHEMA_VERSION,
+	RESEARCH_V0_2_SCHEMA_VERSION,
+	RESEARCH_V0_3_SCHEMA_VERSION,
+	RESEARCH_V0_4_SCHEMA_VERSION,
+	RESEARCH_V0_5_SCHEMA_VERSION,
+] as const;
 
 const PersistedObject = <const Properties extends Parameters<typeof Type.Object>[0]>(properties: Properties) =>
 	Type.Object(properties, { additionalProperties: true });
@@ -77,22 +86,30 @@ const ExistingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_1_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_2_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
-	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DesignRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_2_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
-	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DataRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_3_SCHEMA_VERSION),
-	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const WritingRecordSchemaVersionSchema = Type.Union([
-	Type.Literal(RESEARCH_LEGACY_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_4_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_SCHEMA_VERSION),
+]);
+const KnowledgeRecordSchemaVersionSchema = Type.Union([
+	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 
@@ -1347,7 +1364,7 @@ export type AdapterExportFormat = Static<typeof AdapterExportFormatSchema>;
 
 export const AdapterExportProfileSchema = PersistedObject({
 	kind: Type.Literal("adapter_export_profile"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: KnowledgeRecordSchemaVersionSchema,
 	adapterExportProfileId: NonEmptyStringSchema,
 	name: NonEmptyStringSchema,
 	adapterId: NonEmptyStringSchema,
@@ -1370,7 +1387,7 @@ export type AdapterExportProfile = Static<typeof AdapterExportProfileSchema>;
 
 export const ExternalItemLinkSchema = PersistedObject({
 	kind: Type.Literal("external_item_link"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: KnowledgeRecordSchemaVersionSchema,
 	externalItemLinkId: NonEmptyStringSchema,
 	adapterExportProfileId: NonEmptyStringSchema,
 	recordRef: RecordRefSchema,
@@ -1397,7 +1414,7 @@ export type MonitorQuery = Static<typeof MonitorQuerySchema>;
 
 export const MonitorSubscriptionSchema = PersistedObject({
 	kind: Type.Literal("monitor_subscription"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: KnowledgeRecordSchemaVersionSchema,
 	monitorSubscriptionId: NonEmptyStringSchema,
 	monitorSubscriptionSeriesId: NonEmptyStringSchema,
 	version: Type.Integer({ minimum: 1 }),
@@ -1421,7 +1438,7 @@ export type MonitorSubscription = Static<typeof MonitorSubscriptionSchema>;
 
 export const MonitorRunSchema = PersistedObject({
 	kind: Type.Literal("monitor_run"),
-	schemaVersion: Type.Literal(RESEARCH_SCHEMA_VERSION),
+	schemaVersion: KnowledgeRecordSchemaVersionSchema,
 	monitorRunId: NonEmptyStringSchema,
 	monitorSubscriptionId: NonEmptyStringSchema,
 	queryHash: HashValueSchema,
@@ -1473,6 +1490,27 @@ export const ProjectCatalogSchema = PersistedObject({
 	catalogHash: HashValueSchema,
 });
 export type ProjectCatalog = Static<typeof ProjectCatalogSchema>;
+
+export const ProjectBackupFileSchema = PersistedObject({
+	path: RelativePathSchema,
+	hash: HashValueSchema,
+	bytes: NonNegativeIntegerSchema,
+});
+export type ProjectBackupFile = Static<typeof ProjectBackupFileSchema>;
+
+export const ProjectBackupManifestSchema = PersistedObject({
+	format: Type.Literal("pi-research-project-backup"),
+	version: Type.Literal(1),
+	backupId: NonEmptyStringSchema,
+	projectId: NonEmptyStringSchema,
+	projectSchemaVersion: NonEmptyStringSchema,
+	projectRevision: NonNegativeIntegerSchema,
+	createdAt: NonEmptyStringSchema,
+	label: Nullable(Type.String()),
+	files: Type.Array(ProjectBackupFileSchema, { minItems: 1 }),
+	rootHash: HashValueSchema,
+});
+export type ProjectBackupManifest = Static<typeof ProjectBackupManifestSchema>;
 
 export const TaskStatusSchema = Type.Union([
 	Type.Literal("planned"),

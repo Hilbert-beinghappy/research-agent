@@ -154,12 +154,16 @@ describe("research extension commands", () => {
 		const ctx = harness.context(projectRoot);
 
 		expect([...harness.commands.keys()].sort()).toEqual([
+			"research-backup",
+			"research-doctor",
 			"research-init",
 			"research-migrate",
+			"research-model-route",
 			"research-monitor",
 			"research-open",
 			"research-policy",
 			"research-recover",
+			"research-restore",
 			"research-resume",
 			"research-status",
 			"research-validate",
@@ -263,6 +267,12 @@ describe("research extension commands", () => {
 
 		const latestLink = harness.sessionEntries.at(-1);
 		if (latestLink === undefined) throw new Error("missing refreshed project link");
+		for (let session = 1; session <= 10; session += 1) {
+			const resumed = createHarness([latestLink]);
+			const resumedContext = resumed.context(projectRoot);
+			await resumed.emit("session_start", { type: "session_start", reason: `resume-${session}` }, resumedContext);
+			expect(resumed.setActiveTools).toHaveBeenCalled();
+		}
 		const reloaded = createHarness([latestLink]);
 		const reloadContext = reloaded.context(projectRoot);
 		await reloaded.emit("session_start", { type: "session_start", reason: "reload" }, reloadContext);
@@ -338,7 +348,7 @@ describe("research extension commands", () => {
 		).toMatchObject({ block: true });
 	});
 
-	it("requires confirmation to migrate and rolls back only an unchanged v0.4 manifest", async () => {
+	it("requires confirmation to migrate and rolls back only an unchanged v0.5 manifest", async () => {
 		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-migration-command-"));
 		const projectRoot = join(temporaryDirectory, "legacy-project");
 		await initializeProject(projectRoot, { title: "Legacy migration fixture" });
@@ -347,14 +357,7 @@ describe("research extension commands", () => {
 			schemaVersion: string;
 			recordSets: { kind: string }[];
 		};
-		const v0_5Kinds = new Set([
-			"adapter_export_profile",
-			"external_item_link",
-			"monitor_subscription",
-			"monitor_run",
-		]);
 		manifest.schemaVersion = RESEARCH_LEGACY_SCHEMA_VERSION;
-		manifest.recordSets = manifest.recordSets.filter(({ kind }) => !v0_5Kinds.has(kind));
 		await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
 		const harness = createHarness();

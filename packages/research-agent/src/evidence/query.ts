@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { readFile, stat } from "node:fs/promises";
-import { canonicalizeJson } from "../contracts/canonical-json.ts";
+import { mkdir, readFile, stat } from "node:fs/promises";
+import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import type {
 	DocumentRecord,
 	EvidenceLevel,
 	EvidenceLocator,
 	HashValue,
 	JsonValue,
+	RecordKind,
 	RecordRef,
 	ResearchError,
+	ResearchProjectManifest,
 	ResearchResult,
 } from "../contracts/schemas.ts";
 import {
@@ -21,8 +23,9 @@ import {
 import { hashBytes, hashCanonicalJson, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
+import { atomicWriteFile } from "../project/atomic-write.ts";
 import { openProject } from "../project/open.ts";
-import { listProjectRecordIds, projectRecordRevision } from "../project/record-index.ts";
+import { listProjectRecordIds, projectRecordRevision, projectRecordSet } from "../project/record-index.ts";
 import { readRecord } from "../project/records.ts";
 
 export type CorpusQueryScope = "sources" | "documents" | "evidence" | "claims" | "all";
@@ -66,15 +69,35 @@ interface QueryCandidate extends CorpusQueryHit {
 	matchIndex: number;
 }
 
-interface QueryCursor {
+type IndexedRecordKind = "source" | "evidence" | "claim";
+
+interface IndexedQueryCandidate extends CorpusQueryHit {
+	sortKey: string;
+	searchText: string;
+}
+
+interface CorpusTextIndexPayload {
 	version: 1;
-	projectRevision: number;
+	kind: IndexedRecordKind;
+	fingerprint: string;
+	candidates: IndexedQueryCandidate[];
+}
+
+interface CorpusTextIndex extends CorpusTextIndexPayload {
+	contentHash: HashValue;
+}
+
+interface QueryCursor {
+	version: 2;
+	corpusFingerprint: string;
 	queryHash: string;
 	offset: number;
 }
 
 const ALLOWED_FILTERS = new Set(["sourceId", "documentId", "evidenceLevel", "validity"]);
 const QUERY_SCOPES = new Set<CorpusQueryScope>(["sources", "documents", "evidence", "claims", "all"]);
+const INDEXED_RECORD_KINDS = ["source", "evidence", "claim"] as const satisfies readonly IndexedRecordKind[];
+const CORPUS_INDEX_DIRECTORY = ".research/cache";
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -87,6 +110,191 @@ function isHash(value: unknown): value is HashValue {
 		typeof value.value === "string" &&
 		/^[a-f0-9]{64}$/.test(value.value)
 	);
+}
+
+function isIndexedQueryCandidate(value: unknown): value is IndexedQueryCandidate {
+	if (!isObject(value) || !isObject(value.record)) return false;
+	return (
+		["source_metadata", "source_abstract", "evidence", "claim"].includes(String(value.hitKind)) &&
+		typeof value.record.kind === "string" &&
+		typeof value.record.id === "string" &&
+		Number.isInteger(value.record.revision) &&
+		(value.sourceId === null || typeof value.sourceId === "string") &&
+		(value.documentId === null || typeof value.documentId === "string") &&
+		(value.evidenceLevel === null || typeof value.evidenceLevel === "string") &&
+		(value.validity === null || typeof value.validity === "string") &&
+		(value.locator === null || isObject(value.locator)) &&
+		typeof value.text === "string" &&
+		typeof value.truncated === "boolean" &&
+		Array.isArray(value.warnings) &&
+		value.warnings.every((warning) => typeof warning === "string") &&
+		typeof value.sortKey === "string" &&
+		typeof value.searchText === "string"
+	);
+}
+
+function recordSetFingerprint(manifest: ResearchProjectManifest, kinds: readonly RecordKind[]): string {
+	return hashCanonicalJson(
+		kinds.map((kind) => {
+			const { count, contentHash } = projectRecordSet(manifest, kind);
+			return { kind, count, contentHash };
+		}),
+	).value;
+}
+
+function scopeRecordKinds(scope: CorpusQueryScope): readonly RecordKind[] {
+	if (scope === "sources") return ["source"];
+	if (scope === "documents") return ["document"];
+	if (scope === "evidence") return ["evidence"];
+	if (scope === "claims") return ["claim"];
+	return ["source", "document", "evidence", "claim"];
+}
+
+function indexPath(kind: IndexedRecordKind): string {
+	return `${CORPUS_INDEX_DIRECTORY}/corpus-${kind}-v1.json`;
+}
+
+async function readCorpusTextIndex(
+	projectRoot: string,
+	kind: IndexedRecordKind,
+	fingerprint: string,
+): Promise<CorpusTextIndex | null> {
+	try {
+		const value = JSON.parse(
+			await readFile(await resolveProjectPath(projectRoot, indexPath(kind)), "utf8"),
+		) as unknown;
+		if (
+			!isObject(value) ||
+			value.version !== 1 ||
+			value.kind !== kind ||
+			value.fingerprint !== fingerprint ||
+			!Array.isArray(value.candidates) ||
+			!value.candidates.every(isIndexedQueryCandidate) ||
+			!isHash(value.contentHash)
+		) {
+			return null;
+		}
+		const payload: CorpusTextIndexPayload = {
+			version: 1,
+			kind,
+			fingerprint,
+			candidates: value.candidates,
+		};
+		return hashCanonicalJson(payload).value === value.contentHash.value
+			? { ...payload, contentHash: value.contentHash }
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+async function buildCorpusTextIndex(
+	projectRoot: string,
+	manifest: ResearchProjectManifest,
+	kind: IndexedRecordKind,
+	fingerprint: string,
+	operationId: string,
+): Promise<{ index: CorpusTextIndex; errors: ResearchError[] }> {
+	const candidates: IndexedQueryCandidate[] = [];
+	const errors: ResearchError[] = [];
+	for (const id of await listProjectRecordIds(projectRoot, manifest, kind)) {
+		const result = await readRecord(projectRoot, kind, id);
+		if (!result.ok || result.value.kind !== kind) {
+			errors.push(...result.errors.map((error) => recordError(error, operationId)));
+			continue;
+		}
+		const record = result.value;
+		const revision = projectRecordRevision(record);
+		if (record.kind === "source") {
+			candidates.push({
+				hitKind: "source_metadata",
+				record: { kind, id: record.sourceId, revision },
+				sourceId: record.sourceId,
+				documentId: null,
+				evidenceLevel: "metadata",
+				validity: null,
+				locator: null,
+				text: record.title,
+				truncated: false,
+				warnings: [],
+				sortKey: `0:${record.sourceId}`,
+				searchText: normalizedSearchText(record.title),
+			});
+			if (record.abstractText !== null && record.abstractRights === "display_allowed") {
+				candidates.push({
+					hitKind: "source_abstract",
+					record: { kind, id: record.sourceId, revision },
+					sourceId: record.sourceId,
+					documentId: null,
+					evidenceLevel: "abstract",
+					validity: null,
+					locator: null,
+					text: record.abstractText,
+					truncated: false,
+					warnings: [],
+					sortKey: `1:${record.sourceId}`,
+					searchText: normalizedSearchText(record.abstractText),
+				});
+			}
+		}
+		if (record.kind === "evidence") {
+			const text = [record.evidenceStatement, record.paraphrase, record.excerpt ?? ""].join("\n");
+			candidates.push({
+				hitKind: "evidence",
+				record: { kind, id: record.evidenceId, revision },
+				sourceId: record.sourceId,
+				documentId: record.documentId,
+				evidenceLevel: record.evidenceLevel,
+				validity: record.validity,
+				locator: record.locator,
+				text,
+				truncated: false,
+				warnings: [...record.confidence.limitations],
+				sortKey: `3:${record.evidenceId}`,
+				searchText: normalizedSearchText(text),
+			});
+		}
+		if (record.kind === "claim") {
+			const text = `${record.text}\n${record.scope}`;
+			candidates.push({
+				hitKind: "claim",
+				record: { kind, id: record.claimId, revision },
+				sourceId: null,
+				documentId: null,
+				evidenceLevel: null,
+				validity: null,
+				locator: null,
+				text,
+				truncated: false,
+				warnings: [],
+				sortKey: `4:${record.claimId}`,
+				searchText: normalizedSearchText(text),
+			});
+		}
+	}
+	candidates.sort((left, right) => (left.sortKey < right.sortKey ? -1 : left.sortKey > right.sortKey ? 1 : 0));
+	const payload: CorpusTextIndexPayload = { version: 1, kind, fingerprint, candidates };
+	return { index: { ...payload, contentHash: hashCanonicalJson(payload) }, errors };
+}
+
+async function loadCorpusTextIndex(
+	projectRoot: string,
+	manifest: ResearchProjectManifest,
+	kind: IndexedRecordKind,
+	operationId: string,
+): Promise<{ index: CorpusTextIndex; errors: ResearchError[] }> {
+	const fingerprint = recordSetFingerprint(manifest, [kind]);
+	const cached = await readCorpusTextIndex(projectRoot, kind, fingerprint);
+	if (cached !== null) return { index: cached, errors: [] };
+	const built = await buildCorpusTextIndex(projectRoot, manifest, kind, fingerprint, operationId);
+	if (built.errors.length === 0) {
+		await mkdir(await resolveProjectPath(projectRoot, CORPUS_INDEX_DIRECTORY), { recursive: true });
+		await atomicWriteFile(
+			await resolveProjectPath(projectRoot, indexPath(kind)),
+			`${canonicalStringify(built.index)}\n`,
+		);
+	}
+	return built;
 }
 
 function isParsedBlock(value: unknown): value is ParsedPdfBlock {
@@ -331,8 +539,9 @@ function cursorValue(cursor: string): QueryCursor | null {
 		const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as unknown;
 		if (
 			!isObject(value) ||
-			value.version !== 1 ||
-			!Number.isInteger(value.projectRevision) ||
+			value.version !== 2 ||
+			typeof value.corpusFingerprint !== "string" ||
+			!/^[a-f0-9]{64}$/u.test(value.corpusFingerprint) ||
 			typeof value.queryHash !== "string" ||
 			!Number.isInteger(value.offset) ||
 			(value.offset as number) < 0
@@ -427,16 +636,17 @@ export async function queryCorpusRecords(
 		limit: input.limit,
 		maxCharsPerHit: input.maxCharsPerHit,
 	}).value;
+	const corpusFingerprint = recordSetFingerprint(opened.manifest, scopeRecordKinds(input.scope));
 	const cursor = input.cursor === null ? null : cursorValue(input.cursor);
 	if (
 		input.cursor !== null &&
-		(cursor === null || cursor.projectRevision !== opened.manifest.revision || cursor.queryHash !== queryHash)
+		(cursor === null || cursor.corpusFingerprint !== corpusFingerprint || cursor.queryHash !== queryHash)
 	) {
 		return failureResult(
 			"DATA_CONFLICT",
 			"CORPUS_CURSOR_STALE",
 			"data_conflict",
-			"Corpus query cursor does not match the current project revision and query",
+			"Corpus query cursor does not match the current corpus and query",
 			operationId,
 		);
 	}
@@ -444,52 +654,13 @@ export async function queryCorpusRecords(
 	const candidates: QueryCandidate[] = [];
 	const errors: ResearchError[] = [];
 	const include = (scope: Exclude<CorpusQueryScope, "all">): boolean => input.scope === "all" || input.scope === scope;
-	// ponytail: direct record scan; add a derived text index only when measured project size makes this too slow.
-	if (include("sources")) {
-		for (const sourceId of await listProjectRecordIds(opened.root, opened.manifest, "source")) {
-			const result = await readRecord(opened.root, "source", sourceId);
-			if (!result.ok || result.value.kind !== "source") {
-				errors.push(...result.errors.map((error) => recordError(error, operationId)));
-				continue;
-			}
-			const source = result.value;
-			const revision = projectRecordRevision(source);
-			const metadataIndex = queryMatch(source.title, query);
-			if (metadataIndex >= 0) {
-				candidates.push({
-					hitKind: "source_metadata",
-					record: { kind: "source", id: source.sourceId, revision },
-					sourceId: source.sourceId,
-					documentId: null,
-					evidenceLevel: "metadata",
-					validity: null,
-					locator: null,
-					text: source.title,
-					truncated: false,
-					warnings: [],
-					sortKey: `0:${source.sourceId}`,
-					matchIndex: metadataIndex,
-				});
-			}
-			if (source.abstractText !== null && source.abstractRights === "display_allowed") {
-				const abstractIndex = queryMatch(source.abstractText, query);
-				if (abstractIndex >= 0) {
-					candidates.push({
-						hitKind: "source_abstract",
-						record: { kind: "source", id: source.sourceId, revision },
-						sourceId: source.sourceId,
-						documentId: null,
-						evidenceLevel: "abstract",
-						validity: null,
-						locator: null,
-						text: source.abstractText,
-						truncated: false,
-						warnings: [],
-						sortKey: `1:${source.sourceId}`,
-						matchIndex: abstractIndex,
-					});
-				}
-			}
+	for (const kind of INDEXED_RECORD_KINDS) {
+		if (!include(kind === "source" ? "sources" : kind === "evidence" ? "evidence" : "claims")) continue;
+		const indexed = await loadCorpusTextIndex(opened.root, opened.manifest, kind, operationId);
+		errors.push(...indexed.errors);
+		for (const { searchText, ...candidate } of indexed.index.candidates) {
+			const matchIndex = searchText.indexOf(query);
+			if (matchIndex >= 0) candidates.push({ ...candidate, matchIndex });
 		}
 	}
 	if (include("documents")) {
@@ -541,59 +712,6 @@ export async function queryCorpusRecords(
 			}
 		}
 	}
-	if (include("evidence")) {
-		for (const evidenceId of await listProjectRecordIds(opened.root, opened.manifest, "evidence")) {
-			const result = await readRecord(opened.root, "evidence", evidenceId);
-			if (!result.ok || result.value.kind !== "evidence") {
-				errors.push(...result.errors.map((error) => recordError(error, operationId)));
-				continue;
-			}
-			const text = [result.value.evidenceStatement, result.value.paraphrase, result.value.excerpt ?? ""].join("\n");
-			const matchIndex = queryMatch(text, query);
-			if (matchIndex < 0) continue;
-			candidates.push({
-				hitKind: "evidence",
-				record: { kind: "evidence", id: evidenceId, revision: projectRecordRevision(result.value) },
-				sourceId: result.value.sourceId,
-				documentId: result.value.documentId,
-				evidenceLevel: result.value.evidenceLevel,
-				validity: result.value.validity,
-				locator: result.value.locator,
-				text,
-				truncated: false,
-				warnings: [...result.value.confidence.limitations],
-				sortKey: `3:${evidenceId}`,
-				matchIndex,
-			});
-		}
-	}
-	if (include("claims")) {
-		for (const claimId of await listProjectRecordIds(opened.root, opened.manifest, "claim")) {
-			const result = await readRecord(opened.root, "claim", claimId);
-			if (!result.ok || result.value.kind !== "claim") {
-				errors.push(...result.errors.map((error) => recordError(error, operationId)));
-				continue;
-			}
-			const text = `${result.value.text}\n${result.value.scope}`;
-			const matchIndex = queryMatch(text, query);
-			if (matchIndex < 0) continue;
-			candidates.push({
-				hitKind: "claim",
-				record: { kind: "claim", id: claimId, revision: projectRecordRevision(result.value) },
-				sourceId: null,
-				documentId: null,
-				evidenceLevel: null,
-				validity: null,
-				locator: null,
-				text,
-				truncated: false,
-				warnings: [],
-				sortKey: `4:${claimId}`,
-				matchIndex,
-			});
-		}
-	}
-
 	const matched = candidates
 		.filter((candidate) => matchesFilters(candidate, input.filters))
 		.sort((left, right) => (left.sortKey < right.sortKey ? -1 : left.sortKey > right.sortKey ? 1 : 0));
@@ -618,7 +736,7 @@ export async function queryCorpusRecords(
 		hits,
 		nextCursor:
 			nextOffset < matched.length
-				? encodedCursor({ version: 1, projectRevision: opened.manifest.revision, queryHash, offset: nextOffset })
+				? encodedCursor({ version: 2, corpusFingerprint, queryHash, offset: nextOffset })
 				: null,
 	};
 	return errors.length === 0
