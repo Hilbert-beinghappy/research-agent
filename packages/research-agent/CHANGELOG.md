@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Doro terminal sessions replace Pi's generic startup help with a single Research Agent version header.
+
 ## [2.0.0] - 2026-08-07
 
 ### Added

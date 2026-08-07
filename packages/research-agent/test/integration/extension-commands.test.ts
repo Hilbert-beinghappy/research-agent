@@ -43,6 +43,7 @@ function createHarness(initialEntries: SessionEntryData[] = []) {
 	const confirm = vi.fn(async () => true);
 	const select = vi.fn(async (_title: string, options: string[]) => options[0]);
 	const setStatus = vi.fn();
+	const setHeader = vi.fn();
 	let activeTools = ["read", "bash", "edit", "write"];
 	const setActiveTools = vi.fn((names: string[]) => {
 		activeTools = [...names];
@@ -81,7 +82,7 @@ function createHarness(initialEntries: SessionEntryData[] = []) {
 			cwd,
 			hasUI,
 			mode: hasUI ? "tui" : "print",
-			ui: { notify, confirm, select, setStatus },
+			ui: { notify, confirm, select, setStatus, setHeader },
 			sessionManager: {
 				getSessionId: () => "test-session",
 				getSessionFile: () => join(cwd, "session.jsonl"),
@@ -95,6 +96,7 @@ function createHarness(initialEntries: SessionEntryData[] = []) {
 		notify,
 		confirm,
 		select,
+		setHeader,
 		setActiveTools,
 		activeTools: () => activeTools,
 		context,
@@ -310,6 +312,8 @@ describe("research extension commands", () => {
 		const ordinary = createHarness();
 		const ordinaryContext = ordinary.context(temporaryDirectory);
 		await ordinary.emit("session_start", { type: "session_start", reason: "new" }, ordinaryContext);
+		const headerFactory = ordinary.setHeader.mock.calls.at(-1)?.[0] as (() => { render: () => string[] }) | undefined;
+		expect(headerFactory?.().render()).toEqual(["Doro Research Agent v2.0.0 Powered by Pi 0.83.0"]);
 		expect(ordinary.activeTools()).toEqual([
 			"read",
 			"bash",
