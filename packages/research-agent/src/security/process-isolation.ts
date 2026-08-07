@@ -50,7 +50,8 @@ export async function createStrongProcessLaunch(
 	}
 	if (process.platform === "linux") {
 		await access("/usr/bin/bwrap");
-		const systemRoots = await existingRealPaths([
+		const systemRoots: string[] = [];
+		for (const root of [
 			"/bin",
 			"/etc",
 			"/lib",
@@ -59,7 +60,14 @@ export async function createStrongProcessLaunch(
 			"/usr",
 			dirname(dirname(executable)),
 			...readRoots,
-		]);
+		]) {
+			try {
+				await access(root);
+				if (!systemRoots.includes(root)) systemRoots.push(root);
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+			}
+		}
 		const args = ["--die-with-parent", "--new-session", "--unshare-net"];
 		for (const root of systemRoots) args.push("--ro-bind", root, root);
 		args.push("--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", cwd, cwd, "--chdir", cwd);
