@@ -1,116 +1,126 @@
-> This repository develops [Pi Research Agent](packages/research-agent), a local-first research workflow package built on the Pi agent harness. Pi stays close to upstream; research capabilities live in the separate package.
+# Pi Research Agent
 
-<p align="center">
-  <a href="https://pi.dev">
-    <img alt="pi logo" src="https://pi.dev/logo-auto.svg" width="128">
-  </a>
-</p>
-<p align="center">
-  <a href="https://discord.com/invite/3cU7Bz4UPx"><img alt="Discord" src="https://img.shields.io/badge/discord-community-5865F2?style=flat-square&logo=discord&logoColor=white" /></a>
-  <a href="https://www.npmjs.com/package/@earendil-works/pi-coding-agent"><img alt="npm" src="https://img.shields.io/npm/v/@earendil-works/pi-coding-agent?style=flat-square" /></a>
-</p>
+Pi Research Agent（v2.0.0）是基于 [Pi Agent Harness](https://github.com/earendil-works/pi) 的本地优先、证据优先科研工作流。项目优先服务管理学与公共管理研究，同时提供社会学、政治学等可替换 Domain Package。
 
-> New issues and PRs from new contributors are auto-closed by default. Maintainers review auto-closed issues daily. See [CONTRIBUTING.md](CONTRIBUTING.md).
+仓库保留 Pi 底层单仓库代码，科研能力集中在独立 Package 中。使用者从 Pi 对话终端进入科研工作流；开发者也可以通过只读 SDK 和 stdio RPC 检查多个研究项目。
 
-# Pi Agent Harness
+## 从这里开始
 
-This is the home of the Pi agent harness project including our self extensible coding agent.
+| 入口 | 用途 |
+| --- | --- |
+| [科研 Agent 主包](packages/research-agent/README.md) | 产品能力、运行边界和完整发布检查 |
+| [CLI、Skills 与 Tools](packages/research-agent/docs/cli.md) | 终端命令、11 个 Skills 和 14 个 governed aggregate Tools |
+| [公共 API](packages/research-agent/docs/api.md) | Extension 与 Host 集成接口 |
+| [项目格式](packages/research-agent/docs/project-format.md) | 文件化状态、记录模型、恢复与迁移 |
+| [Adapter 开发](packages/research-agent/docs/adapter-development.md) | Source、Analysis Runtime 与 Artifact Adapter v1 |
+| [SDK 与 stdio RPC](packages/research-agent/docs/sdk-rpc.md) | v2.0 多项目只读接口 |
+| [v2.0 全流程示例](packages/research-agent/examples/full-workflow-v2.0/README.md) | 从终端到 SDK/RPC 的公开验收场景 |
+| [v2.0 发布证据](packages/research-agent/docs/release-v2.0.md) | 能力、测试、性能和已知限制 |
 
-* **[@earendil-works/pi-coding-agent](packages/coding-agent)**: Interactive coding agent CLI
-* **[@earendil-works/pi-agent-core](packages/agent)**: Agent runtime with tool calling and state management
-* **[@earendil-works/pi-ai](packages/ai)**: Unified multi-provider LLM API (OpenAI, Anthropic, Google, …)
+## 架构边界
 
-To learn more about Pi:
+- Pi 核心运行框架尽量保持接近上游，科研代码不侵入 Pi 核心职责。
+- packages/research-agent 承载科研工作流、Skills、Tools、Adapters、项目状态和评测。
+- packages/research-agent-contracts 提供数据契约、JSON Schema 与协议类型，不执行网络或文件写入。
+- Pi Session 保存对话和项目链接；科研项目文件保存可恢复、可复现的事实状态。
+- 核心不要求数据库、自建托管 SaaS 或独立 Web UI；开放学术源和外部工具通过 Adapter 接入。
 
-* [Visit pi.dev](https://pi.dev), the project website with demos
-* [Read the documentation](https://pi.dev/docs/latest), but you can also ask the agent to explain itself
+## v0.1–v2.0 能力
 
-## All Packages
+各版本均保留对应的评测、基准、迁移和发布证据。
 
-| Package | Description |
-|---------|-------------|
-| **[@earendil-works/pi-ai](packages/ai)** | Unified multi-provider LLM API (OpenAI, Anthropic, Google, etc.) |
-| **[@earendil-works/pi-agent-core](packages/agent)** | Agent runtime with tool calling and state management |
-| **[@earendil-works/pi-coding-agent](packages/coding-agent)** | Interactive coding agent CLI |
-| **[@earendil-works/pi-tui](packages/tui)** | Terminal UI library with differential rendering |
-| **[pi-research-agent](packages/research-agent)** | Evidence-based research workflows for management and public administration |
+| 版本 | 已实现能力 |
+| --- | --- |
+| v0.1 | 选题、检索、去重、全文状态、证据卡、引用核验、证据矩阵与文献综述 |
+| v0.2 | 研究问题、概念与理论、假设或命题、检索协议、研究设计与预分析计划 |
+| v0.3 | Python/R、可选 Stata、数据字典、定量分析、定性编码与案例比较 |
+| v0.4 | 论断—证据映射、论文大纲与分段写作、完整性检查、同行评审和修订闭环 |
+| v0.5 | Zotero、Obsidian、DOCX、PDF、XLSX、PPTX、研究记忆与持续文献监测 |
+| v1.0 | Pi 终端全流程、格式迁移、恢复、权限、成本和回归评测 |
+| v1.1 | 管理学、公共管理等 Domain Package 与合规数据源扩展 |
+| v1.5 | 公共 Adapter 契约、macOS 强隔离注册、可移植交换包与文件式协作 |
+| v2.0 | 多项目只读 SDK/stdio RPC、确定性模型路由、社区 Source Adapter 与可复现发布资格 |
 
-For Slack/chat automation and workflows see [earendil-works/pi-chat](https://github.com/earendil-works/pi-chat).
+## 仓库目录
 
-## Permissions & Containerization
-
-Pi does not include a built-in permission system for restricting filesystem, process, network, or credential access. By default, it runs with the permissions of the user and process that launched it.
-
-If you need stronger boundaries, containerize or sandbox Pi. See [packages/coding-agent/docs/containerization.md](packages/coding-agent/docs/containerization.md) for three patterns:
-
-- **Gondolin extension**: keep `pi` and provider auth on the host while routing built-in tools and `!` commands into a local Linux micro-VM.
-- **Plain Docker**: run the whole `pi` process in a local container for simple isolation.
-- **OpenShell**: run the whole `pi` process in a policy-controlled sandbox.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [AGENTS.md](AGENTS.md) for project-specific rules (for both humans and agents).  Longer term plans for Pi can also be found in [RFCs](https://rfc.earendil.com/keyword/pi/).
-
-## Development
-
-```bash
-npm install --ignore-scripts  # Install all dependencies without running lifecycle scripts
-npm run build         # Refresh model data, then build all packages
-npm run build:offline # Rebuild using existing model data without network access
-npm run check         # Lint, format, and type check
-./test.sh            # Run tests (skips LLM-dependent tests without API keys)
-./pi-test.sh         # Run pi from sources (can be run from any directory)
+```text
+research-agent/
+├── packages/
+│   ├── research-agent/             # 科研 Agent 产品代码、Skills、Tools、Adapters、文档、示例与评测
+│   ├── research-agent-contracts/   # 可分发的数据契约、协议类型与 JSON Schema
+│   ├── agent/                      # Pi Agent 运行时
+│   ├── ai/                         # Pi 多模型接口
+│   ├── coding-agent/               # Pi 对话终端和 Extension Host
+│   ├── tui/                        # Pi 终端 UI
+│   └── ...                         # 其他保留的 Pi 底层包
+├── .github/workflows/
+│   └── research-agent.yml          # 科研 Agent 的 Ubuntu、macOS、Windows CI
+├── pi-test.sh                      # 从源码启动 Pi
+└── README.md                       # 当前项目首页
 ```
 
-## Building standalone binaries from release source
+packages/agent、packages/ai、packages/coding-agent、packages/tui 等目录属于保留的 Pi 底层框架，不是科研能力主入口。
 
-GitHub releases include a versioned source archive covered by the release's `SHA256SUMS` file. Extract it and run the same build script used for the official standalone binaries:
+## 从源码快速启动
 
-```bash
-VERSION="<release-version>"
-tar -xzf "pi-${VERSION}-source.tar.gz"
-cd "pi-${VERSION}"
-./scripts/build-binaries.sh --offline-model-data --platform linux-x64 --out "$PWD/out"
+要求 Node.js 22.19.0 或更高。当前尚未发布公共 npm Package，以下方式直接从源码运行。
+
+```sh
+git clone https://github.com/Hilbert-beinghappy/research-agent.git
+cd research-agent
+npm ci --ignore-scripts
+
+RESEARCH_AGENT_REPO="$(pwd)"
+mkdir ../my-research-project
+cd ../my-research-project
+
+"$RESEARCH_AGENT_REPO/pi-test.sh" -e "$RESEARCH_AGENT_REPO/packages/research-agent"
 ```
 
-The source archive includes the generated provider model data used for the release. `--offline-model-data` builds with that snapshot instead of refreshing it from live provider catalogs. The script still installs dependencies, builds the monorepo, compiles the Bun executable, and stages its runtime assets. Package maintainers who provide dependencies separately can pass `--skip-install --skip-deps`.
+### 最小交互流程
 
-## Supply-chain hardening
+进入 Pi 对话终端后：
 
-We treat npm dependency changes as reviewed code changes.
+```text
+/research-version
+/research-init --domain public-administration "Public-sector AI accountability"
+/skill:research-project-intake
+```
 
-- Direct external dependencies are pinned to exact versions. Internal workspace packages remain version-ranged.
-- `.npmrc` sets `save-exact=true` and `min-release-age=2` to avoid same-day dependency releases during npm resolution.
-- `package-lock.json` is the dependency ground truth. Pre-commit blocks accidental lockfile commits unless `PI_ALLOW_LOCKFILE_CHANGE=1` is set.
-- `npm run check` verifies pinned direct deps, native TypeScript import compatibility, and the generated coding-agent shrinkwrap.
-- The published CLI package includes `packages/coding-agent/npm-shrinkwrap.json`, generated from the root lockfile, to pin transitive deps for npm users.
-- Release smoke tests use `npm run release:local` to build, pack, and create isolated npm and Bun installs outside the repo before tagging a release.
-- Local release installs, documented npm installs, and `pi update --self` use `--ignore-scripts` where supported.
-- CI installs with `npm ci --ignore-scripts`, and a scheduled GitHub workflow runs `npm audit --omit=dev` plus `npm audit signatures --omit=dev`.
-- Shrinkwrap generation has an explicit allowlist for dependency lifecycle scripts; new lifecycle-script deps fail checks until reviewed.
+接下来可以让 intake Skill 明确研究范围、概念和检索计划，再由 governed Tools 执行检索、全文处理、证据提交和引用核验。完整命令和工作流见 [CLI 文档](packages/research-agent/docs/cli.md)。
 
-## Share your OSS coding agent sessions
+## 数据、证据与权限边界
 
-If you use Pi or other coding agents for open source work, please share your sessions.
+- 研究项目事实保存在版本化 Markdown、JSON、RIS/BibTeX 和规范化项目记录中。
+- 元数据、摘要、已获取全文、带页码或章节定位的证据、已核验引用是不同状态。
+- 找不到全文、付费墙、元数据冲突、撤稿、引用未核实和证据不足不会被模型措辞改写成成功。
+- Crossref、OpenAlex、Unpaywall、本地 PDF/RIS/BibTeX/CSL-JSON 和 Zotero 通过受控接口接入。
+- Python 与 R 是主要可复现分析运行时；Stata 只检测并调用用户自有安装，不绑定或分发商业软件。
+- 低风险本地读取、检索、分析和项目内新增产出按项目策略执行。
+- 付费调用、敏感数据外传、外部写入、覆盖和删除必须经过明确确认。
 
-Public OSS session data helps improve coding agents with real-world tasks, tool use, failures, and fixes instead of toy benchmarks.
+成果可以生成 Markdown、JSON、RIS/BibTeX、Obsidian、DOCX、PDF、XLSX 和 PPTX；Adapter 失败不会改变规范化项目事实。
 
-For the full explanation, see [this post on X](https://x.com/badlogicgames/status/2037811643774652911).
+## 开发与验证
 
-To publish sessions, use [`badlogic/pi-share-hf`](https://github.com/badlogic/pi-share-hf). Read its README.md for setup instructions. All you need is a Hugging Face account, the Hugging Face CLI, and `pi-share-hf`.
+```sh
+npm run check -w packages/research-agent-contracts
+npm test -w packages/research-agent-contracts
 
-You can also watch [this video](https://x.com/badlogicgames/status/2041151967695634619), where I show how I publish my `pi-mono` sessions.
+npm run check -w packages/research-agent
+npm run test:unit -w packages/research-agent
+npm run test:integration -w packages/research-agent
+npm run test:e2e -w packages/research-agent
 
-I regularly publish my own `pi-mono` work sessions here:
+npm run eval:v2.0 -w packages/research-agent -- v2.0
+npm run qualify:release:v2.0 -w packages/research-agent
+```
 
-- [badlogicgames/pi-mono on Hugging Face](https://huggingface.co/datasets/badlogicgames/pi-mono)
+默认 CI 使用合成数据和录制事实，不需要模型凭据。真实模型评测属于显式授权的发布候选活动，仓库内只保留经过清理和哈希绑定的评测基线。
 
-## License
+## Pi 上游关系与许可证
 
-MIT
-
-<p align="center">
-  <a href="https://pi.dev">pi.dev</a> domain graciously donated by
-  <br /><br />
-  <a href="https://exe.dev"><img src="packages/coding-agent/docs/images/exy.png" alt="Exy mascot" width="48" /><br />exe.dev</a>
-</p>
+- 本仓库基于 Pi Agent Harness 进行二次开发，并保留上游底层代码及其归属。
+- Pi 基线代码遵循根目录 [MIT License](LICENSE)。
+- [Pi Research Agent](packages/research-agent/LICENSE) 与 [公共契约包](packages/research-agent-contracts/LICENSE) 遵循 Apache-2.0。
+- 科研 Package 同时保留 NOTICE、第三方声明和 SBOM；许可证覆盖代码，不替代学术数据源、用户内容和授权数据库各自的使用条件。
