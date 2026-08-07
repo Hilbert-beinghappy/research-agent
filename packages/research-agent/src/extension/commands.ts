@@ -488,10 +488,12 @@ export function registerResearchCommands(
 	let activeProjectRoot: string | null = null;
 	let activePolicy: ResearchPolicyConfig | null = null;
 	let governanceBlocked = false;
+	let governedActiveTools: string[] = [];
 	const domainPackageOverrides = new Map<string, DomainPackageManifest>();
 
-	const restrictTools = (): void => {
-		pi.setActiveTools(pi.getActiveTools().filter((name) => GOVERNED_TOOL_NAMES.has(name)));
+	const restrictTools = (ctx: ExtensionContext): void => {
+		const modelCanAccess = activePolicy?.modelEgressAllowed === true || modelUsesLocalEndpoint(ctx.model);
+		pi.setActiveTools(modelCanAccess ? governedActiveTools : []);
 	};
 
 	const bindProject = async (
@@ -508,7 +510,7 @@ export function registerResearchCommands(
 		activeProjectRoot = opened.root;
 		activePolicy = opened.manifest.policy;
 		governanceBlocked = false;
-		restrictTools();
+		restrictTools(ctx);
 		ctx.ui.setStatus(
 			"research-agent",
 			`${opened.manifest.title} · ${opened.manifest.currentStage} · r${opened.manifest.revision}`,
@@ -758,6 +760,7 @@ export function registerResearchCommands(
 
 	const registeredToolOptions = { version, requireProject, appendProjectLink, ...toolOptions };
 	registerResearchTools(pi, registeredToolOptions);
+	governedActiveTools = pi.getActiveTools().filter((name) => GOVERNED_TOOL_NAMES.has(name));
 
 	const register = (name: string, description: string, handler: ResearchCommandHandler): void => {
 		pi.registerCommand(name, {
