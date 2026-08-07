@@ -9,7 +9,7 @@
 
 ### Changed
 
-- Doro terminal sessions replace Pi's generic startup help with a compact side-by-side identity panel showing a scaled-down Bocchi pet with the blue-yellow hair ornament preserved, the active model, Pi version, and current directory.
+- Doro terminal sessions replace Pi's generic startup help with a compact side-by-side identity panel showing a scaled-down Bocchi pet with the blue-yellow hair ornament preserved, the active model and effort, and current directory.
 - Public package exports now load compiled `dist` modules and expose only contracts, Adapter protocol, SDK, RPC, schemas, and package metadata.
 - Canonical schema 1.5.1 records semantic provenance and source verification separately; SDK/RPC defaults to logical project locators and advertises supported evidence-submission levels.
 - The 14 model-visible tools keep their public names and schemas while source, knowledge, methods, and writing handlers now share one egress guard and operation wrapper.

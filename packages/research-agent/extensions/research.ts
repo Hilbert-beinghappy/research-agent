@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { type ExtensionAPI, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerResearchCommands } from "../src/extension/commands.ts";
 
 export const RESEARCH_AGENT_VERSION = "2.0.0";
@@ -95,7 +95,7 @@ export default function researchExtension(pi: ExtensionAPI): void {
 				const effort = ctx.thinkingLevel && ctx.thinkingLevel !== "off" ? ` with ${ctx.thinkingLevel} effort` : "";
 				const details = [
 					`${theme.bold("Doro Research Agent")}${theme.fg("dim", ` v${RESEARCH_AGENT_VERSION}`)}`,
-					theme.fg("muted", `${ctx.model?.id ?? "No model selected"}${effort} · Powered by Pi ${PI_VERSION}`),
+					theme.fg("muted", `${ctx.model?.id ?? "No model selected"}${effort}`),
 					theme.fg("dim", ctx.cwd),
 				];
 				return renderBocchi().map((line, index) => `${line}  ${details[index] ?? ""}`);
