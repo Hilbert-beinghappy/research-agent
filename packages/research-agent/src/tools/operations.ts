@@ -16,7 +16,7 @@ import { openProject } from "../project/open.ts";
 import { createRecord, readRecord, updateRecord } from "../project/records.ts";
 
 export interface StartOperationInput {
-	operationKind: "tool" | "adapter";
+	operationKind: "tool" | "adapter" | "human";
 	name: string;
 	implementationVersion: string;
 	session: SessionLink | null;
@@ -56,8 +56,8 @@ export async function startOperation(
 		if (input.operationKind === "adapter" && input.adapter === undefined) {
 			throw new TypeError("Adapter operation metadata is required");
 		}
-		if (input.operationKind === "tool" && input.adapter !== undefined) {
-			throw new TypeError("Tool operations cannot declare adapter metadata");
+		if (input.operationKind !== "adapter" && input.adapter !== undefined) {
+			throw new TypeError("Only adapter operations can declare adapter metadata");
 		}
 		const now = new Date().toISOString();
 		const operation: OperationRecord = {

@@ -11,6 +11,7 @@ import type {
 	EvidenceCard,
 	OperationRecord,
 	RecordRef,
+	SemanticProvenance,
 	SourceRecord,
 } from "../../src/contracts/schemas.ts";
 import { RESEARCH_SCHEMA_VERSION } from "../../src/contracts/schemas.ts";
@@ -50,9 +51,13 @@ async function manifestRevision(): Promise<number> {
 	return opened.manifest.revision;
 }
 
-async function operation(name: string, inputs: RecordRef[] = []): Promise<OperationRecord> {
+async function operation(
+	name: string,
+	inputs: RecordRef[] = [],
+	operationKind: "tool" | "human" = "tool",
+): Promise<OperationRecord> {
 	const started = await startOperation(projectRoot, {
-		operationKind: "tool",
+		operationKind,
 		name,
 		implementationVersion: "0.4.0",
 		session: null,
@@ -60,6 +65,18 @@ async function operation(name: string, inputs: RecordRef[] = []): Promise<Operat
 	});
 	if (!started.ok) throw new Error(started.errors[0].message);
 	return started.value;
+}
+
+function humanProvenance(operationId: string): SemanticProvenance {
+	return {
+		method: "human_entered",
+		operationId,
+		modelProvider: null,
+		modelId: null,
+		promptHash: null,
+		toolSchemaHash: null,
+		turnId: null,
+	};
 }
 
 async function conceptualRevision(operationId: string, content: string, supersedesManuscriptId: string | null) {
@@ -93,7 +110,7 @@ async function seedEvidence(): Promise<{
 	claim: ClaimRecord;
 	verification: CitationVerification;
 }> {
-	const seed = await operation("fixture.seed");
+	const seed = await operation("fixture.seed", [], "human");
 	const now = new Date().toISOString();
 	const sourceId = createOpaqueId("source");
 	const evidenceId = createOpaqueId("evidence");
@@ -160,6 +177,10 @@ async function seedEvidence(): Promise<{
 		evidenceLinks: [{ evidenceId, relation: "supports", assessment: "Located fixture evidence" }],
 		supportStatus: "supported",
 		conflictEvidenceIds: [],
+		semanticProvenance: {
+			claim: humanProvenance(seed.operationId),
+			evidenceLinks: [humanProvenance(seed.operationId)],
+		},
 		humanConfirmation: { status: "accepted", decidedAt: now, note: "Fixture review" },
 		publishability: "evidence_checked",
 		audit: audit(seed.operationId, now),
@@ -186,12 +207,12 @@ async function seedEvidence(): Promise<{
 		paraphrase: "The fixture reports an auditable evidence boundary.",
 		evidenceStatement: "The claim is supported within the synthetic fixture.",
 		claimLinks: [{ claimId, relation: "supports", rationale: "Fixture link" }],
-		extraction: {
+		extraction: humanProvenance(seed.operationId),
+		sourceVerification: {
 			method: "deterministic",
 			operationId: seed.operationId,
-			modelProvider: null,
-			modelId: null,
-			promptHash: null,
+			locatorStatus: "verified",
+			excerptStatus: "not_applicable",
 		},
 		confidence: { level: "high", basis: "Located fixture", limitations: [] },
 		rights: { excerptAllowed: true, maxStoredWords: 100, publicExportAllowed: true },
@@ -515,6 +536,9 @@ describe("manuscript writing contracts", () => {
 			ok: true,
 			value: {
 				passed: true,
+				checks: expect.arrayContaining([
+					expect.objectContaining({ code: "semantic_provenance", status: "passed" }),
+				]),
 				coreClaimOccurrenceCoverage: 1,
 				citationVerificationCoverage: 1,
 				openP0ReviewFindingCount: 0,
@@ -555,6 +579,37 @@ describe("manuscript writing contracts", () => {
 		expect(report).toMatchObject({
 			ok: true,
 			value: { passed: true, publishability: "submission_candidate", warningsAccepted: true },
+		});
+		const legacyEvidence = await updateRecord(projectRoot, "evidence", seeded.evidence.evidenceId, {
+			expectedManifestRevision: await manifestRevision(),
+			expectedRecordRevision: seeded.evidence.audit.revision,
+			operationId: writer.operationId,
+			changes: {
+				extraction: {
+					method: "unknown_legacy",
+					operationId: null,
+					modelProvider: null,
+					modelId: null,
+					promptHash: null,
+					toolSchemaHash: null,
+					turnId: null,
+				},
+			},
+		});
+		expect(legacyEvidence).toMatchObject({ ok: true });
+		const provenanceBlocked = await evaluateSubmissionGate(
+			projectRoot,
+			manuscript.value.manuscript.manuscriptId,
+			approved.approvalId,
+		);
+		expect(provenanceBlocked).toMatchObject({
+			ok: true,
+			value: {
+				passed: false,
+				checks: expect.arrayContaining([
+					expect.objectContaining({ code: "semantic_provenance", status: "failed" }),
+				]),
+			},
 		});
 		const retargetedApproval = await updateRecord(projectRoot, "approval", approved.approvalId, {
 			expectedManifestRevision: await manifestRevision(),

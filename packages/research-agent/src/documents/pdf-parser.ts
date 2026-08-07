@@ -8,6 +8,7 @@ import { failureResult, successResult } from "../kernel/results.ts";
 
 export const PARSED_PDF_FORMAT_VERSION = "0.1.0" as const;
 const MIN_USABLE_PAGE_TEXT_CHARACTERS = 32;
+const PDF_SCRIPTING_ENABLED = false;
 
 export interface PdfParserOptions {
 	maxBytes: number;
@@ -76,6 +77,7 @@ export function pdfParserDescriptor(options: PdfParserOptions): PdfParserDescrip
 			maxPages: options.maxPages,
 			minUsablePageTextCharacters: MIN_USABLE_PAGE_TEXT_CHARACTERS,
 			normalizeWhitespace: true,
+			scripting: PDF_SCRIPTING_ENABLED,
 		}),
 	};
 }
@@ -299,6 +301,15 @@ export async function parsePdfBytes(input: {
 	try {
 		const document = await loadingTask.promise;
 		try {
+			if (!PDF_SCRIPTING_ENABLED && (await document.hasJSActions())) {
+				return failureResult(
+					"PERMANENT_FAILURE",
+					"PDF_SCRIPTING_FORBIDDEN",
+					"validation",
+					"PDF contains JavaScript actions, which are disabled by parser policy",
+					input.operationId,
+				);
+			}
 			if (document.numPages > input.options.maxPages) {
 				return failureResult(
 					"PERMANENT_FAILURE",
@@ -334,7 +345,7 @@ export async function parsePdfBytes(input: {
 			}
 			return successResult(value, input.operationId);
 		} finally {
-			await document.destroy();
+			await loadingTask.destroy();
 		}
 	} catch (error) {
 		const name = error instanceof Error ? error.name : "UnknownError";

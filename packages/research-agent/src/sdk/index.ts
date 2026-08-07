@@ -35,6 +35,10 @@ export interface ResearchSdk {
 	invoke(request: ResearchRpcRequest): Promise<ResearchResult<JsonValue>>;
 }
 
+export interface ResearchSdkOptions {
+	includeHostPaths?: boolean;
+}
+
 function rawProjectId(manifest: JsonValue): string | null {
 	return manifest !== null &&
 		typeof manifest === "object" &&
@@ -44,14 +48,15 @@ function rawProjectId(manifest: JsonValue): string | null {
 		: null;
 }
 
-function projectSummary(opened: Awaited<ReturnType<typeof openProject>>): JsonValue {
+function projectSummary(opened: Awaited<ReturnType<typeof openProject>>, includeHostPaths: boolean): JsonValue {
 	const manifest = opened.manifest;
 	if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
 		throw new TypeError("Research project manifest is not an object");
 	}
-	return canonicalizeJson({
+	const projectId = rawProjectId(manifest);
+	const summary = {
 		projectId: rawProjectId(manifest),
-		root: opened.root,
+		projectLocator: projectId === null ? null : `research-project:${projectId}`,
 		title: typeof manifest.title === "string" ? manifest.title : null,
 		schemaVersion:
 			typeof manifest.schemaVersion === "string"
@@ -62,7 +67,8 @@ function projectSummary(opened: Awaited<ReturnType<typeof openProject>>): JsonVa
 		revision: typeof manifest.revision === "number" ? manifest.revision : null,
 		mode: opened.mode,
 		compatibility: opened.compatibility,
-	});
+	};
+	return canonicalizeJson(includeHostPaths ? { ...summary, hostRoot: opened.root } : summary);
 }
 
 function sdkFailure(error: unknown): ResearchResult<JsonValue> {
@@ -77,12 +83,16 @@ function sdkFailure(error: unknown): ResearchResult<JsonValue> {
 	);
 }
 
-export async function createResearchSdk(projectRoots: readonly string[]): Promise<ResearchSdk> {
+export async function createResearchSdk(
+	projectRoots: readonly string[],
+	options: ResearchSdkOptions = {},
+): Promise<ResearchSdk> {
+	const includeHostPaths = options.includeHostPaths === true;
 	const projects = new Map<string, string>();
 	for (const root of projectRoots) {
 		const opened = await openProject(root);
 		const projectId = rawProjectId(opened.manifest);
-		if (projectId === null) throw new TypeError(`Project at ${opened.root} has no project ID`);
+		if (projectId === null) throw new TypeError("Configured project has no project ID");
 		const existing = projects.get(projectId);
 		if (existing !== undefined && existing !== opened.root) {
 			throw new TypeError(`Duplicate configured project ID: ${projectId}`);
@@ -112,26 +122,32 @@ export async function createResearchSdk(projectRoots: readonly string[]): Promis
 					case "system.capabilities": {
 						const capabilities: ResearchSdkCapability = {
 							format: "pi-research-sdk-capabilities",
-							version: 1,
+							version: 2,
 							packageVersion: RESEARCH_AGENT_SDK_VERSION,
 							projectSchemaVersion: RESEARCH_SCHEMA_VERSION,
 							methods: [...RESEARCH_SDK_METHODS],
 							access: "configured-projects",
 							mutations: "pi-governed-surfaces-only",
+							hostPaths: includeHostPaths ? "included" : "redacted",
+							evidenceSubmission: {
+								supportedLevels: ["metadata", "abstract", "fulltext_unlocated", "fulltext_located"],
+								unsupportedLevels: ["table_or_figure_located", "dataset_or_appendix_located"],
+							},
 							experimental: ["model-routing-heuristics", "realtime-collaboration", "ui-widgets"],
 						};
 						return successResult(canonicalizeJson(capabilities), null);
 					}
 					case "projects.list": {
 						const summaries = [];
-						for (const root of projects.values()) summaries.push(projectSummary(await openProject(root)));
+						for (const root of projects.values())
+							summaries.push(projectSummary(await openProject(root), includeHostPaths));
 						return successResult(canonicalizeJson(summaries), null);
 					}
 					case "project.open": {
 						const root = configuredProject(request.params.projectId);
 						const opened = await openProject(root);
 						return successResult(
-							canonicalizeJson({ summary: projectSummary(opened), manifest: opened.manifest }),
+							canonicalizeJson({ summary: projectSummary(opened, includeHostPaths), manifest: opened.manifest }),
 							null,
 						);
 					}

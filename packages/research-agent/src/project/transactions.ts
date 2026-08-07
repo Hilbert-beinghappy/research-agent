@@ -8,9 +8,10 @@ import type { HashValue, JsonValue, ResearchProjectManifest } from "../contracts
 import { validatePersistedRecord } from "../contracts/validators.ts";
 import { hashBytes, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath, validatePortablePathSet, validateProjectRelativePath } from "../kernel/paths.ts";
-import { atomicWriteFile } from "./atomic-write.ts";
+import { atomicWriteFile, syncParentDirectory } from "./atomic-write.ts";
 import { PROJECT_MANIFEST_PATH } from "./layout.ts";
 import { openProject } from "./open.ts";
+import { withProjectWriterLease } from "./writer-lock.ts";
 
 export interface TransactionWrite {
 	path: string;
@@ -177,13 +178,16 @@ async function readJournal(projectRoot: string, transactionId: string): Promise<
 }
 
 async function moveTransaction(projectRoot: string, transactionId: string, destination: string): Promise<void> {
-	await rename(
-		await resolveProjectPath(projectRoot, transactionDirectory(PENDING_DIRECTORY, transactionId)),
-		await resolveProjectPath(projectRoot, transactionDirectory(destination, transactionId)),
-	);
+	const source = await resolveProjectPath(projectRoot, transactionDirectory(PENDING_DIRECTORY, transactionId));
+	const target = await resolveProjectPath(projectRoot, transactionDirectory(destination, transactionId));
+	await rename(source, target);
+	await Promise.all([syncParentDirectory(source), syncParentDirectory(target)]);
 }
 
-export async function prepareProjectTransaction(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
+async function prepareProjectTransactionUnlocked(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
+	if ((await listPendingProjectTransactions(projectRoot)).length > 0) {
+		throw new Error("PROJECT_RECOVERY_REQUIRED: recover the pending project transaction before writing");
+	}
 	const opened = await openProject(projectRoot, input.expectedRevision);
 	if (opened.compatibility !== "current") throw new Error("Project schema is read-only");
 	const validation = validatePersistedRecord(input.manifest);
@@ -285,7 +289,7 @@ export async function prepareProjectTransaction(projectRoot: string, input: Proj
 	return transactionId;
 }
 
-export async function commitPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
+async function commitPreparedTransactionUnlocked(projectRoot: string, transactionId: string): Promise<void> {
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
@@ -311,14 +315,17 @@ export async function commitPreparedTransaction(projectRoot: string, transaction
 				const target = await resolveTransactionPath(entry.path);
 				if (entry.newHash === null) {
 					await rm(target, { force: true });
+					await syncParentDirectory(target);
 					return;
 				}
 				const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
 				if ((await hashFile(staged)).value !== entry.newHash.value) {
 					throw new Error(`Staged hash mismatch: ${entry.path}`);
 				}
-				if (entry.oldHash === null) await rename(staged, target);
-				else await atomicWriteFile(target, await readFile(staged));
+				if (entry.oldHash === null) {
+					await rename(staged, target);
+					await syncParentDirectory(target);
+				} else await atomicWriteFile(target, await readFile(staged));
 			}),
 		);
 	}
@@ -341,7 +348,7 @@ export async function commitPreparedTransaction(projectRoot: string, transaction
 	await moveTransaction(projectRoot, transactionId, COMMITTED_DIRECTORY);
 }
 
-export async function rollbackPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
+async function rollbackPreparedTransactionUnlocked(projectRoot: string, transactionId: string): Promise<void> {
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
@@ -358,6 +365,7 @@ export async function rollbackPreparedTransaction(projectRoot: string, transacti
 		const target = await resolveTransactionPath(entry.path);
 		if (entry.oldHash === null) {
 			await rm(target, { force: true });
+			await syncParentDirectory(target);
 		} else {
 			const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
 			if ((await hashFile(backup)).value !== entry.oldHash.value) {
@@ -375,7 +383,21 @@ export async function rollbackPreparedTransaction(projectRoot: string, transacti
 }
 
 export async function commitProjectTransaction(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
-	const transactionId = await prepareProjectTransaction(projectRoot, input);
-	await commitPreparedTransaction(projectRoot, transactionId);
-	return transactionId;
+	return withProjectWriterLease(projectRoot, async () => {
+		const transactionId = await prepareProjectTransactionUnlocked(projectRoot, input);
+		await commitPreparedTransactionUnlocked(projectRoot, transactionId);
+		return transactionId;
+	});
+}
+
+export async function prepareProjectTransaction(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
+	return withProjectWriterLease(projectRoot, () => prepareProjectTransactionUnlocked(projectRoot, input));
+}
+
+export async function commitPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
+	return withProjectWriterLease(projectRoot, () => commitPreparedTransactionUnlocked(projectRoot, transactionId));
+}
+
+export async function rollbackPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
+	return withProjectWriterLease(projectRoot, () => rollbackPreparedTransactionUnlocked(projectRoot, transactionId));
 }

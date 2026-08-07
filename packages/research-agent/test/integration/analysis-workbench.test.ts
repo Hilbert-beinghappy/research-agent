@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { executeAnalysis, type RuntimeExecutor, type RuntimeProcessResult } from "../../src/analysis/runtime.ts";
+import {
+	detectAnalysisRuntime,
+	executeAnalysis,
+	type RuntimeExecutor,
+	type RuntimeProcessResult,
+} from "../../src/analysis/runtime.ts";
 import type { AnalysisSpecification, FileRef, RecordRef, ResearchResult } from "../../src/contracts/schemas.ts";
 import { hashFile } from "../../src/kernel/integrity.ts";
 import { initializeProject } from "../../src/project/init.ts";
@@ -66,6 +72,8 @@ async function currentRevision(): Promise<number> {
 async function prepareSpecification(
 	runtime: "python" | "r" | "stata" = "python",
 	expectedOutputs: string[] = [],
+	scriptSource = "# Synthetic runtime fixture\n",
+	commandArguments: string[] = [],
 ): Promise<AnalysisSpecification> {
 	const csvPath = join(temporaryDirectory, "trust.csv");
 	await writeFile(csvPath, "id,transparency,trust\n1,1,4\n2,0,2\n3,1,5\n");
@@ -95,7 +103,7 @@ async function prepareSpecification(
 		runtime === "python" ? "analysis.py" : runtime === "r" ? "analysis.R" : "analysis.do",
 	);
 	const environmentPath = join(temporaryDirectory, runtime === "r" ? "renv.lock" : "requirements.txt");
-	await writeFile(scriptPath, "# Synthetic runtime fixture\n");
+	await writeFile(scriptPath, scriptSource);
 	await writeFile(environmentPath, runtime === "r" ? '{"R":{"Version":"4.5.0"}}\n' : "# standard library only\n");
 	const specificationOperationId = await begin("research.analysis.create_specification");
 	const created = await createAnalysisSpecification(projectRoot, {
@@ -107,7 +115,7 @@ async function prepareSpecification(
 		environmentPath,
 		parameters: { outcome: "trust", exposure: "transparency" },
 		randomSeed: 17,
-		commandArguments: [],
+		commandArguments,
 		expectedOutputs,
 		timeoutSeconds: 10,
 		claimMode: "associational",
@@ -184,6 +192,26 @@ async function execute(
 }
 
 describe("reproducible analysis workbench", () => {
+	it.skipIf(process.platform === "win32")(
+		"does not execute an explicitly supplied runtime during detection",
+		async () => {
+			const sentinel = join(temporaryDirectory, "runtime-detection-sentinel");
+			const explicitRuntime = join(temporaryDirectory, "untrusted-runtime");
+			await writeFile(
+				explicitRuntime,
+				`#!${process.execPath}\nrequire("node:fs").writeFileSync(${JSON.stringify(sentinel)}, "executed");\n`,
+			);
+			await chmod(explicitRuntime, 0o755);
+
+			await expect(detectAnalysisRuntime("python", explicitRuntime)).resolves.toMatchObject({
+				available: true,
+				executable: explicitRuntime,
+				runtimeVersion: "installed (version not queried)",
+			});
+			await expect(readFile(sentinel)).rejects.toMatchObject({ code: "ENOENT" });
+		},
+	);
+
 	it("imports a data dictionary and produces identical seeded output hashes", async () => {
 		const specification = await prepareSpecification("python", ["result.json"]);
 		const first = await execute(specification, successfulExecutor());
@@ -241,7 +269,7 @@ describe("reproducible analysis workbench", () => {
 		expect(await validateProject(projectRoot)).toMatchObject({ valid: true, issues: [] });
 	});
 
-	it("uses the declared batch contract for an optional Stata runtime without inspecting a license", async () => {
+	it("exercises the Stata batch contract through a test executor without claiming runtime qualification", async () => {
 		const specification = await prepareSpecification("stata");
 		let observedArguments: string[] = [];
 		const outcome = await execute(specification, async (request) => {
@@ -252,4 +280,106 @@ describe("reproducible analysis workbench", () => {
 		expect(observedArguments.slice(0, 2)).toEqual(["-b", "do"]);
 		expect(outcome.run?.runtime).toMatchObject({ kind: "stata", runtimeVersion: "installed (version not queried)" });
 	});
+
+	it.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
+		"denies home, SSH, network, parent, and symlink access under strong isolation",
+		async () => {
+			const detected = await detectAnalysisRuntime("python");
+			if (!detected.available || detected.executable === null)
+				throw new Error("Python is required for isolation test");
+			const privateHome = join(temporaryDirectory, "private-home");
+			const sshDirectory = join(privateHome, ".ssh");
+			const parentSecret = join(temporaryDirectory, "parent-secret.txt");
+			await mkdir(sshDirectory, { recursive: true });
+			await writeFile(join(privateHome, "home-secret.txt"), "home-secret");
+			await writeFile(join(sshDirectory, "id_ed25519"), "ssh-secret");
+			await writeFile(parentSecret, "parent-secret");
+			let acceptedConnections = 0;
+			const server = createServer(() => {
+				acceptedConnections += 1;
+			});
+			await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+			const address = server.address();
+			if (address === null || typeof address === "string") throw new Error("Isolation test server did not bind");
+			const previousSecret = process.env.PI_RESEARCH_TEST_SECRET;
+			process.env.PI_RESEARCH_TEST_SECRET = "must-not-leak";
+			try {
+				const scriptSource = `import json, os, sys, urllib.request
+home, ssh_key, parent, url = sys.argv[1:5]
+def readable(path):
+    try:
+        with open(path, "r", encoding="utf-8") as handle: handle.read()
+        return True
+    except Exception:
+        return False
+output = os.environ["PI_RESEARCH_OUTPUT_DIR"]
+link = os.path.join(output, "escape-link")
+try: os.symlink(parent, link)
+except Exception: pass
+network = False
+try:
+    urllib.request.urlopen(url, timeout=0.5).read()
+    network = True
+except Exception:
+    pass
+result = {
+    "home": readable(home),
+    "ssh": readable(ssh_key),
+    "parent": readable(parent),
+    "symlink": readable(link),
+    "network": network,
+    "secretEnvironment": "PI_RESEARCH_TEST_SECRET" in os.environ,
+}
+with open(os.path.join(output, "isolation.json"), "w", encoding="utf-8") as handle: json.dump(result, handle)
+with open(os.path.join(output, "analysis-status.json"), "w", encoding="utf-8") as handle: json.dump({"status": "succeeded"}, handle)
+`;
+				const specification = await prepareSpecification("python", ["isolation.json"], scriptSource, [
+					join(privateHome, "home-secret.txt"),
+					join(sshDirectory, "id_ed25519"),
+					parentSecret,
+					`http://127.0.0.1:${address.port}`,
+				]);
+				const operationId = await begin("research.analysis.isolation");
+				const outcome = await executeAnalysis(projectRoot, specification, operationId, {
+					executable: detected.executable,
+				});
+				await finish(
+					operationId,
+					outcome.result,
+					outcome.task === null || outcome.run === null
+						? []
+						: [
+								{ kind: "task", id: outcome.task.taskId, revision: 0 },
+								{ kind: "analysis_run", id: outcome.run.analysisRunId, revision: 0 },
+							],
+					outcome.run === null ? [] : [...outcome.run.outputs, ...outcome.run.logs],
+				);
+				if (!outcome.result.ok) {
+					const stderr =
+						outcome.run === null
+							? ""
+							: await readFile(join(projectRoot, ...outcome.run.logs[1].path.split("/")), "utf8");
+					throw new Error(`${JSON.stringify(outcome.result.errors)}\n${stderr}`);
+				}
+				if (outcome.run === null) throw new Error("Isolation run was not persisted");
+				const observed = JSON.parse(
+					await readFile(join(projectRoot, ...outcome.run.outputs[0]!.path.split("/")), "utf8"),
+				) as Record<string, boolean>;
+				expect(observed).toEqual({
+					home: false,
+					network: false,
+					parent: false,
+					secretEnvironment: false,
+					ssh: false,
+					symlink: false,
+				});
+				expect(acceptedConnections).toBe(0);
+				expect(outcome.run.runtime.adapterId).toBe("local-python-strong_isolation");
+			} finally {
+				if (previousSecret === undefined) delete process.env.PI_RESEARCH_TEST_SECRET;
+				else process.env.PI_RESEARCH_TEST_SECRET = previousSecret;
+				server.close();
+			}
+		},
+	);
 });

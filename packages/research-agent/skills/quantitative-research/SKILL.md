@@ -16,13 +16,13 @@ Use `research_analysis` for canonical data, specification, runtime, and run reco
 5. Call `action: "create_specification"` with the exact script, datasets, parameters, seed, arguments, expected outputs, timeout, and claim mode. Do not install missing packages.
 6. Present the exact specification and limitations. Call `action: "decide_specification"` only after explicit user confirmation.
 7. Call `action: "detect_runtime"`. Report missing runtime or packages as failures; do not substitute another method silently.
-8. Before `action: "run"`, show the exact executable, arguments, working directory, inputs, and approval boundary. Python/R scripts require the project policy to allow or ask about unknown code. Stata always requires explicit commercial-runtime approval.
+8. Before `action: "run"`, show the exact executable, arguments, isolated input/output boundary, and approval. Python/R use strong isolation by default. If the platform has no qualified profile, fail closed unless the user explicitly approves host-user execution after being told it can access the account's files and network. Stata always requires explicit commercial-runtime approval and remains unqualified until a real licensed runner passes.
 9. Inspect `AnalysisRun`, stdout, stderr, output hashes, and input-integrity checks. Treat timeout, crash, missing variable/package, input mutation, or exit code 75 / `analysis-status.json` non-convergence as failure. Never report coefficients from a failed or non-converged run.
 10. Rerun only from a confirmed specification. Compare output hashes and retain every prior Task, Operation, and AnalysisRun.
 
 ## Runtime Contract
 
-Scripts receive copied inputs through `PI_RESEARCH_INPUT_0...` and `PI_RESEARCH_INPUTS`, an output directory through `PI_RESEARCH_OUTPUT_DIR`, canonical parameters through `PI_RESEARCH_PARAMETERS`, and the declared seed through `PI_RESEARCH_SEED`. Write only under the output directory. Write `analysis-status.json` with `{"status":"succeeded"}` or `{"status":"non_converged"}` when convergence applies.
+Scripts receive copied inputs through `PI_RESEARCH_INPUT_0...` and `PI_RESEARCH_INPUTS`, an output directory through `PI_RESEARCH_OUTPUT_DIR`, canonical parameters through `PI_RESEARCH_PARAMETERS`, and the declared seed through `PI_RESEARCH_SEED`. Strong runs receive an isolated home/tmp, minimal environment, denied network, read-only inputs, and only the output directory as writable project data. Write `analysis-status.json` with `{"status":"succeeded"}` or `{"status":"non_converged"}` when convergence applies.
 
 ## Stop Conditions
 

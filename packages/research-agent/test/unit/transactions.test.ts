@@ -1,6 +1,9 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { access, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createInterface } from "node:readline";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
 import type { ResearchProjectManifest } from "../../src/contracts/schemas.ts";
@@ -11,11 +14,14 @@ import { openProject } from "../../src/project/open.ts";
 import {
 	commitPreparedTransaction,
 	commitProjectTransaction,
+	listPendingProjectTransactions,
 	prepareProjectTransaction,
 	rollbackPreparedTransaction,
 } from "../../src/project/transactions.ts";
+import { validateProject } from "../../src/project/validate.ts";
 
 let temporaryDirectory: string;
+const writerWorker = join(import.meta.dirname, "..", "fixtures", "project-writer-worker.ts");
 
 beforeEach(async () => {
 	temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-transactions-"));
@@ -34,6 +40,23 @@ async function createProject(name: string): Promise<{ root: string; manifest: Re
 
 function nextManifest(manifest: ResearchProjectManifest): ResearchProjectManifest {
 	return { ...structuredClone(manifest), revision: manifest.revision + 1, updatedAt: new Date().toISOString() };
+}
+
+async function runWriter(root: string, label: string): Promise<void> {
+	const child = spawn(process.execPath, ["--experimental-strip-types", writerWorker, "batch", root, label, "500"], {
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+	let stdout = "";
+	let stderr = "";
+	child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+		stdout += chunk;
+	});
+	child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+		stderr += chunk;
+	});
+	const [code] = (await once(child, "exit")) as [number | null];
+	if (code !== 0) throw new Error(`writer ${label} failed (${code}): ${stderr}`);
+	expect(JSON.parse(stdout)).toEqual({ count: 500 });
 }
 
 describe("project transactions", () => {
@@ -179,4 +202,33 @@ describe("project transactions", () => {
 		await expect(readFile(target, "utf8")).resolves.toBe("old");
 		await expect(openProject(root, 0)).resolves.toMatchObject({ compatibility: "current" });
 	});
+
+	it("serializes 1,000 writes from two independent processes without lost updates", async () => {
+		const { root } = await createProject("multi-process-writers");
+		await Promise.all([runWriter(root, "left"), runWriter(root, "right")]);
+		const opened = await openProject(root, 1_000);
+		if (opened.compatibility !== "current") throw new Error("expected current project");
+		expect(opened.manifest.recordSets.find(({ kind }) => kind === "operation")?.count).toBe(1_000);
+		expect(await validateProject(root)).toMatchObject({ valid: true, issues: [] });
+		expect(await listPendingProjectTransactions(root)).toEqual([]);
+	}, 300_000);
+
+	it("recovers a prepared transaction after killing its lease-holding process", async () => {
+		const { root } = await createProject("killed-writer");
+		const child = spawn(process.execPath, ["--experimental-strip-types", writerWorker, "prepare-crash", root], {
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+		child.stdout.setEncoding("utf8");
+		const lines = createInterface({ input: child.stdout });
+		const [line] = (await once(lines, "line")) as [string];
+		lines.close();
+		const { transactionId } = JSON.parse(line) as { transactionId: string };
+		child.kill("SIGKILL");
+		await once(child, "exit");
+		await commitPreparedTransaction(root, transactionId);
+		await expect(readFile(join(root, "notes", "crash-a.txt"), "utf8")).resolves.toBe("new-a");
+		await expect(readFile(join(root, "notes", "crash-b.txt"), "utf8")).resolves.toBe("new-b");
+		expect(await validateProject(root)).toMatchObject({ valid: true, issues: [] });
+		expect(await listPendingProjectTransactions(root)).toEqual([]);
+	}, 30_000);
 });

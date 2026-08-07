@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { spawn } from "node:child_process";
-import { access, realpath } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
 import {
 	type AdapterProtocolBrokerRequest,
@@ -16,6 +15,7 @@ import { Compile } from "typebox/compile";
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import type { JsonValue, ResearchResult } from "../contracts/schemas.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
+import { createStrongProcessLaunch } from "../security/process-isolation.ts";
 
 const RequestValidator = Compile(AdapterProtocolRequestSchema);
 const BrokerRequestValidator = Compile(AdapterProtocolBrokerRequestSchema);
@@ -46,30 +46,6 @@ export interface RunAdapterProcessOptions {
 	signal?: AbortSignal;
 }
 
-function sandboxString(value: string): string {
-	return JSON.stringify(value);
-}
-
-async function strongLaunch(launch: AdapterProcessLaunch): Promise<{ executable: string; args: string[] }> {
-	if (process.platform !== "darwin") throw new Error("Strong Adapter isolation is unavailable on this platform");
-	await access("/usr/bin/sandbox-exec");
-	const cwd = await realpath(launch.cwd);
-	const executable = await realpath(launch.executable);
-	const readRoots = await Promise.all((launch.readRoots ?? []).map((path) => realpath(path)));
-	const profile = [
-		"(version 1)",
-		'(import "system.sb")',
-		"(deny default)",
-		`(allow process-exec (literal ${sandboxString(executable)}))`,
-		"(allow process-info*)",
-		"(allow file-read-metadata)",
-		`(allow file-read* (subpath ${sandboxString(cwd)}) (subpath "/System") (subpath "/usr/lib") (subpath "/Library") (subpath ${sandboxString(dirname(executable))}) ${readRoots.map((path) => `(subpath ${sandboxString(path)})`).join(" ")})`,
-		`(allow file-write* (subpath ${sandboxString(cwd)}))`,
-		"(deny network*)",
-	].join("\n");
-	return { executable: "/usr/bin/sandbox-exec", args: ["-p", profile, executable, ...launch.args] };
-}
-
 function protocolFailure(code: string, message: string, operationId: string, details: JsonValue = null) {
 	return failureResult<JsonValue>("PERMANENT_FAILURE", code, "runtime", message, operationId, details);
 }
@@ -91,7 +67,7 @@ export async function runAdapterProcess(options: RunAdapterProcessOptions): Prom
 	try {
 		command =
 			options.launch.isolation === "strong_isolation"
-				? await strongLaunch(options.launch)
+				? await createStrongProcessLaunch(options.launch)
 				: { executable: options.launch.executable, args: options.launch.args };
 	} catch (error) {
 		return failureResult(

@@ -10,6 +10,10 @@ interface PackResult {
 	files: Array<{ path: string; size: number }>;
 }
 
+interface PackageManifest {
+	exports: Record<string, string | { import: string; types: string }>;
+}
+
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const packed = spawnSync(npm, ["pack", "--dry-run", "--json"], {
@@ -22,16 +26,34 @@ if (packed.status !== 0) throw new Error(`npm pack failed with exit code ${packe
 const result = (JSON.parse(packed.stdout) as PackResult[])[0];
 if (result === undefined) throw new Error("npm pack returned no package result");
 const paths = new Set(result.files.map(({ path }) => path));
+const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as PackageManifest;
+for (const [subpath, target] of Object.entries(manifest.exports)) {
+	if (typeof target === "string") {
+		if (subpath !== "./package.json" || target !== "./package.json") {
+			throw new Error(`Unexpected string export: ${subpath}`);
+		}
+		continue;
+	}
+	if (!target.import.startsWith("./dist/") || !target.types.startsWith("./dist/")) {
+		throw new Error(`Contracts export is not compiled: ${subpath}`);
+	}
+}
 for (const path of [
 	"LICENSE",
 	"README.md",
 	"package.json",
-	"src/index.ts",
-	"src/adapter-protocol.ts",
-	"src/adapters.ts",
-	"src/sdk-rpc.ts",
-	"src/schemas.ts",
-	"src/validators.ts",
+	"dist/index.d.ts",
+	"dist/index.js",
+	"dist/adapter-protocol.d.ts",
+	"dist/adapter-protocol.js",
+	"dist/adapters.d.ts",
+	"dist/adapters.js",
+	"dist/sdk-rpc.d.ts",
+	"dist/sdk-rpc.js",
+	"dist/schemas.d.ts",
+	"dist/schemas.js",
+	"dist/validators.d.ts",
+	"dist/validators.js",
 	"schemas/v1.5/adapter-package.schema.json",
 	"schemas/v1.5/adapter-protocol.schema.json",
 	"schemas/v1.5/exchange-bundle.schema.json",
@@ -49,6 +71,9 @@ const sensitivePatterns: Array<[string, RegExp]> = [
 	["personal path", /\/(?:Users|Volumes)\/[^/\s"']+/u],
 	["secret", /\b(?:sk-|ghp_|github_pat_)[A-Za-z0-9_-]{20,}\b/u],
 ];
+if ([...paths].some((path) => path.startsWith("src/"))) {
+	throw new Error("TypeScript source entered contracts release");
+}
 let scannedBytes = 0;
 for (const file of result.files) {
 	for (const [label, pattern] of sensitivePatterns) {
@@ -58,7 +83,11 @@ for (const file of result.files) {
 	scannedBytes += bytes.byteLength;
 	if (bytes.includes(0)) continue;
 	const text = bytes.toString("utf8");
-	if (file.path.endsWith(".ts") && !text.startsWith("// SPDX-License-Identifier: Apache-2.0\n")) {
+	if (
+		file.path.endsWith(".ts") &&
+		!file.path.endsWith(".d.ts") &&
+		!text.startsWith("// SPDX-License-Identifier: Apache-2.0\n")
+	) {
 		throw new Error(`Source file is missing an Apache-2.0 SPDX header: ${file.path}`);
 	}
 	for (const [label, pattern] of sensitivePatterns.slice(2)) {

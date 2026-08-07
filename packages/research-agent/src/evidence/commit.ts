@@ -8,6 +8,7 @@ import type {
 	HashValue,
 	OperationRecord,
 	ResearchResult,
+	SemanticProvenance,
 	SourceRecord,
 } from "../contracts/schemas.ts";
 import { RESEARCH_SCHEMA_VERSION } from "../contracts/schemas.ts";
@@ -19,7 +20,10 @@ import { listProjectRecordIds, projectRecordRevision } from "../project/record-i
 import { readRecord, updateRecord } from "../project/records.ts";
 import { readParsedPdfDocument, resolveParsedPdfLocator } from "./query.ts";
 
-export type EvidenceCardDraft = Omit<EvidenceCard, "kind" | "schemaVersion" | "evidenceId" | "validity" | "audit">;
+export type EvidenceCardDraft = Omit<
+	EvidenceCard,
+	"kind" | "schemaVersion" | "evidenceId" | "extraction" | "sourceVerification" | "validity" | "audit"
+>;
 
 export interface ValidatedEvidenceCard {
 	card: EvidenceCard;
@@ -155,34 +159,65 @@ async function claimsForLinks(
 	return successResult(claims, operationId);
 }
 
-function extractionIssue(draft: EvidenceCardDraft, operation: OperationRecord): string | null {
-	const extraction = draft.extraction;
-	if (extraction.method === "model_suggested") {
-		return operation.operationKind !== "model" ||
-			operation.modelExecution === null ||
-			operation.modelExecution.provider !== extraction.modelProvider ||
-			operation.modelExecution.modelId !== extraction.modelId ||
-			operation.modelExecution.promptHash.value !== extraction.promptHash?.value
-			? "Model extraction provenance does not match its OperationRecord"
+function semanticProvenanceIssue(provenance: SemanticProvenance, operation: OperationRecord): string | null {
+	if (provenance.operationId !== operation.operationId) return "Semantic provenance operation does not match";
+	if (provenance.method === "model_suggested") {
+		return operation.operationKind !== "tool" ||
+			operation.session === null ||
+			provenance.modelProvider === null ||
+			provenance.modelId === null ||
+			provenance.promptHash === null ||
+			provenance.toolSchemaHash == null ||
+			provenance.turnId == null
+			? "Model semantic provenance is incomplete or not bound to a tool session"
 			: null;
 	}
-	if (extraction.modelProvider !== null || extraction.modelId !== null || extraction.promptHash !== null) {
-		return "Non-model evidence cannot declare model provenance";
-	}
-	if (extraction.method === "deterministic" && operation.operationKind !== "tool") {
-		return "Deterministic evidence requires a tool operation";
-	}
-	if (extraction.method === "human_entered" && operation.operationKind !== "human") {
-		return "Human-entered evidence requires a human operation";
-	}
 	if (
-		extraction.method === "imported" &&
-		operation.operationKind !== "adapter" &&
-		operation.operationKind !== "tool"
+		provenance.modelProvider !== null ||
+		provenance.modelId !== null ||
+		provenance.promptHash !== null ||
+		provenance.toolSchemaHash !== null ||
+		provenance.turnId !== null
 	) {
-		return "Imported evidence requires an adapter or tool operation";
+		return "Non-model semantic provenance cannot declare model fields";
 	}
-	return null;
+	if (provenance.method === "human_entered") {
+		return operation.operationKind === "human" ? null : "Human semantic provenance requires a human operation";
+	}
+	if (provenance.method === "imported") {
+		return operation.operationKind === "adapter"
+			? null
+			: "Imported semantic provenance requires an adapter operation";
+	}
+	return "Deterministic and unknown legacy sources cannot create semantic content";
+}
+
+export async function validateSemanticProvenance(
+	projectRoot: string,
+	provenance: SemanticProvenance,
+	requestOperationId: string,
+): Promise<ResearchResult<OperationRecord>> {
+	if (provenance.operationId === null) {
+		return failureResult(
+			"PERMANENT_FAILURE",
+			"SEMANTIC_PROVENANCE_INVALID",
+			"validation",
+			"New semantic content requires a provenance operation",
+			requestOperationId,
+		);
+	}
+	const operation = await operationRecord(projectRoot, provenance.operationId, requestOperationId);
+	if (!operation.ok) return operation;
+	const provenanceIssue = semanticProvenanceIssue(provenance, operation.value);
+	return provenanceIssue === null
+		? operation
+		: failureResult(
+				"PERMANENT_FAILURE",
+				"SEMANTIC_PROVENANCE_INVALID",
+				"validation",
+				provenanceIssue,
+				requestOperationId,
+			);
 }
 
 async function supersededEvidence(
@@ -210,23 +245,14 @@ export async function validateEvidenceCardDraft(
 	projectRoot: string,
 	draft: EvidenceCardDraft,
 	commitOperationId: string,
+	semanticProvenance: SemanticProvenance,
 ): Promise<ResearchResult<ValidatedEvidenceCard>> {
 	const source = await sourceRecord(projectRoot, draft.sourceId, commitOperationId);
 	if (!source.ok) return source;
 	const claims = await claimsForLinks(projectRoot, draft, commitOperationId);
 	if (!claims.ok) return claims;
-	const extraction = await operationRecord(projectRoot, draft.extraction.operationId, commitOperationId);
+	const extraction = await validateSemanticProvenance(projectRoot, semanticProvenance, commitOperationId);
 	if (!extraction.ok) return extraction;
-	const provenanceIssue = extractionIssue(draft, extraction.value);
-	if (provenanceIssue !== null) {
-		return failureResult(
-			"PERMANENT_FAILURE",
-			"EVIDENCE_EXTRACTION_PROVENANCE_INVALID",
-			"validation",
-			provenanceIssue,
-			commitOperationId,
-		);
-	}
 	if (!hasInput(extraction.value, "source", source.value.sourceId, projectRecordRevision(source.value))) {
 		return failureResult(
 			"DATA_CONFLICT",
@@ -436,6 +462,13 @@ export async function validateEvidenceCardDraft(
 		kind: "evidence",
 		schemaVersion: RESEARCH_SCHEMA_VERSION,
 		evidenceId: createOpaqueId("evidence"),
+		extraction: semanticProvenance,
+		sourceVerification: {
+			method: "deterministic",
+			operationId: commitOperationId,
+			locatorStatus: draft.locator === null ? "not_applicable" : "verified",
+			excerptStatus: draft.excerpt === null ? "not_applicable" : "verified",
+		},
 		confidence: {
 			...draft.confidence,
 			limitations: [...new Set([...draft.confidence.limitations, ...inheritedWarnings])],
@@ -502,10 +535,13 @@ async function invalidateStaleEvidenceForDocumentUnchecked(
 		) {
 			continue;
 		}
-		const extraction = await readRecord(projectRoot, "operation", result.value.extraction.operationId);
+		const verificationOperationId =
+			result.value.sourceVerification?.operationId ?? result.value.extraction.operationId;
+		const extraction =
+			verificationOperationId === null ? null : await readRecord(projectRoot, "operation", verificationOperationId);
 		const currentInput = currentEvidenceInput(document, result.value);
 		if (
-			extraction.ok &&
+			extraction?.ok === true &&
 			extraction.value.kind === "operation" &&
 			currentInput !== null &&
 			hasInputFile(extraction.value, currentInput)

@@ -515,6 +515,7 @@ function createHarness(hasUI = true) {
 		cwd: projectRoot,
 		hasUI,
 		mode: "tui",
+		model: { provider: "deepseek", id: "deepseek-v4-flash" },
 		signal: new AbortController().signal,
 		ui: { confirm, notify: vi.fn(), select: vi.fn(), setStatus: vi.fn() },
 		sessionManager: {

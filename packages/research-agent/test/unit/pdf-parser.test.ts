@@ -29,7 +29,7 @@ describe("PDF text parser", () => {
 				formatVersion: "0.1.0",
 				textLayer: "present",
 				pageCount: 2,
-				parser: { id: "pdfjs-dist", version: "5.7.284" },
+				parser: { id: "pdfjs-dist", version: "6.2.108" },
 				pages: [
 					{ pageNumber: 1, blocks: [{ blockId: "p1-b1", sectionPath: ["Introduction"] }] },
 					{ pageNumber: 2, blocks: [{ blockId: "p2-b1", sectionPath: ["Methods"] }] },

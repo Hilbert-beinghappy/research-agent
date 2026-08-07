@@ -3,7 +3,7 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "pi-research-agent-2.0.0",
-  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-2.0.0-a888f29996fed37dc1eed133d9b617fae500a4289c3cb8ccef5cc9f39fc2db5c",
+  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-2.0.0-4627f44159dcd842e07ecc36a719dc89047daa5377e6fe7f42ada78a88e47728",
   "creationInfo": {
     "created": "2026-08-06T00:00:00.000Z",
     "creators": [
@@ -102,10 +102,10 @@
       "packageComment": "npm integrity: sha512-y10o2CAElniVN613/9KYeLGHyWy0ZUlSYKcNruWP6BmQlDjRhR3n/xDbiiWJrAXosw9Z0yF1Xicw/aRzxS1Ywg=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
       "name": "@napi-rs/canvas",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas/-/canvas-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -114,16 +114,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-xglYA6q3XO5P3BNJYxVZ1IV7DLVjp1Py6nwag88YntrS+3vKHyYcMqXVS4ZztJmwz2uGvz1FWhI/4LgbR5uQDA=="
+      "packageComment": "npm integrity: sha512-OlI657a5XXvKGFX7kNeIzJ8rO7IXt87Mqu2H8rXE46viAuOfum/JA7ysX7+eBhxNKznT+RCZh418mndlcFX3+w=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-android-arm64-0.1.100-16d541e6f744",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-android-arm64-1.0.3-f05ad5f7ed16",
       "name": "@napi-rs/canvas-android-arm64",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-android-arm64/-/canvas-android-arm64-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-android-arm64/-/canvas-android-arm64-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -132,16 +132,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-android-arm64@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-android-arm64@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-hjhCKhntPv9+t4ckHymdx0phYNcVW+GKQR6Lzw2zE+pOVjOplSmtx9nNNknTjbEDLcuLZqA1y8ufKg1XfgftzQ=="
+      "packageComment": "npm integrity: sha512-7kSCdUhoXiO+AaIMXdBGdtp6EctZNkmF62Rea/BmVQlwKaM3bBhOzyGUzxyxz9dv5vdBfpyAaxhSRSJF4kqK4A=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-darwin-arm64-0.1.100-098bc8c2d705",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-darwin-arm64-1.0.3-b014deec371b",
       "name": "@napi-rs/canvas-darwin-arm64",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -150,16 +150,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-darwin-arm64@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-darwin-arm64@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-2PcswRaC7Ly645DGt88///zuFDhJxJYdKAs1uU3mfk1atYkXufgcgLfBpk6Tm12nCQBaNt1wpybuPZ4qOhTo8A=="
+      "packageComment": "npm integrity: sha512-ds14V1BPagLszQyaDTeggny5fNeTCqsUQ5QhFj9VDxSEfzrVxXtdbR0LoFyKa0Siaaw8KvqSk4t7k/WoZJwvbg=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-darwin-x64-0.1.100-c8a3263c5fb5",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-darwin-x64-1.0.3-ffe44d8b1792",
       "name": "@napi-rs/canvas-darwin-x64",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-darwin-x64/-/canvas-darwin-x64-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-darwin-x64/-/canvas-darwin-x64-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -168,16 +168,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-darwin-x64@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-darwin-x64@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-ePNZtj7pNIva/siZMg+HmbeozkIjqUIYdoymH8HaA3qK7LfzFN4WMBM8G6HQ9ZC+H3+Dnn5pqtiXpgLykaPOhw=="
+      "packageComment": "npm integrity: sha512-qof3LRAAycmkV2I1izZo9RoSHF8kCQr5O05sFwv0jK8rSdYV6KHVwimo6Qb7RxZj40WHKbLHm5JDaUF0o5XUAA=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm-gnueabihf-0.1.100-7de4c52f8148",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm-gnueabihf-1.0.3-aa6be2d3e717",
       "name": "@napi-rs/canvas-linux-arm-gnueabihf",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm-gnueabihf/-/canvas-linux-arm-gnueabihf-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm-gnueabihf/-/canvas-linux-arm-gnueabihf-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -186,16 +186,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm-gnueabihf@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm-gnueabihf@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-d5cDB48oWFGU8/XPhUOFAlySgb/VAu7D+s8fi55K1Pcfg8aPplHWqMgibhVLU8ky7Pyg/fuiVLz4Nf3JrSTuUA=="
+      "packageComment": "npm integrity: sha512-FU2kKZLmolHA9+KcUA+l1+xH3WTLUUTQDU/kLv9SEUr2TrRPu94aytOeizFJDHPs/QBcw4QL1mCQhetQXYBbag=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm64-gnu-0.1.100-9155cd3c63a5",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm64-gnu-1.0.3-76275b3f1a33",
       "name": "@napi-rs/canvas-linux-arm64-gnu",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-gnu/-/canvas-linux-arm64-gnu-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-gnu/-/canvas-linux-arm64-gnu-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -204,16 +204,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm64-gnu@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm64-gnu@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-rDxgxRu69RvDlX/bh9o22DxLsGr8EqsNgotL9+RwQE1S0b0cqeatqsw6aW45mukm0B42DIAaAacKaYQ8cqS1nw=="
+      "packageComment": "npm integrity: sha512-GVSjntxKeA+/y/ZKf1F+cmUw1WeIkE5aMRPqnZUlBTBvBcrvgWccJAWuYCKPX4QJQwZILIIwhgdAbl51yj6fpA=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm64-musl-0.1.100-6412d64a7287",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-arm64-musl-1.0.3-28b5153afa64",
       "name": "@napi-rs/canvas-linux-arm64-musl",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-musl/-/canvas-linux-arm64-musl-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-musl/-/canvas-linux-arm64-musl-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -222,16 +222,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm64-musl@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-arm64-musl@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-K3mDW66N+xT2/V439u1alFANiBUjdEx2gLiNYnCmUsva5jZMxWTjafBYwTzYK+EMFMHrUoabuU+T1BIP5CgbYQ=="
+      "packageComment": "npm integrity: sha512-J51oK/axyZ13kxycumSMfLiDZMdWdOVvqDFI28BpuViZHE3A0bQfr8B5vg8YnPEnqLD3BSn1hkdlh2buspEcNQ=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-riscv64-gnu-0.1.100-301992953849",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-riscv64-gnu-1.0.3-c1c7bdd8601d",
       "name": "@napi-rs/canvas-linux-riscv64-gnu",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-riscv64-gnu/-/canvas-linux-riscv64-gnu-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-riscv64-gnu/-/canvas-linux-riscv64-gnu-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -240,16 +240,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-riscv64-gnu@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-riscv64-gnu@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-mooqUBTIsccZpnoQC4NgrC1v6C1vof39etLNMnBwCY+p0gajWJvAHLGQ6g/gGyS5YrpDW+GefSN4+Cvcr08UWw=="
+      "packageComment": "npm integrity: sha512-CtQgQjoVTX67jS9XuCTtJ40Sl7wRLMguoFnnGnfDmCWf7kzKFZVwj5ynqUOIGKFMSB61ZCuQlwPvVNxYTTseaw=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-x64-gnu-0.1.100-1fa09121f21c",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-x64-gnu-1.0.3-f6facf63b7e6",
       "name": "@napi-rs/canvas-linux-x64-gnu",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-gnu/-/canvas-linux-x64-gnu-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-gnu/-/canvas-linux-x64-gnu-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -258,16 +258,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-x64-gnu@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-x64-gnu@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-1eCvkDCazm7FFhsT7DfGOdSaHgZVK3bt/dSBl5EWHOWmnz+I7j8tPseJqqD81NF+MH21jKUK4wQSDjN0mdhnTg=="
+      "packageComment": "npm integrity: sha512-jtfzAHFp+FRaR7zGT4jyCe6wUgAG/dVb5A4Apd8FY9jKarntDfUAlJXscugiH7ZF5kKnu7/lHFk9LaDPcrGEVQ=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-x64-musl-0.1.100-084f1a42100a",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-linux-x64-musl-1.0.3-427a097fe24b",
       "name": "@napi-rs/canvas-linux-x64-musl",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -276,16 +276,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-x64-musl@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-linux-x64-musl@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-20arT6lnI19S68qNlii73TSEDbECNgzMz2EpldC1V3mZFuRkeujXkcebRk0LRJe9SEUAooYiLokfMViY8IX7yA=="
+      "packageComment": "npm integrity: sha512-xTzaUCKUHTY4bCGadeeRZggbRVbGUT1petg7Z8r9AJR2+D9Bqu6nQAgqBGC6D47tA70LjaaaLTrJ7wNY1T74dg=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-win32-arm64-msvc-0.1.100-cb99054c22fb",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-win32-arm64-msvc-1.0.3-be749d3f42ea",
       "name": "@napi-rs/canvas-win32-arm64-msvc",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-win32-arm64-msvc/-/canvas-win32-arm64-msvc-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-win32-arm64-msvc/-/canvas-win32-arm64-msvc-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -294,16 +294,16 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-win32-arm64-msvc@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-win32-arm64-msvc@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-DZFFT1wIAg37LJw37yhMRFfjATd3vTQzjZ1Yki8u2vhO6Hi5VE6BVaGQ1aaDu7xb4iMErz+9EOwjpS7xcxFeBw=="
+      "packageComment": "npm integrity: sha512-ktVLuBkI6QVOm5BwO/WbdGwxgeetAMJa7TTmR8qBarXF0OU2NKjvjUtPJAl2y8t+zBRczJl/1VOl9gua6WcK2g=="
     },
     {
-      "SPDXID": "SPDXRef-Package--napi-rs-canvas-win32-x64-msvc-0.1.100-764c6ca90367",
+      "SPDXID": "SPDXRef-Package--napi-rs-canvas-win32-x64-msvc-1.0.3-2387be40015f",
       "name": "@napi-rs/canvas-win32-x64-msvc",
-      "versionInfo": "0.1.100",
-      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.100.tgz",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-1.0.3.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
@@ -312,10 +312,10 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-win32-x64-msvc@0.1.100"
+          "referenceLocator": "pkg:npm/%40napi-rs%2Fcanvas-win32-x64-msvc@1.0.3"
         }
       ],
-      "packageComment": "npm integrity: sha512-MyT1j3mHC2+Lu4pBi9mKyMJhtP6U7k7EldY7sj/uS5gJA65gTXt8MefJQXLJo5d/vZbuWmfxzkEUNc/urV3pHA=="
+      "packageComment": "npm integrity: sha512-SGhlQ8bDjL1Cz2KnsKMasr/5sTcwG/SZkB6WCJxLsmSm/3aS2C+3p39bA7iZ2/94+NkVDySZfbiGoaSZSFHYxA=="
     },
     {
       "SPDXID": "SPDXRef-Package--research-agent-contracts-2.0.0-979817e9e3f8",
@@ -389,24 +389,6 @@
       "packageComment": "npm integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g=="
     },
     {
-      "SPDXID": "SPDXRef-Package-jiti-2.7.0-3fa9a035264d",
-      "name": "jiti",
-      "versionInfo": "2.7.0",
-      "downloadLocation": "https://registry.npmjs.org/jiti/-/jiti-2.7.0.tgz",
-      "filesAnalyzed": false,
-      "licenseConcluded": "MIT",
-      "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
-      "externalRefs": [
-        {
-          "referenceCategory": "PACKAGE-MANAGER",
-          "referenceType": "purl",
-          "referenceLocator": "pkg:npm/jiti@2.7.0"
-        }
-      ],
-      "packageComment": "npm integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="
-    },
-    {
       "SPDXID": "SPDXRef-Package-moo-0.5.3-eaa236711f1e",
       "name": "moo",
       "versionInfo": "0.5.3",
@@ -461,10 +443,10 @@
       "packageComment": "npm integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="
     },
     {
-      "SPDXID": "SPDXRef-Package-pdfjs-dist-5.7.284-8d94bac999b2",
+      "SPDXID": "SPDXRef-Package-pdfjs-dist-6.2.108-6a602c539868",
       "name": "pdfjs-dist",
-      "versionInfo": "5.7.284",
-      "downloadLocation": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.7.284.tgz",
+      "versionInfo": "6.2.108",
+      "downloadLocation": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.2.108.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
       "licenseDeclared": "Apache-2.0",
@@ -473,10 +455,10 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/pdfjs-dist@5.7.284"
+          "referenceLocator": "pkg:npm/pdfjs-dist@6.2.108"
         }
       ],
-      "packageComment": "npm integrity: sha512-h4EdYQczmGhbOlqc3PPZwxevn7ApdWPbovAuWXOB/DjIyigSnwfy2oze7c6mRcSr9XgLp3eN3EeL4DyySTPMFw=="
+      "packageComment": "npm integrity: sha512-YxFb+SQcodN2rnX9Tn3dHYlqfb7NjlzzfONPpJd+AKoKtUjEdevTfbC07d5TcczzOK6261auRkP/M8OBHs9vFQ=="
     },
     {
       "SPDXID": "SPDXRef-Package-pi-research-agent-2.0.0-49958eeae670",
@@ -638,61 +620,6 @@
       "relatedSpdxElement": "SPDXRef-Package--citation-js-name-0.4.2-3342aaf58e62"
     },
     {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-android-arm64-0.1.100-16d541e6f744"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-darwin-arm64-0.1.100-098bc8c2d705"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-darwin-x64-0.1.100-c8a3263c5fb5"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm-gnueabihf-0.1.100-7de4c52f8148"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm64-gnu-0.1.100-9155cd3c63a5"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm64-musl-0.1.100-6412d64a7287"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-riscv64-gnu-0.1.100-301992953849"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-x64-gnu-0.1.100-1fa09121f21c"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-x64-musl-0.1.100-084f1a42100a"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-win32-arm64-msvc-0.1.100-cb99054c22fb"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-win32-x64-msvc-0.1.100-764c6ca90367"
-    },
-    {
       "spdxElementId": "SPDXRef-Package-fetch-blob-3.2.0-a340ba31b70f",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package-node-domexception-1.0.0-152b9eaf1d8e"
@@ -721,11 +648,6 @@
       "spdxElementId": "SPDXRef-Package-node-fetch-3.3.2-abf9db537691",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package-formdata-polyfill-4.0.10-9f5f58c811ab"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package-pdfjs-dist-5.7.284-8d94bac999b2",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-0.1.100-5b23341df6f6"
     },
     {
       "spdxElementId": "SPDXRef-Package-sync-fetch-0.6.0-ddbc283d177a",
@@ -760,22 +682,77 @@
     {
       "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.0-49958eeae670",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-jiti-2.7.0-3fa9a035264d"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.0-49958eeae670",
-      "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-pdfjs-dist-5.7.284-8d94bac999b2"
-    },
-    {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.0-49958eeae670",
-      "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package--research-agent-contracts-2.0.0-979817e9e3f8"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.0-49958eeae670",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pdfjs-dist-6.2.108-6a602c539868"
     },
     {
       "spdxElementId": "SPDXRef-Package--research-agent-contracts-2.0.0-979817e9e3f8",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package-typebox-1.3.7-a3a54bbe0924"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-android-arm64-1.0.3-f05ad5f7ed16"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-darwin-arm64-1.0.3-b014deec371b"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-darwin-x64-1.0.3-ffe44d8b1792"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm-gnueabihf-1.0.3-aa6be2d3e717"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm64-gnu-1.0.3-76275b3f1a33"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-arm64-musl-1.0.3-28b5153afa64"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-riscv64-gnu-1.0.3-c1c7bdd8601d"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-x64-gnu-1.0.3-f6facf63b7e6"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-linux-x64-musl-1.0.3-427a097fe24b"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-win32-arm64-msvc-1.0.3-be749d3f42ea"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-win32-x64-msvc-1.0.3-2387be40015f"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pdfjs-dist-6.2.108-6a602c539868",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package--napi-rs-canvas-1.0.3-3eb48339a7e9"
     }
   ]
 }

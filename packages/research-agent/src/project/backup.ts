@@ -12,7 +12,9 @@ import {
 import { createOpaqueId } from "../kernel/identity.ts";
 import { hashCanonicalJson, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath, validateProjectRelativePath } from "../kernel/paths.ts";
+import { PROJECT_LAYOUT_DIRECTORIES } from "./layout.ts";
 import { type OpenedProject, openProject } from "./open.ts";
+import { withProjectWriterLease } from "./writer-lock.ts";
 
 const BACKUP_ROOT = ".research/backups";
 const BACKUP_STAGING = `${BACKUP_ROOT}/staging`;
@@ -114,7 +116,7 @@ function manifestIdentity(opened: OpenedProject): { projectId: string; schemaVer
 	return { projectId: manifest.projectId, schemaVersion: manifest.schemaVersion, revision: manifest.revision };
 }
 
-export async function createProjectBackup(
+export async function createProjectBackupWithWriterLeaseHeld(
 	projectRoot: string,
 	label: string | null = null,
 ): Promise<ProjectBackupManifest> {
@@ -159,6 +161,13 @@ export async function createProjectBackup(
 	return backup;
 }
 
+export async function createProjectBackup(
+	projectRoot: string,
+	label: string | null = null,
+): Promise<ProjectBackupManifest> {
+	return withProjectWriterLease(projectRoot, () => createProjectBackupWithWriterLeaseHeld(projectRoot, label));
+}
+
 export async function listProjectBackups(projectRoot: string): Promise<string[]> {
 	return directoryEntries(await resolveProjectPath(projectRoot, BACKUP_COMMITTED));
 }
@@ -193,6 +202,9 @@ export async function restoreProjectBackup(
 		await mkdir(dirname(target), { recursive: true });
 		await copyFile(source, target);
 	});
+	for (const path of PROJECT_LAYOUT_DIRECTORIES) {
+		await mkdir(await resolveProjectPath(targetRoot, path), { recursive: true });
+	}
 	const restoredFiles = await snapshotFiles(targetRoot);
 	if (hashCanonicalJson(restoredFiles).value !== backup.rootHash.value) {
 		throw new Error("Restored project root hash does not match the backup");

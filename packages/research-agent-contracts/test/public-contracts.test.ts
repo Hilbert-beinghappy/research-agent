@@ -17,7 +17,7 @@ import {
 
 describe("public contracts", () => {
 	it("exports the frozen project and v2.0 SDK/RPC contract surface", () => {
-		expect(RESEARCH_SCHEMA_VERSION).toBe("1.5.0");
+		expect(RESEARCH_SCHEMA_VERSION).toBe("1.5.1");
 		expect(AdapterPackageManifestSchema).toBeDefined();
 		expect(CollaborationChangeSetSchema).toBeDefined();
 		expect(ExchangeBundleManifestSchema).toBeDefined();
@@ -54,12 +54,17 @@ describe("public contracts", () => {
 		expect(
 			capabilities.Check({
 				format: "pi-research-sdk-capabilities",
-				version: 1,
+				version: 2,
 				packageVersion: "2.0.0",
-				projectSchemaVersion: "1.5.0",
+				projectSchemaVersion: "1.5.1",
 				methods: ["projects.list"],
 				access: "configured-projects",
 				mutations: "pi-governed-surfaces-only",
+				hostPaths: "redacted",
+				evidenceSubmission: {
+					supportedLevels: ["metadata", "abstract", "fulltext_unlocated", "fulltext_located"],
+					unsupportedLevels: ["table_or_figure_located", "dataset_or_appendix_located"],
+				},
 				experimental: [],
 			}),
 		).toBe(true);

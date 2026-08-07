@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { access, chmod, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { basename, delimiter, dirname, isAbsolute, join } from "node:path";
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import type {
 	AnalysisRun,
@@ -20,10 +20,11 @@ import type {
 import { RESEARCH_SCHEMA_VERSION } from "../contracts/schemas.ts";
 import { createOpaqueId } from "../kernel/identity.ts";
 import { hashCanonicalJson, hashFile } from "../kernel/integrity.ts";
-import { resolveProjectPath } from "../kernel/paths.ts";
+import { resolveProjectPath, resolveProjectPathWithoutSymlinks } from "../kernel/paths.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
 import { openProject } from "../project/open.ts";
 import { createRecords } from "../project/records.ts";
+import { createStrongProcessLaunch } from "../security/process-isolation.ts";
 
 export interface RuntimeDetection {
 	kind: AnalysisRun["runtime"]["kind"];
@@ -64,23 +65,13 @@ export interface AnalysisExecutionOutcome {
 }
 
 export interface ExecuteAnalysisOptions {
+	allowHostExecution?: boolean;
 	executable?: string;
 	executor?: RuntimeExecutor;
 	signal?: AbortSignal;
 	analysisRunId?: string;
 	taskId?: string;
 }
-
-const EXPORTED_ENVIRONMENT = [
-	"PATH",
-	"LANG",
-	"LC_ALL",
-	"TMPDIR",
-	"R_LIBS",
-	"R_LIBS_USER",
-	"VIRTUAL_ENV",
-	"PYTHONPATH",
-] as const;
 
 function processError(
 	code: string,
@@ -167,7 +158,19 @@ async function executablePath(name: string): Promise<string | null> {
 			timeoutMs: 5_000,
 		});
 		const firstMatch = result.stdout.trim().split(/\r?\n/u)[0];
-		return result.exitCode === 0 && firstMatch ? firstMatch : null;
+		if (result.exitCode !== 0 || !firstMatch) return null;
+		if (process.platform === "darwin" && firstMatch === `/usr/bin/${name}`) {
+			const developerTool = await executeRuntimeProcess({
+				executable: "/usr/bin/xcrun",
+				args: ["--find", name],
+				cwd: process.cwd(),
+				env: { PATH: process.env.PATH },
+				timeoutMs: 5_000,
+			});
+			const resolved = developerTool.stdout.trim().split(/\r?\n/u)[0];
+			if (developerTool.exitCode === 0 && resolved) return resolved;
+		}
+		return firstMatch;
 	} catch {
 		return null;
 	}
@@ -189,7 +192,7 @@ export async function detectAnalysisRuntime(
 	for (const candidate of candidates) {
 		const path = await executablePath(candidate);
 		if (path === null) continue;
-		if (kind === "stata") {
+		if (kind === "stata" || executable !== undefined) {
 			return {
 				kind,
 				available: true,
@@ -203,7 +206,7 @@ export async function detectAnalysisRuntime(
 				executable: path,
 				args: ["--version"],
 				cwd: process.cwd(),
-				env: Object.fromEntries(EXPORTED_ENVIRONMENT.map((key) => [key, process.env[key]])),
+				env: { LANG: process.env.LANG ?? "C.UTF-8", PATH: dirname(path) },
 				timeoutMs: 5_000,
 			});
 			if (version.exitCode === 0) {
@@ -333,10 +336,14 @@ export async function executeAnalysis(
 	const taskId = options.taskId ?? createOpaqueId("task");
 	const runPath = `.research/runs/${runId}`;
 	const runDirectory = await resolveProjectPath(opened.root, runPath);
-	const inputDirectory = join(runDirectory, "inputs");
-	const outputDirectory = join(runDirectory, "outputs");
-	const backupDirectory = await mkdtemp(join(tmpdir(), `pi-research-${randomUUID()}-`));
+	const persistentInputDirectory = join(runDirectory, "inputs");
+	const persistentOutputDirectory = join(runDirectory, "outputs");
+	const executionDirectory = await mkdtemp(join(tmpdir(), `pi-research-${randomUUID()}-`));
+	const inputDirectory = join(executionDirectory, "inputs");
+	const outputDirectory = join(executionDirectory, "outputs");
+	const executionTempDirectory = join(executionDirectory, "tmp");
 	const inputIntegrity: AnalysisRun["inputIntegrity"] = [];
+	const outputs: FileRef[] = [];
 	let processResult: RuntimeProcessResult = {
 		exitCode: null,
 		stdout: "",
@@ -345,10 +352,16 @@ export async function executeAnalysis(
 		aborted: false,
 	};
 	let runtimeError: ResearchError | null = null;
+	let executionIsolation: "host_user" | "strong_isolation" | "test_executor" =
+		options.executor === undefined ? "strong_isolation" : "test_executor";
+	let status: AnalysisRun["status"] = "failed";
 	const startedAt = new Date().toISOString();
 	try {
-		await mkdir(inputDirectory, { recursive: true });
-		await mkdir(outputDirectory, { recursive: true });
+		await Promise.all([
+			mkdir(inputDirectory, { recursive: true }),
+			mkdir(outputDirectory, { recursive: true }),
+			mkdir(executionTempDirectory, { recursive: true }),
+		]);
 		const scriptAbsolute = await resolveProjectPath(opened.root, specification.script.path);
 		if (
 			specification.script.hash === null ||
@@ -356,7 +369,7 @@ export async function executeAnalysis(
 		) {
 			throw new TypeError("Analysis script no longer matches its specification");
 		}
-		const scriptCopy = join(runDirectory, basename(specification.script.path));
+		const scriptCopy = join(executionDirectory, basename(specification.script.path));
 		await copyFile(scriptAbsolute, scriptCopy);
 		await chmod(scriptCopy, 0o444);
 		const inputCopies: string[] = [];
@@ -369,31 +382,65 @@ export async function executeAnalysis(
 			const copy = join(inputDirectory, `${index}-${basename(input.path)}`);
 			await copyFile(source, copy);
 			await chmod(copy, 0o444);
-			await copyFile(source, join(backupDirectory, String(index)));
 			inputCopies.push(copy);
 		}
-		const environment = Object.fromEntries(EXPORTED_ENVIRONMENT.map((key) => [key, process.env[key]]));
+		const environment: NodeJS.ProcessEnv = {
+			ALL_PROXY: "http://127.0.0.1:9",
+			HOME: executionDirectory,
+			HTTP_PROXY: "http://127.0.0.1:9",
+			HTTPS_PROXY: "http://127.0.0.1:9",
+			LANG: process.env.LANG ?? "C.UTF-8",
+			LC_ALL: process.env.LC_ALL ?? process.env.LANG ?? "C.UTF-8",
+			NO_COLOR: "1",
+			NO_PROXY: "",
+			PATH: [dirname(detected.executable), "/usr/bin", "/bin"].join(delimiter),
+			PI_RESEARCH_ISOLATION: executionIsolation,
+			PI_RESEARCH_NETWORK: "disabled",
+			TMPDIR: executionTempDirectory,
+		};
 		for (const [index, input] of inputCopies.entries()) environment[`PI_RESEARCH_INPUT_${index}`] = input;
 		environment.PI_RESEARCH_INPUTS = JSON.stringify(inputCopies);
 		environment.PI_RESEARCH_OUTPUT_DIR = outputDirectory;
 		environment.PI_RESEARCH_PARAMETERS = canonicalStringify(specification.parameters);
 		environment.PI_RESEARCH_SEED = specification.randomSeed === null ? "" : String(specification.randomSeed);
-		environment.NO_COLOR = "1";
 		const args =
 			specification.runtime === "stata"
 				? ["-b", "do", scriptCopy, ...specification.commandArguments]
 				: [scriptCopy, ...specification.commandArguments];
-		try {
-			processResult = await executor({
-				executable: detected.executable,
-				args,
-				cwd: runDirectory,
-				env: environment,
-				timeoutMs: specification.timeoutSeconds * 1_000,
-				signal: options.signal,
-			});
-		} catch (error) {
-			processResult.stderr = error instanceof Error ? error.message : "Runtime process failed to start";
+		let launch = { executable: detected.executable, args };
+		if (options.executor === undefined) {
+			try {
+				launch = await createStrongProcessLaunch({
+					...launch,
+					cwd: executionDirectory,
+					readRoots: [dirname(dirname(detected.executable))],
+				});
+			} catch (error) {
+				if (options.allowHostExecution === true) {
+					executionIsolation = "host_user";
+					environment.PI_RESEARCH_ISOLATION = executionIsolation;
+				} else {
+					runtimeError = processError(
+						"ANALYSIS_ISOLATION_UNAVAILABLE",
+						"permission",
+						error instanceof Error ? error.message : "Strong process isolation is unavailable",
+						operationId,
+					);
+				}
+			}
+		}
+		if (runtimeError === null) {
+			try {
+				processResult = await executor({
+					...launch,
+					cwd: executionDirectory,
+					env: environment,
+					timeoutMs: specification.timeoutSeconds * 1_000,
+					signal: options.signal,
+				});
+			} catch (error) {
+				processResult.stderr = error instanceof Error ? error.message : "Runtime process failed to start";
+			}
 		}
 		for (const [index, input] of specification.inputFiles.entries()) {
 			if (input.hash === null) continue;
@@ -402,7 +449,7 @@ export async function executeAnalysis(
 			const mutationDetected = observed.value !== input.hash.value;
 			if (mutationDetected) {
 				await chmod(source, 0o644);
-				await copyFile(join(backupDirectory, String(index)), source);
+				await copyFile(inputCopies[index]!, source);
 				await chmod(source, 0o444);
 			}
 			const after = await hashFile(source);
@@ -422,15 +469,87 @@ export async function executeAnalysis(
 				operationId,
 			);
 		}
+		if (runtimeError === null) {
+			if (processResult.timedOut || processResult.aborted) {
+				status = "aborted";
+				runtimeError = processError(
+					processResult.timedOut ? "ANALYSIS_TIMEOUT" : "ANALYSIS_ABORTED",
+					processResult.timedOut ? "runtime" : "cancelled",
+					processResult.timedOut ? "Analysis exceeded its configured timeout" : "Analysis was cancelled",
+					operationId,
+				);
+			} else {
+				try {
+					const reportedStatus = await analysisStatus(outputDirectory);
+					if (processResult.exitCode === 75 || reportedStatus === "non_converged") {
+						status = "non_converged";
+						runtimeError = processError(
+							"ANALYSIS_NON_CONVERGED",
+							"runtime",
+							"Analysis explicitly reported non-convergence",
+							operationId,
+						);
+					} else if (processResult.exitCode !== 0) {
+						runtimeError = processError(
+							"ANALYSIS_PROCESS_FAILED",
+							"runtime",
+							`Analysis process exited with code ${processResult.exitCode ?? "unknown"}`,
+							operationId,
+						);
+					} else status = "succeeded";
+				} catch (error) {
+					runtimeError = processError(
+						"ANALYSIS_STATUS_INVALID",
+						"validation",
+						error instanceof Error ? error.message : "Analysis status is invalid",
+						operationId,
+					);
+				}
+			}
+		}
+		await Promise.all([
+			mkdir(runDirectory, { recursive: true }),
+			mkdir(persistentInputDirectory, { recursive: true }),
+			mkdir(persistentOutputDirectory, { recursive: true }),
+		]);
+		await copyFile(scriptCopy, join(runDirectory, basename(specification.script.path)));
+		for (const [index, inputCopy] of inputCopies.entries()) {
+			await copyFile(
+				inputCopy,
+				join(persistentInputDirectory, `${index}-${basename(specification.inputFiles[index]!.path)}`),
+			);
+		}
+		if (status === "succeeded") {
+			try {
+				for (const output of specification.expectedOutputs) {
+					const source = await resolveProjectPathWithoutSymlinks(outputDirectory, output);
+					const destination = await resolveProjectPath(opened.root, `${runPath}/outputs/${output}`);
+					await mkdir(dirname(destination), { recursive: true });
+					await copyFile(source, destination);
+					outputs.push(await fileRef(opened.root, `${runPath}/outputs/${output}`));
+				}
+			} catch (error) {
+				status = "failed";
+				runtimeError = processError(
+					"ANALYSIS_OUTPUT_MISSING",
+					"not_found",
+					error instanceof Error ? error.message : "Expected analysis output is missing",
+					operationId,
+				);
+			}
+		}
 	} catch (error) {
-		runtimeError = processError(
-			"ANALYSIS_EXECUTION_FAILED",
-			error instanceof TypeError ? "validation" : "runtime",
-			error instanceof Error ? error.message : "Analysis execution failed",
-			operationId,
-		);
+		status = "failed";
+		if (runtimeError === null) {
+			runtimeError = processError(
+				"ANALYSIS_EXECUTION_FAILED",
+				error instanceof TypeError ? "validation" : "runtime",
+				error instanceof Error ? error.message : "Analysis execution failed",
+				operationId,
+			);
+		}
 	} finally {
-		await rm(backupDirectory, { recursive: true, force: true });
+		await rm(executionDirectory, { recursive: true, force: true });
 	}
 	for (const input of specification.inputFiles) {
 		if (inputIntegrity.some(({ path }) => path === input.path) || input.hash === null) continue;
@@ -456,61 +575,6 @@ export async function executeAnalysis(
 	await mkdir(runDirectory, { recursive: true });
 	await writeFile(join(runDirectory, "stdout.log"), processResult.stdout);
 	await writeFile(join(runDirectory, "stderr.log"), processResult.stderr);
-	let status: AnalysisRun["status"] = "failed";
-	if (runtimeError === null) {
-		if (processResult.timedOut || processResult.aborted) {
-			status = "aborted";
-			runtimeError = processError(
-				processResult.timedOut ? "ANALYSIS_TIMEOUT" : "ANALYSIS_ABORTED",
-				processResult.timedOut ? "runtime" : "cancelled",
-				processResult.timedOut ? "Analysis exceeded its configured timeout" : "Analysis was cancelled",
-				operationId,
-			);
-		} else {
-			try {
-				const reportedStatus = await analysisStatus(outputDirectory);
-				if (processResult.exitCode === 75 || reportedStatus === "non_converged") {
-					status = "non_converged";
-					runtimeError = processError(
-						"ANALYSIS_NON_CONVERGED",
-						"runtime",
-						"Analysis explicitly reported non-convergence",
-						operationId,
-					);
-				} else if (processResult.exitCode !== 0) {
-					runtimeError = processError(
-						"ANALYSIS_PROCESS_FAILED",
-						"runtime",
-						`Analysis process exited with code ${processResult.exitCode ?? "unknown"}`,
-						operationId,
-					);
-				} else status = "succeeded";
-			} catch (error) {
-				runtimeError = processError(
-					"ANALYSIS_STATUS_INVALID",
-					"validation",
-					error instanceof Error ? error.message : "Analysis status is invalid",
-					operationId,
-				);
-			}
-		}
-	}
-	const outputs: FileRef[] = [];
-	if (status === "succeeded") {
-		try {
-			for (const output of specification.expectedOutputs) {
-				outputs.push(await fileRef(opened.root, `${runPath}/outputs/${output}`));
-			}
-		} catch (error) {
-			status = "failed";
-			runtimeError = processError(
-				"ANALYSIS_OUTPUT_MISSING",
-				"not_found",
-				error instanceof Error ? error.message : "Expected analysis output is missing",
-				operationId,
-			);
-		}
-	}
 	const logs = await Promise.all([
 		fileRef(opened.root, `${runPath}/stdout.log`),
 		fileRef(opened.root, `${runPath}/stderr.log`),
@@ -524,10 +588,15 @@ export async function executeAnalysis(
 		},
 		...specification.inputDatasetIds.map((id) => ({ kind: "dataset" as const, id, revision: null })),
 	];
-	const environmentValues = Object.fromEntries(EXPORTED_ENVIRONMENT.map((key) => [key, process.env[key] ?? null]));
 	const environmentHash: HashValue = hashCanonicalJson({
 		runtime: detected,
-		environment: environmentValues,
+		executionIsolation,
+		environmentPolicy: {
+			home: "isolated",
+			network: "disabled",
+			path: "runtime-and-system-only",
+			temporaryDirectory: "isolated",
+		},
 		lockFile: specification.environmentFile?.hash ?? null,
 	});
 	const run: AnalysisRun = {
@@ -538,7 +607,7 @@ export async function executeAnalysis(
 		taskId,
 		runtime: {
 			kind: specification.runtime,
-			adapterId: `local-${specification.runtime}`,
+			adapterId: `local-${specification.runtime}-${executionIsolation}`,
 			adapterVersion: RESEARCH_SCHEMA_VERSION,
 			executable: detected.executable,
 			runtimeVersion: detected.runtimeVersion,

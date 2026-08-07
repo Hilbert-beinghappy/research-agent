@@ -5,11 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+	type ClaimRecord,
+	type EvidenceCard,
 	RESEARCH_MIGRATABLE_SCHEMA_VERSIONS,
 	RESEARCH_SCHEMA_VERSION,
 	type RecordKind,
 } from "../../src/contracts/schemas.ts";
 import { BUILT_IN_DOMAIN_PACKAGE_VERSION } from "../../src/domain/packages.ts";
+import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { listProjectBackups, readProjectBackup } from "../../src/project/backup.ts";
 import { initializeProject } from "../../src/project/init.ts";
 import { INITIAL_RECORD_SETS, PROJECT_MANIFEST_PATH } from "../../src/project/layout.ts";
@@ -21,6 +24,7 @@ import {
 	rollbackProjectMigration,
 } from "../../src/project/migrate.ts";
 import { openProject } from "../../src/project/open.ts";
+import { createRecords, readRecord } from "../../src/project/records.ts";
 
 const introduced: Record<string, string> = {
 	research_question_version: "0.2.0",
@@ -221,5 +225,112 @@ describe("supported historical projects to v1.5 migration", () => {
 			compatibility: "migration_required",
 			schemaVersion: "0.5.0",
 		});
+	});
+
+	it("marks unverifiable legacy semantic provenance as unknown and restores it on rollback", async () => {
+		const opened = await openProject(projectRoot);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const operationId = createOpaqueId("operation");
+		const evidenceId = createOpaqueId("evidence");
+		const claimId = createOpaqueId("claim");
+		const now = new Date().toISOString();
+		const audit = {
+			createdAt: now,
+			updatedAt: now,
+			revision: 0,
+			createdByOperationId: operationId,
+			updatedByOperationId: operationId,
+		};
+		const evidence: EvidenceCard = {
+			kind: "evidence",
+			schemaVersion: "1.5.0",
+			evidenceId,
+			sourceId: createOpaqueId("source"),
+			documentId: null,
+			evidenceLevel: "metadata",
+			locator: null,
+			excerpt: null,
+			excerptExactMatch: null,
+			paraphrase: "Legacy semantic interpretation",
+			evidenceStatement: "Legacy evidence statement",
+			claimLinks: [{ claimId, relation: "supports", rationale: "Legacy rationale" }],
+			extraction: {
+				method: "deterministic",
+				operationId,
+				modelProvider: null,
+				modelId: null,
+				promptHash: null,
+			},
+			confidence: { level: "low", basis: "Legacy fixture", limitations: [] },
+			rights: { excerptAllowed: null, maxStoredWords: null, publicExportAllowed: null },
+			humanStatus: "not_reviewed",
+			validity: "active",
+			supersedesEvidenceId: null,
+			audit,
+		};
+		const claim: ClaimRecord = {
+			kind: "claim",
+			schemaVersion: "1.5.0",
+			claimId,
+			text: "Legacy claim",
+			claimType: "descriptive",
+			scope: "Migration fixture",
+			evidenceLinks: [{ evidenceId, relation: "supports", assessment: "Legacy assessment" }],
+			supportStatus: "supported",
+			conflictEvidenceIds: [],
+			humanConfirmation: { status: "not_reviewed", decidedAt: null, note: null },
+			publishability: "exploratory",
+			audit,
+		};
+		const seeded = await createRecords(projectRoot, [evidence, claim], {
+			expectedManifestRevision: opened.manifest.revision,
+			operationId,
+		});
+		if (!seeded.ok) throw new Error(seeded.errors[0].message);
+		await downgrade("1.5.0");
+
+		const migrated = await migrateProject(projectRoot);
+		const migratedEvidence = await readRecord(projectRoot, "evidence", evidenceId);
+		const migratedClaim = await readRecord(projectRoot, "claim", claimId);
+		expect(migratedEvidence).toMatchObject({
+			ok: true,
+			value: {
+				schemaVersion: RESEARCH_SCHEMA_VERSION,
+				extraction: { method: "unknown_legacy", operationId: null },
+				sourceVerification: {
+					method: "unknown_legacy",
+					operationId: null,
+					locatorStatus: "unknown_legacy",
+					excerptStatus: "unknown_legacy",
+				},
+			},
+		});
+		expect(migratedClaim).toMatchObject({
+			ok: true,
+			value: {
+				schemaVersion: RESEARCH_SCHEMA_VERSION,
+				semanticProvenance: {
+					claim: { method: "unknown_legacy", operationId: null },
+					evidenceLinks: [{ method: "unknown_legacy", operationId: null }],
+				},
+			},
+		});
+		if (migrated.migrationId === null) throw new Error("Expected migration ID");
+		await rollbackProjectMigration(projectRoot, migrated.migrationId);
+		const restoredEvidence = JSON.parse(
+			await readFile(join(projectRoot, ".research/records/evidence", `${evidenceId}.json`), "utf8"),
+		) as { schemaVersion: string; extraction: { method: string }; sourceVerification?: unknown };
+		const restoredClaim = JSON.parse(
+			await readFile(join(projectRoot, ".research/records/claims", `${claimId}.json`), "utf8"),
+		) as { schemaVersion: string; semanticProvenance?: unknown };
+		expect(restoredEvidence).toMatchObject({
+			schemaVersion: "1.5.0",
+			extraction: { method: "deterministic" },
+		});
+		expect(restoredClaim).toMatchObject({
+			schemaVersion: "1.5.0",
+		});
+		expect(restoredEvidence.sourceVerification).toBeUndefined();
+		expect(restoredClaim.semanticProvenance).toBeUndefined();
 	});
 });

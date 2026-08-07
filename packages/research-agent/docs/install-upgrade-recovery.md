@@ -18,13 +18,13 @@ v2.0 release qualification uses Pi npm packages 0.83.0 and 0.84.0. The authorita
 1. Stop project writes and run `/research-doctor` on the old installation.
 2. Create a user backup if desired; migration creates its own verified backup.
 3. Install the new package without changing the research project.
-4. Open the supported v0.1–v1.1 project. It remains read-only and reports `migration_required`. An existing schema 1.5 project opens directly; installing package v2.0 does not create a schema migration.
+4. Open the supported v0.1–v1.5.0 project. It remains read-only and reports `migration_required`. Schema 1.5.1 opens directly.
 5. Run `/research-migrate` in an interactive Pi terminal and approve the exact schema transition.
 6. Run `/research-doctor`, `/research-validate`, `/research-status full`, and `/research-resume`.
 
-Migration adds missing record-set declarations and directories, including v1.5 Adapter/exchange/collaboration/model-route sets, and a default built-in Domain Package reference when needed. It advances the manifest once and leaves every historical canonical record byte-for-byte unchanged. It is idempotent after success.
+Migration adds missing record-set declarations/directories and a default built-in Domain Package reference when needed. The 1.5.1 step also snapshots and rewrites legacy evidence/claim provenance, using `unknown_legacy` rather than guessing. It is idempotent after success.
 
-Package rollback from v2.0 to v1.5 removes the SDK/RPC facade but leaves schema 1.5 projects readable. Keep the package tarball, lockfile, and a verified project backup when an exact runtime rollback must be reproducible.
+Package rollback must use a package version that explicitly supports schema 1.5.1; an older 1.5.0-only runtime opens the newer schema read-only. Keep the package tarball, lockfile, and a verified project backup when an exact runtime rollback must be reproducible.
 
 ## Interrupted upgrade
 
@@ -44,4 +44,4 @@ npm run test:compat -w packages/research-agent
 
 The first lane uses the pinned Pi baseline; the second uses the latest tested stable Pi release. Both pack the package and load it in a clean temporary install. CI repeats supported behavior on Ubuntu, macOS, and Windows.
 
-Third-party Adapter registration is a separate platform gate. Ordinary JSONL conformance and SDK/RPC run cross-platform, but the shipped strong-isolation registration path is macOS-only in v2.0 and blocks elsewhere without downgrade.
+Third-party Adapter registration is a separate platform gate. Ordinary JSONL conformance and SDK/RPC run cross-platform. Strong registration uses macOS Seatbelt or Linux bubblewrap and blocks on Windows without downgrade.

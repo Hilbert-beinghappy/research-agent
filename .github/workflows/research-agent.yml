@@ -2,18 +2,11 @@ name: Research Agent
 
 on:
   push:
-    paths:
-      - ".github/workflows/research-agent.yml"
-      - "packages/research-agent/**"
-      - "packages/research-agent-contracts/**"
-      - "package-lock.json"
   pull_request:
-    paths:
-      - ".github/workflows/research-agent.yml"
-      - "packages/research-agent/**"
-      - "packages/research-agent-contracts/**"
-      - "package-lock.json"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: research-agent-${{ github.ref }}
@@ -42,6 +35,12 @@ jobs:
         uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
           r-version: release
+
+      - name: Install Linux process sandbox
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap
 
       - name: Install dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
@@ -94,7 +93,7 @@ jobs:
           npm run conform:adapter -w packages/research-agent -- examples/adapters/community-http-source
 
       - name: Qualify strong Adapter isolation
-        if: runner.os == 'macOS'
+        if: runner.os != 'Windows'
         run: node packages/research-agent/scripts/qualify-v1.5-isolation.ts --output research-agent-isolation-v1.5.json
 
       - name: Qualify Scenario E
@@ -132,3 +131,27 @@ jobs:
           npm run scan:release -w packages/research-agent
           npm run test:clean-install -w packages/research-agent
           npm run test:clean-install:latest -w packages/research-agent
+
+  public-corpus:
+    name: Licensed public-corpus workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+
+      - name: Install Linux process sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Run licensed public-corpus workflow
+        run: npm run test:public-corpus -w packages/research-agent

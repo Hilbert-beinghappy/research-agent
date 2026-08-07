@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { type Static, Type } from "typebox";
-import { JsonResearchResultSchema, RecordKindSchema } from "./schemas.ts";
+import { EvidenceLevelSchema, JsonResearchResultSchema, RecordKindSchema } from "./schemas.ts";
 
 const NonEmptyStringSchema = Type.String({ minLength: 1 });
 const ProjectParamsSchema = Type.Object({ projectId: NonEmptyStringSchema }, { additionalProperties: false });
@@ -80,17 +80,32 @@ export const ResearchRpcResponseSchema = Type.Object(
 );
 export type ResearchRpcResponse = Static<typeof ResearchRpcResponseSchema>;
 
-export const ResearchSdkCapabilitySchema = Type.Object(
-	{
-		format: Type.Literal("pi-research-sdk-capabilities"),
-		version: Type.Literal(1),
-		packageVersion: NonEmptyStringSchema,
-		projectSchemaVersion: NonEmptyStringSchema,
-		methods: Type.Array(ResearchRpcMethodSchema),
-		access: Type.Literal("configured-projects"),
-		mutations: Type.Literal("pi-governed-surfaces-only"),
-		experimental: Type.Array(NonEmptyStringSchema),
-	},
-	{ additionalProperties: false },
-);
+const SdkCapabilityBase = {
+	format: Type.Literal("pi-research-sdk-capabilities"),
+	packageVersion: NonEmptyStringSchema,
+	projectSchemaVersion: NonEmptyStringSchema,
+	methods: Type.Array(ResearchRpcMethodSchema),
+	access: Type.Literal("configured-projects"),
+	mutations: Type.Literal("pi-governed-surfaces-only"),
+	experimental: Type.Array(NonEmptyStringSchema),
+};
+
+export const ResearchSdkCapabilitySchema = Type.Union([
+	Type.Object({ ...SdkCapabilityBase, version: Type.Literal(1) }, { additionalProperties: false }),
+	Type.Object(
+		{
+			...SdkCapabilityBase,
+			version: Type.Literal(2),
+			hostPaths: Type.Union([Type.Literal("redacted"), Type.Literal("included")]),
+			evidenceSubmission: Type.Object(
+				{
+					supportedLevels: Type.Array(EvidenceLevelSchema),
+					unsupportedLevels: Type.Array(EvidenceLevelSchema),
+				},
+				{ additionalProperties: false },
+			),
+		},
+		{ additionalProperties: false },
+	),
+]);
 export type ResearchSdkCapability = Static<typeof ResearchSdkCapabilitySchema>;

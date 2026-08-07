@@ -1,84 +1,256 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Pi Research Agent SDK capabilities v1",
-  "type": "object",
-  "required": [
-    "format",
-    "version",
-    "packageVersion",
-    "projectSchemaVersion",
-    "methods",
-    "access",
-    "mutations",
-    "experimental"
-  ],
-  "properties": {
-    "format": {
-      "type": "string",
-      "const": "pi-research-sdk-capabilities"
-    },
-    "version": {
-      "type": "number",
-      "const": 1
-    },
-    "packageVersion": {
-      "type": "string",
-      "minLength": 1
-    },
-    "projectSchemaVersion": {
-      "type": "string",
-      "minLength": 1
-    },
-    "methods": {
-      "type": "array",
-      "items": {
-        "anyOf": [
-          {
-            "type": "string",
-            "const": "system.capabilities"
-          },
-          {
-            "type": "string",
-            "const": "projects.list"
-          },
-          {
-            "type": "string",
-            "const": "project.open"
-          },
-          {
-            "type": "string",
-            "const": "project.validate"
-          },
-          {
-            "type": "string",
-            "const": "project.doctor"
-          },
-          {
-            "type": "string",
-            "const": "records.list"
-          },
-          {
-            "type": "string",
-            "const": "records.read"
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "format",
+        "packageVersion",
+        "projectSchemaVersion",
+        "methods",
+        "access",
+        "mutations",
+        "experimental",
+        "version"
+      ],
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "pi-research-sdk-capabilities"
+        },
+        "packageVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projectSchemaVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "system.capabilities"
+              },
+              {
+                "type": "string",
+                "const": "projects.list"
+              },
+              {
+                "type": "string",
+                "const": "project.open"
+              },
+              {
+                "type": "string",
+                "const": "project.validate"
+              },
+              {
+                "type": "string",
+                "const": "project.doctor"
+              },
+              {
+                "type": "string",
+                "const": "records.list"
+              },
+              {
+                "type": "string",
+                "const": "records.read"
+              }
+            ]
           }
-        ]
-      }
+        },
+        "access": {
+          "type": "string",
+          "const": "configured-projects"
+        },
+        "mutations": {
+          "type": "string",
+          "const": "pi-governed-surfaces-only"
+        },
+        "experimental": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        }
+      },
+      "additionalProperties": false
     },
-    "access": {
-      "type": "string",
-      "const": "configured-projects"
-    },
-    "mutations": {
-      "type": "string",
-      "const": "pi-governed-surfaces-only"
-    },
-    "experimental": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
+    {
+      "type": "object",
+      "required": [
+        "format",
+        "packageVersion",
+        "projectSchemaVersion",
+        "methods",
+        "access",
+        "mutations",
+        "experimental",
+        "version",
+        "hostPaths",
+        "evidenceSubmission"
+      ],
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "pi-research-sdk-capabilities"
+        },
+        "packageVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projectSchemaVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "system.capabilities"
+              },
+              {
+                "type": "string",
+                "const": "projects.list"
+              },
+              {
+                "type": "string",
+                "const": "project.open"
+              },
+              {
+                "type": "string",
+                "const": "project.validate"
+              },
+              {
+                "type": "string",
+                "const": "project.doctor"
+              },
+              {
+                "type": "string",
+                "const": "records.list"
+              },
+              {
+                "type": "string",
+                "const": "records.read"
+              }
+            ]
+          }
+        },
+        "access": {
+          "type": "string",
+          "const": "configured-projects"
+        },
+        "mutations": {
+          "type": "string",
+          "const": "pi-governed-surfaces-only"
+        },
+        "experimental": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "version": {
+          "type": "number",
+          "const": 2
+        },
+        "hostPaths": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "redacted"
+            },
+            {
+              "type": "string",
+              "const": "included"
+            }
+          ]
+        },
+        "evidenceSubmission": {
+          "type": "object",
+          "required": [
+            "supportedLevels",
+            "unsupportedLevels"
+          ],
+          "properties": {
+            "supportedLevels": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "metadata"
+                  },
+                  {
+                    "type": "string",
+                    "const": "abstract"
+                  },
+                  {
+                    "type": "string",
+                    "const": "fulltext_unlocated"
+                  },
+                  {
+                    "type": "string",
+                    "const": "fulltext_located"
+                  },
+                  {
+                    "type": "string",
+                    "const": "table_or_figure_located"
+                  },
+                  {
+                    "type": "string",
+                    "const": "dataset_or_appendix_located"
+                  }
+                ]
+              }
+            },
+            "unsupportedLevels": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "metadata"
+                  },
+                  {
+                    "type": "string",
+                    "const": "abstract"
+                  },
+                  {
+                    "type": "string",
+                    "const": "fulltext_unlocated"
+                  },
+                  {
+                    "type": "string",
+                    "const": "fulltext_located"
+                  },
+                  {
+                    "type": "string",
+                    "const": "table_or_figure_located"
+                  },
+                  {
+                    "type": "string",
+                    "const": "dataset_or_appendix_located"
+                  }
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
-  },
-  "additionalProperties": false
+  ]
 }

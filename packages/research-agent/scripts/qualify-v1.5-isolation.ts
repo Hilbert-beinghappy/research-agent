@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { runAdapterProcess } from "../src/adapters/runner.ts";
 
-if (process.platform !== "darwin") throw new Error("v1.5 strong-isolation qualification requires macOS");
+if (process.platform !== "darwin" && process.platform !== "linux") {
+	throw new Error("Strong-isolation qualification requires macOS or Linux");
+}
 
 const root = await mkdtemp(join(tmpdir(), "pi-research-v1.5-isolation-"));
 const server = createServer();
@@ -32,8 +34,15 @@ process.stdin.once("data", async chunk => {
   try { readFileSync(process.argv[2]); externalRead = true; } catch {}
   try { writeFileSync(process.argv[3], "escaped"); projectWrite = true; } catch {}
   try { await fetch(process.argv[4], { signal: AbortSignal.timeout(500) }); directNetwork = true; } catch {}
-  const subprocess = spawnSync(process.execPath, ["-e", "process.exit(0)"]).status === 0;
-  console.log(JSON.stringify({ protocol: "pi-research-adapter-jsonl", version: 1, messageId: "result-1", type: "result", requestId: request.messageId, ok: true, value: { externalRead, projectWrite, directNetwork, credential: process.env.RESEARCH_PRIVATE_TOKEN === "visible", subprocess }, error: null }));
+  const child = spawnSync(process.execPath, ["-e", "const fs=require('node:fs');let externalRead=false,projectWrite=false;try{fs.readFileSync(process.argv[1]);externalRead=true}catch{}try{fs.writeFileSync(process.argv[2],'escaped');projectWrite=true}catch{}process.stdout.write(JSON.stringify({externalRead,projectWrite,credential:process.env.RESEARCH_PRIVATE_TOKEN==='visible'}))", process.argv[2], process.argv[3]], { encoding: "utf8" });
+  let subprocessEscaped = false;
+  if (child.status === 0) {
+    try {
+      const nested = JSON.parse(child.stdout);
+      subprocessEscaped = nested.externalRead === true || nested.projectWrite === true || nested.credential === true;
+    } catch { subprocessEscaped = true; }
+  }
+  console.log(JSON.stringify({ protocol: "pi-research-adapter-jsonl", version: 1, messageId: "result-1", type: "result", requestId: request.messageId, ok: true, value: { externalRead, projectWrite, directNetwork, credential: process.env.RESEARCH_PRIVATE_TOKEN === "visible", subprocessEscaped }, error: null }));
 });
 `,
 	);
@@ -72,7 +81,7 @@ process.stdin.once("data", async chunk => {
 		externalReadDenied: result.value.externalRead === false,
 		projectWriteDenied: result.value.projectWrite === false,
 		credentialDenied: result.value.credential === false,
-		subprocessDenied: result.value.subprocess === false,
+		subprocessContained: result.value.subprocessEscaped === false,
 	};
 	try {
 		await lstat(projectFile);

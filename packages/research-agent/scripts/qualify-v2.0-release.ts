@@ -20,6 +20,14 @@ const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const contractsRoot = join(repositoryRoot, "packages/research-agent-contracts");
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 
+const build = spawnSync(npm, ["run", "build"], {
+	cwd: packageRoot,
+	encoding: "utf8",
+	maxBuffer: 16 * 1_024 * 1_024,
+	shell: process.platform === "win32",
+});
+if (build.status !== 0) throw new Error(`package build failed with exit code ${build.status ?? "unknown"}`);
+
 function pack(root: string, destination: string): PackResult {
 	const result = spawnSync(npm, ["pack", "--json", "--pack-destination", destination], {
 		cwd: root,

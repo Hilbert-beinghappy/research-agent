@@ -10,7 +10,7 @@ import type {
 	ResearchProjectManifest,
 	SourceRecord,
 } from "../../src/contracts/schemas.ts";
-import type { ParsedPdfDocument } from "../../src/documents/pdf-parser.ts";
+import { type ParsedPdfDocument, parsePdfBytes } from "../../src/documents/pdf-parser.ts";
 import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { hashBytes, hashFile } from "../../src/kernel/integrity.ts";
 import { operationTransitionPatch } from "../../src/kernel/operations.ts";
@@ -237,6 +237,42 @@ async function parse(document: DocumentRecord, maxBytes = 1_000_000, maxPages = 
 	});
 }
 
+function pdfLiteral(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
+}
+
+function nestedScriptPdf(script: string): Uint8Array {
+	const content = "BT /F1 12 Tf 72 720 Td (Safe hostile PDF regression fixture with a usable text layer.) Tj ET";
+	const objects = [
+		"<< /Type /Catalog /Pages 2 0 R /OpenAction 6 0 R >>",
+		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+		`<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+	];
+	for (let index = 0; index < 64; index += 1) {
+		const nextObject = index === 63 ? "" : ` /Next ${index + 7} 0 R`;
+		objects.push(
+			`<< /Type /Action /S /JavaScript /JS (${pdfLiteral(index === 0 ? script : "void(0)")})${nextObject} >>`,
+		);
+	}
+	const encoder = new TextEncoder();
+	let body = "%PDF-1.7\n";
+	const offsets = [0];
+	for (const [index, object] of objects.entries()) {
+		offsets.push(encoder.encode(body).byteLength);
+		body += `${index + 1} 0 obj\n${object}\nendobj\n`;
+	}
+	const xrefOffset = encoder.encode(body).byteLength;
+	body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+	body += offsets
+		.slice(1)
+		.map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
+		.join("");
+	body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+	return encoder.encode(body);
+}
+
 describe("project PDF parsing", () => {
 	it("stores deterministic parsed text and records parser provenance", async () => {
 		const document = await createDocument("text-layer.pdf");
@@ -248,7 +284,7 @@ describe("project PDF parsing", () => {
 				fullTextStatus: "parsed",
 				textLayer: "present",
 				pageCount: 2,
-				parser: { id: "pdfjs-dist", version: "5.7.284" },
+				parser: { id: "pdfjs-dist", version: "6.2.108" },
 				parsedOutput: { mediaType: "application/json" },
 				failure: null,
 			},
@@ -315,5 +351,45 @@ describe("project PDF parsing", () => {
 			},
 			errors: [{ code: "PDF_ORIGINAL_INTEGRITY_FAILED" }],
 		});
+	});
+
+	it("disables scripting while parsing nested JavaScript actions without host side effects", async () => {
+		const fileSentinel = join(temporaryDirectory, "pdf-script-file");
+		const subprocessSentinel = join(temporaryDirectory, "pdf-script-process");
+		const subprocessCode = `require("node:fs").writeFileSync(${JSON.stringify(subprocessSentinel)}, "spawned")`;
+		const script = [
+			"globalThis.__doroPdfScriptExecuted = true",
+			'try { fetch("https://pdf-script.invalid/") } catch (error) {}',
+			`try { process.getBuiltinModule("node:fs").writeFileSync(${JSON.stringify(fileSentinel)}, "written") } catch (error) {}`,
+			`try { process.getBuiltinModule("node:child_process").execFileSync(process.execPath, ["-e", ${JSON.stringify(subprocessCode)}]) } catch (error) {}`,
+		].join(";");
+		const bytes = nestedScriptPdf(script);
+		let networkRequests = 0;
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (() => {
+			networkRequests += 1;
+			return Promise.reject(new Error("PDF script attempted network access"));
+		}) as typeof fetch;
+		try {
+			const result = await parsePdfBytes({
+				documentId: "document_hostile_pdf",
+				sourceContentHash: hashBytes(bytes),
+				bytes,
+				operationId: "operation_hostile_pdf",
+				options: { maxBytes: 1_000_000, maxPages: 10 },
+			});
+			expect(result).toMatchObject({
+				ok: false,
+				status: "PERMANENT_FAILURE",
+				errors: [{ code: "PDF_SCRIPTING_FORBIDDEN", category: "validation" }],
+			});
+		} finally {
+			globalThis.fetch = originalFetch;
+			Reflect.deleteProperty(globalThis, "__doroPdfScriptExecuted");
+		}
+		expect(networkRequests).toBe(0);
+		expect(Reflect.get(globalThis, "__doroPdfScriptExecuted")).toBeUndefined();
+		await expect(readFile(fileSentinel)).rejects.toMatchObject({ code: "ENOENT" });
+		await expect(readFile(subprocessSentinel)).rejects.toMatchObject({ code: "ENOENT" });
 	});
 });

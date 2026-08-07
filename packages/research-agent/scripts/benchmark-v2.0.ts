@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { PassThrough } from "node:stream";
 import type { ResearchRpcRequest, ResearchRpcResponse } from "@research-agent/contracts";
+import { RESEARCH_SCHEMA_VERSION } from "../src/contracts/schemas.ts";
 import { initializeProject } from "../src/project/init.ts";
 import { runResearchRpcServer } from "../src/rpc/server.ts";
 import { createResearchSdk } from "../src/sdk/index.ts";
@@ -82,7 +83,7 @@ try {
 	const report = {
 		benchmark: "pi-research-agent-v2.0",
 		generatedAt: new Date().toISOString(),
-		projectSchemaVersion: "1.5.0",
+		projectSchemaVersion: RESEARCH_SCHEMA_VERSION,
 		platform: `${process.platform}-${process.arch}`,
 		node: process.version,
 		fixture: { projects: projectCount, samples: sdkMeasurementsMs.length },

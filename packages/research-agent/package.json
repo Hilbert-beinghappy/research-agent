@@ -3,30 +3,31 @@
 	"version": "2.0.0",
 	"description": "Local-first, evidence-first research workflows for Pi",
 	"type": "module",
+	"main": "./dist/contracts/index.js",
+	"types": "./dist/contracts/index.d.ts",
 	"exports": {
-		".": "./src/contracts/index.ts",
-		"./access": "./src/access/policy.ts",
-		"./adapters/conformance": "./src/adapters/conformance.ts",
-		"./adapters/crossref": "./src/adapters/source/crossref.ts",
-		"./adapters/http": "./src/security/broker-http.ts",
-		"./adapters/openalex": "./src/adapters/source/openalex.ts",
-		"./adapters/registration": "./src/adapters/registration.ts",
-		"./adapters/runner": "./src/adapters/runner.ts",
-		"./adapters/source": "./src/adapters/source/contract.ts",
-		"./adapters/unpaywall": "./src/adapters/document/unpaywall.ts",
-		"./contracts": "./src/contracts/index.ts",
-		"./domains": "./src/domain/packages.ts",
-		"./exchange": "./src/exchange/index.ts",
-		"./routing/models": "./src/routing/models.ts",
+		".": {
+			"types": "./dist/contracts/index.d.ts",
+			"import": "./dist/contracts/index.js"
+		},
+		"./contracts": {
+			"types": "./dist/contracts/index.d.ts",
+			"import": "./dist/contracts/index.js"
+		},
+		"./adapter-protocol": {
+			"types": "./dist/contracts/adapter-protocol.d.ts",
+			"import": "./dist/contracts/adapter-protocol.js"
+		},
 		"./rpc": {
-			"types": "./src/rpc/index.ts",
-			"import": "./src/rpc/index.mjs"
+			"types": "./dist/rpc/index.d.ts",
+			"import": "./dist/rpc/index.js"
 		},
 		"./sdk": {
-			"types": "./src/sdk/index.ts",
-			"import": "./src/sdk/index.mjs"
+			"types": "./dist/sdk/index.d.ts",
+			"import": "./dist/sdk/index.js"
 		},
-		"./schemas/*": "./schemas/*"
+		"./schemas/*": "./schemas/*",
+		"./package.json": "./package.json"
 	},
 	"bin": {
 		"research-agent-rpc": "./bin/research-agent-rpc.mjs"
@@ -36,6 +37,7 @@
 		"bin",
 		"CONTRIBUTING.md",
 		"GOVERNANCE.md",
+		"dist",
 		"extensions",
 		"skills",
 		"prompts",
@@ -64,7 +66,9 @@
 		"benchmark:v1.1": "node scripts/benchmark-v1.1.ts",
 		"benchmark:v1.5": "node scripts/benchmark-v1.5.ts",
 		"benchmark:v2.0": "node scripts/benchmark-v2.0.ts",
-		"check": "biome check extensions src scripts test vitest.config.ts && tsgo --noEmit -p tsconfig.json",
+		"build": "npm run build --workspace @research-agent/contracts && tsgo -p tsconfig.build.json",
+		"check": "biome check extensions src scripts test vitest.config.ts tsconfig.build.json && tsgo --noEmit -p tsconfig.json",
+		"clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
 		"conform:adapter": "node scripts/conform-adapter.ts",
 		"generate:release-metadata": "node scripts/generate-release-metadata.ts",
 		"generate:schemas": "node scripts/generate-schemas.ts",
@@ -81,13 +85,16 @@
 		"qualify:scenario-e:v2.0": "node scripts/qualify-v2.0-scenario-e.ts",
 		"qualify:release:v2.0": "node scripts/qualify-v2.0-release.ts",
 		"qualify:runtimes:v0.3": "node scripts/qualify-v0.3-runtimes.ts",
+		"prepublishOnly": "npm run clean && npm run build",
 		"test:unit": "vitest run test/unit test/contracts",
 		"test:integration": "vitest run --dir test/integration",
 		"test:e2e": "vitest run --dir test/e2e",
+		"test:public-corpus": "RESEARCH_AGENT_PUBLIC_CORPUS=1 vitest run test/e2e/public-corpus-workflow.test.ts",
 		"test:compat": "vitest run --dir test/compat",
 		"test:clean-install": "node scripts/test-clean-install.ts",
 		"test:clean-install:latest": "node scripts/test-clean-install.ts --pi-version 0.84.0",
-		"scan:release": "node scripts/generate-release-metadata.ts --check && node scripts/scan-release.ts"
+		"scan:release": "npm run clean && npm run build && node scripts/generate-release-metadata.ts --check && node scripts/scan-release.ts",
+		"validate:security-waivers": "node scripts/validate-security-waivers.ts"
 	},
 	"pi": {
 		"extensions": [
@@ -133,7 +140,6 @@
 		"@citation-js/core": "0.8.2",
 		"@citation-js/plugin-bibtex": "0.8.2",
 		"@citation-js/plugin-ris": "0.8.2",
-		"jiti": "2.7.0",
-		"pdfjs-dist": "5.7.284"
+		"pdfjs-dist": "6.2.108"
 	}
 }

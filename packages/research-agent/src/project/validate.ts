@@ -248,7 +248,17 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 				case "evidence": {
 					requireRecord("source", record.sourceId, `${path}#sourceId`);
 					if (record.documentId !== null) requireRecord("document", record.documentId, `${path}#documentId`);
-					requireRecord("operation", record.extraction.operationId, `${path}#extraction.operationId`);
+					if (record.extraction.operationId !== null)
+						requireRecord("operation", record.extraction.operationId, `${path}#extraction.operationId`);
+					if (
+						record.sourceVerification?.operationId !== null &&
+						record.sourceVerification?.operationId !== undefined
+					)
+						requireRecord(
+							"operation",
+							record.sourceVerification.operationId,
+							`${path}#sourceVerification.operationId`,
+						);
 					for (const link of record.claimLinks) requireRecord("claim", link.claimId, `${path}#claimLinks`);
 					if (record.supersedesEvidenceId !== null) {
 						requireRecord("evidence", record.supersedesEvidenceId, `${path}#supersedesEvidenceId`);
@@ -274,33 +284,32 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 					const source = records.get("source")?.get(record.sourceId);
 					const document =
 						record.documentId === null ? undefined : records.get("document")?.get(record.documentId);
-					const extraction = records.get("operation")?.get(record.extraction.operationId);
+					const verificationOperationId = record.sourceVerification?.operationId ?? record.extraction.operationId;
+					const extraction =
+						verificationOperationId === null ? undefined : records.get("operation")?.get(verificationOperationId);
 					if (extraction?.kind === "operation") {
 						if (!operationHasRecord(extraction, "source", record.sourceId)) {
 							issues.push({
 								code: "MISSING_EVIDENCE_SOURCE_SNAPSHOT",
-								path: `${path}#extraction.operationId`,
-								message: "Extraction operation does not reference the evidence source",
+								path: `${path}#sourceVerification.operationId`,
+								message: "Source verification operation does not reference the evidence source",
 							});
 						}
 						if (record.documentId !== null && !operationHasRecord(extraction, "document", record.documentId)) {
 							issues.push({
 								code: "MISSING_EVIDENCE_DOCUMENT_SNAPSHOT",
-								path: `${path}#extraction.operationId`,
-								message: "Extraction operation does not reference the evidence document",
+								path: `${path}#sourceVerification.operationId`,
+								message: "Source verification operation does not reference the evidence document",
 							});
 						}
 						if (
 							record.extraction.method === "model_suggested" &&
-							(extraction.modelExecution === null ||
-								extraction.modelExecution.provider !== record.extraction.modelProvider ||
-								extraction.modelExecution.modelId !== record.extraction.modelId ||
-								extraction.modelExecution.promptHash.value !== record.extraction.promptHash?.value)
+							(extraction.operationKind !== "tool" || extraction.session === null)
 						) {
 							issues.push({
 								code: "INVALID_EVIDENCE_MODEL_PROVENANCE",
 								path: `${path}#extraction`,
-								message: "Evidence model provenance conflicts with its extraction operation",
+								message: "Evidence model provenance is not bound to a tool session operation",
 							});
 						}
 					}
@@ -321,8 +330,8 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 						) {
 							issues.push({
 								code: "STALE_EVIDENCE_DOCUMENT_SNAPSHOT",
-								path: `${path}#extraction.operationId`,
-								message: "Evidence extraction does not reference the current document snapshot",
+								path: `${path}#sourceVerification.operationId`,
+								message: "Evidence source verification does not reference the current document snapshot",
 							});
 						}
 						if (
@@ -332,7 +341,11 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 						) {
 							let parsed = parsedDocuments.get(document.documentId);
 							if (parsed === undefined) {
-								parsed = await readParsedPdfDocument(opened.root, document, record.extraction.operationId);
+								parsed = await readParsedPdfDocument(
+									opened.root,
+									document,
+									verificationOperationId ?? record.audit.createdByOperationId,
+								);
 								parsedDocuments.set(document.documentId, parsed);
 							}
 							if (!parsed.ok) {
@@ -345,7 +358,7 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 								const located = resolveParsedPdfLocator(
 									parsed.value,
 									record.locator,
-									record.extraction.operationId,
+									verificationOperationId ?? record.audit.createdByOperationId,
 								);
 								if (!located.ok) {
 									issues.push({
@@ -400,12 +413,28 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 					}
 					break;
 				}
-				case "claim":
+				case "claim": {
 					for (const link of record.evidenceLinks)
 						requireRecord("evidence", link.evidenceId, `${path}#evidenceLinks`);
 					for (const evidenceId of record.conflictEvidenceIds)
 						requireRecord("evidence", evidenceId, `${path}#conflictEvidenceIds`);
+					const claimProvenanceOperationId = record.semanticProvenance?.claim.operationId;
+					if (claimProvenanceOperationId !== null && claimProvenanceOperationId !== undefined)
+						requireRecord(
+							"operation",
+							claimProvenanceOperationId,
+							`${path}#semanticProvenance.claim.operationId`,
+						);
+					for (const [index, provenance] of (record.semanticProvenance?.evidenceLinks ?? []).entries()) {
+						if (provenance.operationId !== null)
+							requireRecord(
+								"operation",
+								provenance.operationId,
+								`${path}#semanticProvenance.evidenceLinks[${index}].operationId`,
+							);
+					}
 					break;
+				}
 				case "citation_verification":
 					requireRecord("source", record.sourceId, `${path}#sourceId`);
 					{

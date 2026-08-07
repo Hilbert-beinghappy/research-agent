@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 interface PackResult {
 	filename: string;
@@ -30,10 +30,11 @@ if (piVersionIndex >= 0 && (requestedPiVersion === null || !/^\d+\.\d+\.\d+$/u.t
 	throw new TypeError("--pi-version requires an exact semantic version");
 }
 
-function run(command: string, args: string[], cwd: string): string {
+function run(command: string, args: string[], cwd: string, input?: string): string {
 	const result = spawnSync(command, args, {
 		cwd,
 		encoding: "utf8",
+		input,
 		maxBuffer: 16 * 1_024 * 1_024,
 		shell: process.platform === "win32" && command.endsWith(".cmd"),
 	});
@@ -54,6 +55,7 @@ const peerPackages = ["packages/agent", "packages/ai", "packages/coding-agent"].
 
 const tempRoot = await mkdtemp(join(tmpdir(), "pi-research-agent-install-"));
 try {
+	run(npm, ["run", "build"], packageRoot);
 	const packDirectory = join(tempRoot, "pack");
 	const installDirectory = join(tempRoot, "install");
 	await mkdir(packDirectory);
@@ -87,6 +89,9 @@ try {
 		],
 		installDirectory,
 	);
+	const initializeUrl = pathToFileURL(
+		join(installDirectory, "node_modules/pi-research-agent/dist/project/init.js"),
+	).href;
 	const probe = run(
 		process.execPath,
 		[
@@ -98,6 +103,7 @@ try {
 				'import { join, resolve } from "node:path";',
 				'import { DefaultResourceLoader, SettingsManager } from "@earendil-works/pi-coding-agent";',
 				'import { createResearchSdk } from "pi-research-agent/sdk";',
+				`import { initializeProject } from ${JSON.stringify(initializeUrl)};`,
 				'const root = await mkdtemp(join(tmpdir(), "pi-research-agent-probe-"));',
 				"try {",
 				'  const cwd = join(root, "project"); const agentDir = join(root, "agent");',
@@ -109,10 +115,14 @@ try {
 				"  if (loaded.errors.length !== 0) throw new Error(JSON.stringify(loaded.errors));",
 				'  if (loaded.extensions.length !== 1) throw new Error("extension count mismatch");',
 				'  if (!loaded.extensions[0].commands.has("research-version")) throw new Error("version command missing");',
-				"  const sdk = await createResearchSdk([]);",
+				'  const projectRoot = join(root, "research-project");',
+				'  const initialized = await initializeProject(projectRoot, { title: "Clean install" });',
+				"  const sdk = await createResearchSdk([projectRoot]);",
 				'  const capabilities = await sdk.invoke({ protocol: "pi-research-rpc", version: 1, requestId: "clean-install", method: "system.capabilities", params: null });',
 				'  if (!capabilities.ok || capabilities.value.packageVersion !== "2.0.0") throw new Error("SDK capability probe failed");',
-				'  process.stdout.write(JSON.stringify({ extension: "loaded", commands: loaded.extensions[0].commands.size, sdk: "loaded" }));',
+				'  const opened = await sdk.invoke({ protocol: "pi-research-rpc", version: 1, requestId: "open", method: "project.open", params: { projectId: initialized.manifest.projectId } });',
+				'  if (!opened.ok || JSON.stringify(opened).includes(projectRoot)) throw new Error("SDK open probe failed or leaked host path");',
+				'  process.stdout.write(JSON.stringify({ extension: "loaded", commands: loaded.extensions[0].commands.size, project: "initialized-and-opened", sdk: "loaded" }));',
 				"} finally { await rm(root, { recursive: true, force: true }); }",
 			].join("\n"),
 		],
@@ -125,6 +135,42 @@ try {
 	);
 	const rpcVersion = run(rpcExecutable, ["--version"], installDirectory).trim();
 	if (rpcVersion !== "2.0.0") throw new Error("Installed RPC executable version mismatch");
+	const rpcResponse = JSON.parse(
+		run(
+			rpcExecutable,
+			[],
+			installDirectory,
+			`${JSON.stringify({ protocol: "pi-research-rpc", version: 1, requestId: "rpc-clean-install", method: "system.capabilities", params: null })}\n`,
+		).trim(),
+	) as { result?: { ok?: boolean; value?: { hostPaths?: string } } };
+	if (rpcResponse.result?.ok !== true || rpcResponse.result.value?.hostPaths !== "redacted") {
+		throw new Error("Installed RPC inspection probe failed");
+	}
+	run(
+		npm,
+		[
+			"uninstall",
+			"--ignore-scripts",
+			"--no-audit",
+			"--no-fund",
+			"--package-lock=false",
+			"pi-research-agent",
+			"@research-agent/contracts",
+		],
+		installDirectory,
+	);
+	for (const removedPath of [
+		join(installDirectory, "node_modules/pi-research-agent"),
+		join(installDirectory, "node_modules/@research-agent/contracts"),
+		rpcExecutable,
+	]) {
+		try {
+			readFileSync(removedPath);
+			throw new Error(`Clean uninstall left ${removedPath}`);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+		}
+	}
 	process.stdout.write(
 		`${JSON.stringify(
 			{
@@ -133,7 +179,12 @@ try {
 				node: process.version,
 				piVersion: requestedPiVersion ?? peerPackages[0]?.version,
 				typeboxVersion,
-				probe: { ...(JSON.parse(probe) as Record<string, unknown>), rpcVersion },
+				probe: {
+					...(JSON.parse(probe) as Record<string, unknown>),
+					rpc: "inspected",
+					rpcVersion,
+					uninstall: "verified",
+				},
 			},
 			null,
 			2,

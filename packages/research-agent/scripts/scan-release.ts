@@ -15,6 +15,10 @@ interface PackResult {
 	files: PackFile[];
 }
 
+interface PackageManifest {
+	exports: Record<string, string | { import: string; types: string }>;
+}
+
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const packed = spawnSync(npm, ["pack", "--dry-run", "--json"], {
@@ -234,14 +238,44 @@ const requiredPaths = [
 	"scripts/qualify-v2.0-scenario-e.ts",
 	"scripts/scan-release.ts",
 	"scripts/test-clean-install.ts",
-	"src/rpc/index.ts",
-	"src/rpc/index.mjs",
-	"src/rpc/server.ts",
-	"src/sdk/index.ts",
-	"src/sdk/index.mjs",
+	"dist/contracts/adapter-protocol.d.ts",
+	"dist/contracts/adapter-protocol.js",
+	"dist/contracts/index.d.ts",
+	"dist/contracts/index.js",
+	"dist/rpc/index.d.ts",
+	"dist/rpc/index.js",
+	"dist/rpc/server.js",
+	"dist/sdk/index.d.ts",
+	"dist/sdk/index.js",
+	"extensions/research.ts",
 	"test/fixtures/projects/scenario-a/topics.json",
 ];
 const paths = new Set(result.files.map(({ path }) => path));
+const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as PackageManifest;
+const stableExports = new Set([
+	".",
+	"./adapter-protocol",
+	"./contracts",
+	"./package.json",
+	"./rpc",
+	"./schemas/*",
+	"./sdk",
+]);
+for (const [subpath, target] of Object.entries(manifest.exports)) {
+	if (!stableExports.has(subpath)) throw new Error(`Unfrozen public export entered release: ${subpath}`);
+	if (typeof target === "string") {
+		if (!target.startsWith("./schemas/") && target !== "./package.json") {
+			throw new Error(`Public export is not compiled: ${subpath}`);
+		}
+		continue;
+	}
+	if (!target.import.startsWith("./dist/") || !target.types.startsWith("./dist/")) {
+		throw new Error(`Public export is not compiled: ${subpath}`);
+	}
+}
+if (stableExports.size !== Object.keys(manifest.exports).length) {
+	throw new Error("Stable public export is missing");
+}
 for (const path of requiredPaths) {
 	if (!paths.has(path)) throw new Error(`Release package is missing: ${path}`);
 }
@@ -252,7 +286,7 @@ const forbiddenPathPatterns = [
 	/(^|\/)deepseek\.json$/u,
 	/(^|\/)(?:task_plan|findings|progress)\.md$/u,
 	/(^|\/)test\/(?:unit|integration|e2e|compat|contracts)\//u,
-	/(^|\/)(?:node_modules|coverage|dist)\//u,
+	/(^|\/)(?:node_modules|coverage)\//u,
 ];
 const allowedSkillPrefixes = [
 	"skills/academic-review/",
@@ -289,7 +323,11 @@ for (const file of result.files) {
 	scannedBytes += bytes.byteLength;
 	if (bytes.includes(0)) continue;
 	const text = bytes.toString("utf8");
-	if (file.path.endsWith(".ts") && !text.startsWith("// SPDX-License-Identifier: Apache-2.0\n")) {
+	if (
+		file.path.endsWith(".ts") &&
+		!file.path.endsWith(".d.ts") &&
+		!text.startsWith("// SPDX-License-Identifier: Apache-2.0\n")
+	) {
 		throw new Error(`Source file is missing an Apache-2.0 SPDX header: ${file.path}`);
 	}
 	for (const [label, pattern] of sensitiveTextPatterns) {

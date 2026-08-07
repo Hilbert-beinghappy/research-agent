@@ -15,9 +15,9 @@
 | `@research-agent/contracts/sdk-rpc` | SDK/RPC v1 methods, request/response envelopes, and capability schema. |
 | `@research-agent/contracts/validators` | Runtime validation of persisted records and result envelopes. |
 
-`pi-research-agent` and `pi-research-agent/contracts` re-export the canonical project contracts for existing callers. New third-party Adapters should depend only on `@research-agent/contracts`.
+`pi-research-agent` and `pi-research-agent/contracts` re-export the compiled canonical project contracts for existing callers. New third-party Adapters should depend only on `@research-agent/contracts`. Neither package exports its internal `src` tree.
 
-Canonical project JSON Schemas remain under `schemas/v1.5`; SDK/RPC protocol schemas are published under `schemas/v2.0` in both packages. Package v2.0 introduces no project schema 2.0 migration. The TypeBox sources remain authoritative; generated files are checked into the release for non-TypeScript consumers.
+Canonical project JSON Schemas remain under `schemas/v1.5`; the current project schema is 1.5.1. SDK/RPC protocol schemas are published under `schemas/v2.0` in both packages. Package v2.0 introduces no project schema 2.0 migration. Compiled modules and generated schemas are shipped for consumers; TypeBox source remains the repository authority.
 
 ## Frozen Adapter contract v1
 
@@ -48,6 +48,8 @@ Project schema versions and package contract versions are related release facts,
 ## SDK/RPC contract v1
 
 The documented v2.0 SDK/RPC subset has seven inspection methods over project roots configured at process startup. Requests identify projects by canonical project ID and cannot supply a path. SDK and stdio RPC share one dispatcher and one `ResearchResult` envelope. Canonical writes, migrations, approvals, Adapter registration, exchange, collaboration merge, and submission remain on Pi-governed surfaces.
+
+Capability version 2 reports whether host paths are redacted and separates supported evidence submission (`metadata`, `abstract`, `fulltext_unlocated`, `fulltext_located`) from schema-reserved levels that the current Host rejects (`table_or_figure_located`, `dataset_or_appendix_located`).
 
 ## Compatibility process
 

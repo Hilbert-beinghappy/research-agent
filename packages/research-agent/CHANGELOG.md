@@ -2,9 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+
+- macOS Seatbelt and Linux bubblewrap strong process isolation for third-party Adapters and confirmed analysis scripts, with explicit host-user fallback approval only where requested.
+- Single-writer project lease, parent-directory durability, multi-process/SIGKILL regressions, hash-pinned NIST public-corpus qualification, security-waiver validation, upstream replay policy, and a fixed-SHA release checklist.
+
 ### Changed
 
 - Doro terminal sessions replace Pi's generic startup help with a single Research Agent version header.
+- Public package exports now load compiled `dist` modules and expose only contracts, Adapter protocol, SDK, RPC, schemas, and package metadata.
+- Canonical schema 1.5.1 records semantic provenance and source verification separately; SDK/RPC defaults to logical project locators and advertises supported evidence-submission levels.
+- The 14 model-visible tools keep their public names and schemas while source, knowledge, methods, and writing handlers now share one egress guard and operation wrapper.
+- Product language now describes Doro as a Pi profile, Zotero as an export/push adapter, Obsidian as a compatible Markdown export, and Stata as unqualified until a real licensed runner passes.
+
+### Fixed
+
+- Model-visible corpus and record payloads now fail closed under project/provider/data-class egress policy, and model-authored evidence can no longer claim deterministic or imported semantic provenance.
+- PDF.js is pinned to 6.2.108; scripted PDFs are rejected through the official JavaScript-action check and hostile fixtures verify no network, process, or file side effects.
+- Project backups serialize with canonical writers and restore the required empty directory layout before validation.
 
 ## [2.0.0] - 2026-08-07
 

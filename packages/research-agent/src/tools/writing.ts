@@ -14,6 +14,7 @@ import type {
 	ReviewFinding,
 	RevisionDecision,
 	SectionRecord,
+	SemanticProvenance,
 	SubmissionGateCheck,
 	SubmissionGateReport,
 } from "../contracts/schemas.ts";
@@ -640,6 +641,10 @@ async function validSubmissionApproval(
 		: null;
 }
 
+function hasKnownSemanticProvenance(provenance: SemanticProvenance | undefined): boolean {
+	return provenance !== undefined && provenance.method !== "deterministic" && provenance.method !== "unknown_legacy";
+}
+
 export async function evaluateSubmissionGate(
 	projectRoot: string,
 	manuscriptId: string,
@@ -677,6 +682,8 @@ export async function evaluateSubmissionGate(
 		let mappedCoreCount = 0;
 		let occurrenceIntegrity = true;
 		let declaredCitationIntegrity = true;
+		let semanticProvenanceIntegrity = true;
+		const semanticProvenanceRecords = new Map<string, ProjectRecord>();
 		const usedSourceIds = new Set<string>();
 		const causalClaims: ClaimRecord[] = [];
 		for (const occurrence of bundle.occurrences) {
@@ -685,6 +692,10 @@ export async function evaluateSubmissionGate(
 			if (section === undefined || claim.kind !== "claim") {
 				occurrenceIntegrity = false;
 				continue;
+			}
+			semanticProvenanceRecords.set(`${claim.kind}:${projectRecordId(claim)}`, claim);
+			if (!hasKnownSemanticProvenance(claim.semanticProvenance?.claim)) {
+				semanticProvenanceIntegrity = false;
 			}
 			if (
 				section.content.slice(occurrence.charStart, occurrence.charEnd) !== occurrence.text ||
@@ -704,6 +715,17 @@ export async function evaluateSubmissionGate(
 			const supportingEvidence = [];
 			for (const evidenceId of occurrence.evidenceIds) {
 				const evidence = await requiredRecord(projectRoot, "evidence", evidenceId);
+				if (evidence.kind === "evidence") {
+					semanticProvenanceRecords.set(`${evidence.kind}:${projectRecordId(evidence)}`, evidence);
+					const linkIndex = claim.evidenceLinks.findIndex((link) => link.evidenceId === evidenceId);
+					if (
+						!hasKnownSemanticProvenance(evidence.extraction) ||
+						linkIndex < 0 ||
+						!hasKnownSemanticProvenance(claim.semanticProvenance?.evidenceLinks[linkIndex])
+					) {
+						semanticProvenanceIntegrity = false;
+					}
+				}
 				if (
 					evidence.kind === "evidence" &&
 					claim.evidenceLinks.some(
@@ -727,6 +749,14 @@ export async function evaluateSubmissionGate(
 		}
 		const coreCoverage = coreCount === 0 ? 1 : mappedCoreCount / coreCount;
 		checks.push(
+			gateCheck(
+				"semantic_provenance",
+				semanticProvenanceIntegrity ? "passed" : "failed",
+				semanticProvenanceIntegrity
+					? "Every manuscript claim and evidence interpretation has an auditable semantic source"
+					: "One or more manuscript claims or evidence interpretations have missing or unknown semantic provenance",
+				[...semanticProvenanceRecords.values()],
+			),
 			gateCheck(
 				"claim_occurrence_integrity",
 				occurrenceIntegrity ? "passed" : "failed",

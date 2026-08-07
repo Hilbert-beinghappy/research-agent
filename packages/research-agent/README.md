@@ -1,6 +1,6 @@
 # Pi Research Agent
 
-Pi Research Agent is a local-first Pi package for evidence-based research. v2.0 connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, reproducible local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, Zotero reconciliation, and user-triggered literature monitoring. Replaceable Domain Packages cover management, public administration, sociology, and political science. Public Adapter contracts, deterministic model routing, portable exchange bundles, record-only collaboration, and a multi-project SDK/stdio RPC facade extend the project without changing Pi core. It uses no database or required separate UI.
+Pi Research Agent is a local-first Pi package for evidence-based research. The current source tree is an unpublished v2.0.1 hardening candidate; Doro is the branded Pi Package/Profile and does not provide a standalone `doro` CLI. The package connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, isolated local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, a Zotero export/push adapter, Obsidian-compatible Markdown export, and user-triggered literature monitoring. It extends Pi without replacing Pi Core, adding a database, or requiring a separate UI.
 
 The package is evidence-first: metadata, abstract text, acquired full text, located excerpts, and verified citations are distinct states. Missing full text, unresolved metadata, paywalls, retractions, and insufficient evidence remain explicit; they are never converted into success by model wording.
 
@@ -8,7 +8,7 @@ The package is evidence-first: metadata, abstract text, acquired full text, loca
 
 - Node.js 22.19.0 or newer.
 - A compatible Pi installation. v2.0 is qualified against the package baseline `0.83.0`, the latest tested stable package `0.84.0`, and the architecture baseline Pi commit `97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53`.
-- Review the package before loading it. The Pi Extension and built-in code run in the Pi host process. A third-party Adapter can run through the JSONL process boundary; governed registration requires the shipped macOS strong-isolation profile.
+- Review the package before loading it. The Pi Extension and built-in code run in the Pi host process. Third-party Adapters and analysis runtimes use macOS Seatbelt or Linux bubblewrap strong isolation when available; Windows blocks strong isolation. Explicitly approved host-user analysis fallback is not a sandbox.
 
 ## Run from a source checkout
 
@@ -34,7 +34,9 @@ Expected version notification:
 pi-research-agent v2.0.0
 ```
 
-The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes fourteen governed aggregate Tools; users do not edit canonical `.research/records` files directly. Sixteen administration commands cover project state, migration, domains, Adapter inspection/registration, deterministic model routing, and exchange.
+The source package continues to report 2.0.0 until an authorized release actually performs the version bump. Do not infer v2.0.1 publication from this working tree.
+
+The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes fourteen governed aggregate Tools; users do not edit canonical `.research/records` files directly. Seventeen administration commands cover project state, migration, domains, Adapter inspection/registration, deterministic model routing, and exchange.
 
 ## Optional provider configuration
 
@@ -78,6 +80,8 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [v1.1 release evidence and limitations](docs/release-v1.1.md)
 - [v1.5 release evidence and limitations](docs/release-v1.5.md)
 - [v2.0 release evidence and limitations](docs/release-v2.0.md)
+- [v2.0.1 release-candidate boundary](docs/release-v2.0.1-rc.md)
+- [Release-candidate checklist](docs/release-checklist.md)
 - [Literature monitoring and scheduling](docs/monitoring.md)
 - [Manuscript review rubrics](docs/review-rubrics.md)
 - [Submission gate](docs/submission-gate.md)
@@ -87,7 +91,9 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 
 ## Public contracts
 
-`@research-agent/contracts` publishes the data-only contract surface through eight explicit entry points. It covers persisted records, results, Source/Analysis Runtime/Artifact Adapter v1, Adapter and RPC JSONL protocols, SDK capabilities, exchange bundles, collaboration change sets, model-route decisions, canonical JSON, hashing, and validation. Canonical project schemas remain under `schemas/v1.5`; SDK/RPC protocol schemas are under `schemas/v2.0`. Immutable v0.1–v1.1 schemas remain committed and migrate without rewriting canonical records.
+`@research-agent/contracts` publishes compiled data-only modules through its root plus adapter-protocol, adapters, canonical-json, integrity, schemas, sdk-rpc, validators, and package metadata entry points. `pi-research-agent` deliberately exposes only its compiled contract facade, adapter protocol, SDK, RPC, generated schemas, and package metadata. Provider implementations, project mutation, routing, exchange, Domain Package loading, registration, and other Host internals are not public subpath exports.
+
+Canonical project schemas remain under `schemas/v1.5`; the current schema is 1.5.1 and SDK/RPC protocol schemas remain under `schemas/v2.0`. Migration to 1.5.1 records semantic provenance explicitly and uses `unknown_legacy` rather than guessing an uncertain historical source.
 
 ```sh
 npm run generate:schemas -w packages/research-agent-contracts
@@ -96,7 +102,7 @@ npm run generate:schemas -w packages/research-agent
 npm run test:unit -w packages/research-agent -- contracts
 ```
 
-The deterministic model router is exported from `pi-research-agent/routing/models`; exchange and collaboration helpers are exported from `pi-research-agent/exchange`. `pi-research-agent/sdk` and `pi-research-agent/rpc` expose the documented inspection-only facade. Package conformance, registration, and process-runner entry points are public Host integration surfaces. Domain manifest loading/resolution is exported from `pi-research-agent/domains`; authorization evaluation is exported from `pi-research-agent/access`. Zotero, monitor, migration, backup, and canonical mutation implementations remain governed built-in paths rather than third-party contracts.
+Third-party Adapters depend on `@research-agent/contracts`, not Research Agent internals. `pi-research-agent/sdk` and `pi-research-agent/rpc` expose the documented inspection-only facade. Zotero, monitoring, migration, backup, project mutation, model routing, exchange, Domain Package resolution, conformance, registration, and process execution remain governed built-in paths.
 
 ## Release checks
 
@@ -108,6 +114,7 @@ npm run check -w packages/research-agent
 npm run test:unit -w packages/research-agent
 npm run test:integration -w packages/research-agent
 npm run test:e2e -w packages/research-agent
+npm run test:public-corpus -w packages/research-agent
 npm run eval -w packages/research-agent -- v0.1
 npm run benchmark:v0.1 -w packages/research-agent
 npm run eval:v0.2 -w packages/research-agent -- v0.2
@@ -134,6 +141,7 @@ npm run scan:release -w packages/research-agent
 npm run test:clean-install -w packages/research-agent
 npm run test:clean-install:latest -w packages/research-agent
 npm run test:compat -w packages/research-agent
+npm run validate:security-waivers -w packages/research-agent
 ```
 
 All deterministic tests use synthetic or recorded fixtures and require no provider credentials. Real model evaluation is an explicitly authorized release-candidate activity, not part of default CI.

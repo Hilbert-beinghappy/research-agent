@@ -57,6 +57,7 @@ import {
 import { createActionRequest } from "../security/policy.ts";
 import { isDesignRecord } from "../tools/design.ts";
 import { finishOperation, startOperation } from "../tools/operations.ts";
+import { modelUsesLocalEndpoint } from "./tool-operations.ts";
 import {
 	approveAction,
 	executeMonitorCommand,
@@ -489,10 +490,8 @@ export function registerResearchCommands(
 	let governanceBlocked = false;
 	const domainPackageOverrides = new Map<string, DomainPackageManifest>();
 
-	const restrictTools = (policy: ResearchPolicyConfig): void => {
-		pi.setActiveTools(
-			pi.getActiveTools().filter((name) => policy.modelEgressAllowed && GOVERNED_TOOL_NAMES.has(name)),
-		);
+	const restrictTools = (): void => {
+		pi.setActiveTools(pi.getActiveTools().filter((name) => GOVERNED_TOOL_NAMES.has(name)));
 	};
 
 	const bindProject = async (
@@ -509,7 +508,7 @@ export function registerResearchCommands(
 		activeProjectRoot = opened.root;
 		activePolicy = opened.manifest.policy;
 		governanceBlocked = false;
-		restrictTools(opened.manifest.policy);
+		restrictTools();
 		ctx.ui.setStatus(
 			"research-agent",
 			`${opened.manifest.title} · ${opened.manifest.currentStage} · r${opened.manifest.revision}`,
@@ -853,7 +852,7 @@ export function registerResearchCommands(
 			}
 			const confirmed = await ctx.ui.confirm(
 				"Migrate research project",
-				`Migrate schema ${opened.schemaVersion} to ${RESEARCH_SCHEMA_VERSION}? Existing records are not rewritten.`,
+				`Migrate schema ${opened.schemaVersion} to ${RESEARCH_SCHEMA_VERSION}? Evidence and claim records with unprovable semantic provenance are rewritten as unknown_legacy; verified snapshots support rollback.`,
 			);
 			if (!confirmed) {
 				return failureResult(
@@ -1502,10 +1501,11 @@ export function registerResearchCommands(
 		};
 	});
 
-	pi.on("tool_call", (event) => {
+	pi.on("tool_call", (event, ctx) => {
 		if (
 			(!governanceBlocked && activeProjectRoot === null) ||
-			(activePolicy?.modelEgressAllowed === true && GOVERNED_TOOL_NAMES.has(event.toolName))
+			((activePolicy?.modelEgressAllowed === true || modelUsesLocalEndpoint(ctx.model)) &&
+				GOVERNED_TOOL_NAMES.has(event.toolName))
 		)
 			return;
 		const message =

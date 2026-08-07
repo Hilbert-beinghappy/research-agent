@@ -1,6 +1,6 @@
 # Pi Research Agent
 
-Pi Research Agent（v2.0.0）是基于 [Pi Agent Harness](https://github.com/earendil-works/pi) 的本地优先、证据优先科研工作流。项目优先服务管理学与公共管理研究，同时提供社会学、政治学等可替换 Domain Package。
+Pi Research Agent 是基于 [Pi Agent Harness](https://github.com/earendil-works/pi) 的本地优先、证据优先科研工作流。当前源码是未发布的 v2.0.1 安全加固候选；Doro 是该 Pi Package/Profile 的品牌，不提供独立 `doro` CLI。项目优先服务管理学与公共管理研究，同时提供社会学、政治学等可替换 Domain Package。
 
 仓库保留 Pi 底层单仓库代码，科研能力集中在独立 Package 中。使用者从 Pi 对话终端进入科研工作流；开发者也可以通过只读 SDK 和 stdio RPC 检查多个研究项目。
 
@@ -16,6 +16,8 @@ Pi Research Agent（v2.0.0）是基于 [Pi Agent Harness](https://github.com/ear
 | [SDK 与 stdio RPC](packages/research-agent/docs/sdk-rpc.md) | v2.0 多项目只读接口 |
 | [v2.0 全流程示例](packages/research-agent/examples/full-workflow-v2.0/README.md) | 从终端到 SDK/RPC 的公开验收场景 |
 | [v2.0 发布证据](packages/research-agent/docs/release-v2.0.md) | 能力、测试、性能和已知限制 |
+| [v2.0.1 候选边界](packages/research-agent/docs/release-v2.0.1-rc.md) | 当前加固范围、版本关系和外部资格缺口 |
+| [发布清单](packages/research-agent/docs/release-checklist.md) | 固定 SHA 的安全、三平台、安装和上游重放门 |
 
 ## 架构边界
 
@@ -35,7 +37,7 @@ Pi Research Agent（v2.0.0）是基于 [Pi Agent Harness](https://github.com/ear
 | v0.2 | 研究问题、概念与理论、假设或命题、检索协议、研究设计与预分析计划 |
 | v0.3 | Python/R、可选 Stata、数据字典、定量分析、定性编码与案例比较 |
 | v0.4 | 论断—证据映射、论文大纲与分段写作、完整性检查、同行评审和修订闭环 |
-| v0.5 | Zotero、Obsidian、DOCX、PDF、XLSX、PPTX、研究记忆与持续文献监测 |
+| v0.5 | Zotero export/push adapter、Obsidian-compatible Markdown export、DOCX、PDF、XLSX、PPTX、研究记忆与持续文献监测 |
 | v1.0 | Pi 终端全流程、格式迁移、恢复、权限、成本和回归评测 |
 | v1.1 | 管理学、公共管理等 Domain Package 与合规数据源扩展 |
 | v1.5 | 公共 Adapter 契约、macOS 强隔离注册、可移植交换包与文件式协作 |
@@ -94,12 +96,12 @@ cd ../my-research-project
 - 研究项目事实保存在版本化 Markdown、JSON、RIS/BibTeX 和规范化项目记录中。
 - 元数据、摘要、已获取全文、带页码或章节定位的证据、已核验引用是不同状态。
 - 找不到全文、付费墙、元数据冲突、撤稿、引用未核实和证据不足不会被模型措辞改写成成功。
-- Crossref、OpenAlex、Unpaywall、本地 PDF/RIS/BibTeX/CSL-JSON 和 Zotero 通过受控接口接入。
-- Python 与 R 是主要可复现分析运行时；Stata 只检测并调用用户自有安装，不绑定或分发商业软件。
+- Crossref、OpenAlex、Unpaywall、本地 PDF/RIS/BibTeX/CSL-JSON 和 Zotero export/push adapter 通过受控接口接入。
+- Python 与 R 默认在 macOS Seatbelt 或 Linux bubblewrap 强隔离中执行；平台无强隔离时失败关闭，只有用户明确批准 host-user fallback 才按本机账户权限运行。Stata 只检测用户自有安装，尚未获得真实 licensed-runner 资格。
 - 低风险本地读取、检索、分析和项目内新增产出按项目策略执行。
 - 付费调用、敏感数据外传、外部写入、覆盖和删除必须经过明确确认。
 
-成果可以生成 Markdown、JSON、RIS/BibTeX、Obsidian、DOCX、PDF、XLSX 和 PPTX；Adapter 失败不会改变规范化项目事实。
+成果可以生成 Markdown、JSON、RIS/BibTeX、Obsidian-compatible Markdown、DOCX、PDF、XLSX 和 PPTX；Adapter 失败不会改变规范化项目事实。
 
 ## 开发与验证
 
@@ -111,6 +113,7 @@ npm run check -w packages/research-agent
 npm run test:unit -w packages/research-agent
 npm run test:integration -w packages/research-agent
 npm run test:e2e -w packages/research-agent
+npm run test:public-corpus -w packages/research-agent
 
 npm run eval:v2.0 -w packages/research-agent -- v2.0
 npm run qualify:release:v2.0 -w packages/research-agent
@@ -121,6 +124,7 @@ npm run qualify:release:v2.0 -w packages/research-agent
 ## Pi 上游关系与许可证
 
 - 本仓库基于 Pi Agent Harness 进行二次开发，并保留上游底层代码及其归属。
+- 上游 commit、tree、Doro patch queue、冲突和回滚规则见 [UPSTREAM.md](UPSTREAM.md)。
 - Pi 基线代码遵循根目录 [MIT License](LICENSE)。
 - [Pi Research Agent](packages/research-agent/LICENSE) 与 [公共契约包](packages/research-agent-contracts/LICENSE) 遵循 Apache-2.0。
 - 科研 Package 同时保留 NOTICE、第三方声明和 SBOM；许可证覆盖代码，不替代学术数据源、用户内容和授权数据库各自的使用条件。

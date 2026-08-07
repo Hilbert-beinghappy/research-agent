@@ -35,12 +35,14 @@ import {
 	type ProtocolRecord,
 	type QualitativeMaterial,
 	type QualitativeSegment,
+	RESEARCH_SCHEMA_VERSION,
 	type ResearchProjectManifest,
 	type ResearchQuestionVersion,
 	type ResearchTask,
 	type ReviewFinding,
 	type RevisionDecision,
 	type SectionRecord,
+	type SemanticProvenance,
 	type SourceRecord,
 	type SubmissionGateReport,
 	type ThemeSynthesis,
@@ -66,6 +68,63 @@ function issue(path: string, code: string, message: string): ContractIssue {
 
 function completeFile(file: FileRef | null): boolean {
 	return file !== null && file.hash !== null && file.mediaType !== null && file.bytes !== null;
+}
+
+function semanticProvenanceIssues(provenance: SemanticProvenance, path: string): ContractIssue[] {
+	const issues: ContractIssue[] = [];
+	if (provenance.method === "deterministic") {
+		issues.push(
+			issue(path, "semantic_provenance.deterministic_invalid", "deterministic is not a semantic content source"),
+		);
+		return issues;
+	}
+	if (provenance.method === "model_suggested") {
+		if (
+			provenance.operationId === null ||
+			provenance.modelProvider === null ||
+			provenance.modelId === null ||
+			provenance.promptHash === null ||
+			provenance.toolSchemaHash == null ||
+			provenance.turnId == null
+		) {
+			issues.push(
+				issue(
+					path,
+					"semantic_provenance.model_incomplete",
+					"model semantic provenance requires operation, provider, model, prompt, tool schema, and turn",
+				),
+			);
+		}
+		return issues;
+	}
+	const hasModelFields =
+		provenance.modelProvider != null ||
+		provenance.modelId != null ||
+		provenance.promptHash != null ||
+		provenance.toolSchemaHash != null ||
+		provenance.turnId != null;
+	if (provenance.method === "unknown_legacy") {
+		if (provenance.operationId !== null || hasModelFields) {
+			issues.push(
+				issue(
+					path,
+					"semantic_provenance.legacy_inconsistent",
+					"unknown legacy provenance cannot assert an operation or model identity",
+				),
+			);
+		}
+		return issues;
+	}
+	if (provenance.operationId === null || hasModelFields) {
+		issues.push(
+			issue(
+				path,
+				"semantic_provenance.non_model_inconsistent",
+				"human and imported provenance require an operation and cannot declare model fields",
+			),
+		);
+	}
+	return issues;
 }
 
 function conflictIssues(conflicts: SourceRecord["metadataConflicts"], path: string): ContractIssue[] {
@@ -274,6 +333,44 @@ function evidenceIssues(record: EvidenceCard): ContractIssue[] {
 			),
 		);
 	}
+	if (record.schemaVersion === RESEARCH_SCHEMA_VERSION) {
+		issues.push(...semanticProvenanceIssues(record.extraction, "extraction"));
+		if (record.sourceVerification === undefined) {
+			issues.push(
+				issue(
+					"sourceVerification",
+					"evidence.source_verification_missing",
+					"current evidence requires independent deterministic source verification",
+				),
+			);
+		} else if (record.sourceVerification.method === "deterministic") {
+			if (
+				record.sourceVerification.operationId === null ||
+				record.sourceVerification.locatorStatus === "unknown_legacy" ||
+				record.sourceVerification.excerptStatus === "unknown_legacy"
+			) {
+				issues.push(
+					issue(
+						"sourceVerification",
+						"evidence.source_verification_incomplete",
+						"deterministic source verification requires an operation and explicit results",
+					),
+				);
+			}
+		} else if (
+			record.sourceVerification.operationId !== null ||
+			record.sourceVerification.locatorStatus !== "unknown_legacy" ||
+			record.sourceVerification.excerptStatus !== "unknown_legacy"
+		) {
+			issues.push(
+				issue(
+					"sourceVerification",
+					"evidence.legacy_source_verification_inconsistent",
+					"unknown legacy source verification cannot assert deterministic results",
+				),
+			);
+		}
+	}
 	if (
 		record.evidenceLevel === "table_or_figure_located" &&
 		record.locator !== null &&
@@ -293,6 +390,32 @@ function evidenceIssues(record: EvidenceCard): ContractIssue[] {
 
 function claimIssues(record: ClaimRecord): ContractIssue[] {
 	const issues: ContractIssue[] = [];
+	if (record.schemaVersion === RESEARCH_SCHEMA_VERSION) {
+		if (record.semanticProvenance === undefined) {
+			issues.push(
+				issue(
+					"semanticProvenance",
+					"claim.semantic_provenance_missing",
+					"current claims require semantic provenance",
+				),
+			);
+		} else {
+			issues.push(...semanticProvenanceIssues(record.semanticProvenance.claim, "semanticProvenance.claim"));
+			if (record.semanticProvenance.evidenceLinks.length !== record.evidenceLinks.length) {
+				issues.push(
+					issue(
+						"semanticProvenance.evidenceLinks",
+						"claim.evidence_link_provenance_mismatch",
+						"every claim evidence link requires aligned semantic provenance",
+					),
+				);
+			} else {
+				for (const [index, provenance] of record.semanticProvenance.evidenceLinks.entries()) {
+					issues.push(...semanticProvenanceIssues(provenance, `semanticProvenance.evidenceLinks[${index}]`));
+				}
+			}
+		}
+	}
 	if (
 		(record.supportStatus === "supported" || record.supportStatus === "partially_supported") &&
 		record.evidenceLinks.length === 0

@@ -2,7 +2,8 @@
 
 import { type Static, type TSchema, type TUnsafe, Type } from "typebox";
 
-export const RESEARCH_SCHEMA_VERSION = "1.5.0" as const;
+export const RESEARCH_SCHEMA_VERSION = "1.5.1" as const;
+export const RESEARCH_V1_5_0_SCHEMA_VERSION = "1.5.0" as const;
 export const RESEARCH_V1_1_SCHEMA_VERSION = "1.1.0" as const;
 export const RESEARCH_V1_0_SCHEMA_VERSION = "1.0.0" as const;
 export const RESEARCH_V0_5_SCHEMA_VERSION = "0.5.0" as const;
@@ -25,6 +26,7 @@ export const RESEARCH_V1_1_MIGRATABLE_SCHEMA_VERSIONS = [
 export const RESEARCH_MIGRATABLE_SCHEMA_VERSIONS = [
 	...RESEARCH_V1_1_MIGRATABLE_SCHEMA_VERSIONS,
 	RESEARCH_V1_1_SCHEMA_VERSION,
+	RESEARCH_V1_5_0_SCHEMA_VERSION,
 ] as const;
 
 const PersistedObject = <const Properties extends Parameters<typeof Type.Object>[0]>(properties: Properties) =>
@@ -104,6 +106,7 @@ const ExistingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_1_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_5_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DesignRecordSchemaVersionSchema = Type.Union([
@@ -113,6 +116,7 @@ const DesignRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_1_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_5_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const DataRecordSchemaVersionSchema = Type.Union([
@@ -121,6 +125,7 @@ const DataRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_1_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_5_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const WritingRecordSchemaVersionSchema = Type.Union([
@@ -128,12 +133,14 @@ const WritingRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_1_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_5_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 const KnowledgeRecordSchemaVersionSchema = Type.Union([
 	Type.Literal(RESEARCH_V0_5_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_V1_1_SCHEMA_VERSION),
+	Type.Literal(RESEARCH_V1_5_0_SCHEMA_VERSION),
 	Type.Literal(RESEARCH_SCHEMA_VERSION),
 ]);
 
@@ -802,6 +809,39 @@ export const EvidenceClaimLinkSchema = PersistedObject({
 });
 export type EvidenceClaimLink = Static<typeof EvidenceClaimLinkSchema>;
 
+export const SemanticProvenanceSchema = PersistedObject({
+	method: Type.Union([
+		Type.Literal("deterministic"),
+		Type.Literal("model_suggested"),
+		Type.Literal("human_entered"),
+		Type.Literal("imported"),
+		Type.Literal("unknown_legacy"),
+	]),
+	operationId: Nullable(NonEmptyStringSchema),
+	modelProvider: Nullable(NonEmptyStringSchema),
+	modelId: Nullable(NonEmptyStringSchema),
+	promptHash: Nullable(HashValueSchema),
+	toolSchemaHash: Type.Optional(Nullable(HashValueSchema)),
+	turnId: Type.Optional(Nullable(NonEmptyStringSchema)),
+});
+export type SemanticProvenance = Static<typeof SemanticProvenanceSchema>;
+
+export const SourceVerificationSchema = PersistedObject({
+	method: Type.Union([Type.Literal("deterministic"), Type.Literal("unknown_legacy")]),
+	operationId: Nullable(NonEmptyStringSchema),
+	locatorStatus: Type.Union([
+		Type.Literal("verified"),
+		Type.Literal("not_applicable"),
+		Type.Literal("unknown_legacy"),
+	]),
+	excerptStatus: Type.Union([
+		Type.Literal("verified"),
+		Type.Literal("not_applicable"),
+		Type.Literal("unknown_legacy"),
+	]),
+});
+export type SourceVerification = Static<typeof SourceVerificationSchema>;
+
 export const EvidenceCardSchema = PersistedObject({
 	kind: Type.Literal("evidence"),
 	schemaVersion: ExistingRecordSchemaVersionSchema,
@@ -815,18 +855,8 @@ export const EvidenceCardSchema = PersistedObject({
 	paraphrase: NonEmptyStringSchema,
 	evidenceStatement: NonEmptyStringSchema,
 	claimLinks: Type.Array(EvidenceClaimLinkSchema),
-	extraction: PersistedObject({
-		method: Type.Union([
-			Type.Literal("deterministic"),
-			Type.Literal("model_suggested"),
-			Type.Literal("human_entered"),
-			Type.Literal("imported"),
-		]),
-		operationId: NonEmptyStringSchema,
-		modelProvider: Nullable(NonEmptyStringSchema),
-		modelId: Nullable(NonEmptyStringSchema),
-		promptHash: Nullable(HashValueSchema),
-	}),
+	extraction: SemanticProvenanceSchema,
+	sourceVerification: Type.Optional(SourceVerificationSchema),
 	confidence: PersistedObject({
 		level: Type.Union([Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")]),
 		basis: NonEmptyStringSchema,
@@ -897,6 +927,12 @@ export const ClaimRecordSchema = PersistedObject({
 	evidenceLinks: Type.Array(ClaimEvidenceLinkSchema),
 	supportStatus: SupportStatusSchema,
 	conflictEvidenceIds: Type.Array(NonEmptyStringSchema),
+	semanticProvenance: Type.Optional(
+		PersistedObject({
+			claim: SemanticProvenanceSchema,
+			evidenceLinks: Type.Array(SemanticProvenanceSchema),
+		}),
+	),
 	humanConfirmation: PersistedObject({
 		status: Type.Union([
 			Type.Literal("not_reviewed"),

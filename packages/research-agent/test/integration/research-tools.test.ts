@@ -6,8 +6,10 @@ import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ExtensionContext,
+	SessionEntry,
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { Compile } from "typebox/compile";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRecordedHttpTransport, type RecordedHttpExchange } from "../../src/adapters/http/transport.ts";
 import { registerResearchCommands } from "../../src/extension/commands.ts";
@@ -167,14 +169,7 @@ function createHarness(
 ) {
 	const commands = new Map<string, CommandHandler>();
 	const tools = new Map<string, ToolDefinition>();
-	const entries: Array<{
-		type: "custom";
-		customType: string;
-		data: unknown;
-		id: string;
-		parentId: string | null;
-		timestamp: string;
-	}> = [];
+	const entries: SessionEntry[] = [];
 	const notify = vi.fn();
 	const confirm = vi.fn(async () => true);
 	let activeTools = ["read", "bash", "edit", "write"];
@@ -225,6 +220,7 @@ function createHarness(
 			mode: "tui",
 			model: { provider: "deepseek", id: "deepseek-v4-flash" },
 			signal: new AbortController().signal,
+			getSystemPrompt: () => "Synthetic research-agent system prompt",
 			ui: {
 				notify,
 				confirm,
@@ -235,10 +231,11 @@ function createHarness(
 				getSessionId: () => "research-tools-session",
 				getSessionFile: () => join(cwd, "session.jsonl"),
 				getEntries: () => [...entries],
+				buildContextEntries: () => [...entries],
 			},
 		}) as unknown as ExtensionCommandContext;
 
-	return { commands, tools, notify, confirm, activeTools: () => activeTools, context };
+	return { commands, tools, entries, notify, confirm, activeTools: () => activeTools, context };
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -259,13 +256,99 @@ async function callTool(
 ): Promise<Record<string, unknown>> {
 	const tool = harness.tools.get(name);
 	if (tool === undefined) throw new Error(`Missing tool: ${name}`);
-	const result = await tool.execute(`call-${name}`, params, new AbortController().signal, undefined, ctx);
+	const toolCallId = `call-${name}-${harness.entries.length + 1}`;
+	const turnId = `turn-${harness.entries.length + 1}`;
+	harness.entries.push({
+		type: "message",
+		id: turnId,
+		parentId: harness.entries.at(-1)?.id ?? null,
+		timestamp: new Date().toISOString(),
+		message: {
+			role: "assistant",
+			content: [{ type: "toolCall", id: toolCallId, name, arguments: params }],
+			api: "openai-completions",
+			provider: "deepseek",
+			model: "deepseek-v4-flash",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "toolUse",
+			timestamp: Date.now(),
+		},
+	});
+	const result = await tool.execute(toolCallId, params, new AbortController().signal, undefined, ctx);
 	const content = result.content[0];
 	if (content?.type !== "text") throw new Error("Tool did not return JSON text");
+	harness.entries.push({
+		type: "message",
+		id: `result-${harness.entries.length + 1}`,
+		parentId: harness.entries.at(-1)?.id ?? null,
+		timestamp: new Date().toISOString(),
+		message: {
+			role: "toolResult",
+			toolCallId,
+			toolName: name,
+			content: [{ type: "text", text: content.text }],
+			isError: false,
+			timestamp: Date.now(),
+		},
+	});
 	return object(JSON.parse(content.text));
 }
 
 describe("research tools", () => {
+	it("routes all model-visible tools through the project egress guard before starting operations", async () => {
+		temporaryDirectory = join(tmpdir(), `pi-research-tools-egress-${crypto.randomUUID()}`);
+		const harness = createHarness(createRecordedHttpTransport([]));
+		const ctx = harness.context(temporaryDirectory);
+		await harness.commands.get("research-init")?.("Research Tool Egress Fixture", ctx);
+		harness.confirm.mockResolvedValue(true);
+		await harness.commands.get("research-policy")?.('set {"modelEgressAllowed":false}', ctx);
+
+		const opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const operationsBefore = await listProjectRecordIds(opened.root, opened.manifest, "operation");
+		for (const toolName of RESEARCH_TOOL_NAMES) {
+			const blocked = await callTool(harness, toolName, { action: "audit", scope: "all" }, ctx);
+			expect(blocked).toMatchObject({
+				ok: false,
+				status: "PERMISSION_BLOCKED",
+				errors: [{ code: "MODEL_EGRESS_DENIED" }],
+			});
+		}
+		const reopened = await openProject(temporaryDirectory);
+		if (reopened.compatibility !== "current") throw new Error("Expected current project");
+		expect(await listProjectRecordIds(reopened.root, reopened.manifest, "operation")).toEqual(operationsBefore);
+	});
+
+	it("allows a loopback model to query when external model egress is disabled", async () => {
+		temporaryDirectory = join(tmpdir(), `pi-research-tools-local-egress-${crypto.randomUUID()}`);
+		const harness = createHarness(createRecordedHttpTransport([]));
+		const ctx = harness.context(temporaryDirectory);
+		ctx.model = {
+			...ctx.model!,
+			provider: "local-openai-compatible",
+			id: "local-research-model",
+			baseUrl: "http://127.0.0.1:11434/v1",
+		};
+		await harness.commands.get("research-init")?.("Local Model Egress Fixture", ctx);
+		harness.confirm.mockResolvedValue(true);
+		await harness.commands.get("research-policy")?.('set {"modelEgressAllowed":false}', ctx);
+
+		const result = await callTool(
+			harness,
+			"research_query_corpus",
+			{ query: "local", scope: "all", filters: {}, limit: 5, maxCharsPerHit: 4_000, cursor: null },
+			ctx,
+		);
+		expect(result).toMatchObject({ ok: true, status: "SUCCESS" });
+	});
+
 	it("runs the M1 aggregate-tool vertical without direct canonical writes", async () => {
 		temporaryDirectory = join(tmpdir(), `pi-research-tools-${crypto.randomUUID()}`);
 		const harness = createHarness(createRecordedHttpTransport(await exchanges()));
@@ -428,7 +511,6 @@ describe("research tools", () => {
 						paraphrase: "The fixture reports improved coordination under collaborative governance.",
 						evidenceStatement: "Collaborative governance is associated with better service coordination.",
 						claimLinks: [{ claimId, relation: "supports", rationale: "Direct located statement" }],
-						extraction: { method: "deterministic" },
 						confidence: { level: "high", basis: "Exact located text", limitations: ["Synthetic fixture"] },
 						rights: { excerptAllowed: true, maxStoredWords: 100, publicExportAllowed: true },
 						humanStatus: "not_reviewed",
@@ -454,12 +536,37 @@ describe("research tools", () => {
 		if (typeof firstEvidenceId !== "string") throw new Error("Missing evidence ID");
 		const evidenceOperationId = object(evidence.meta).operationId;
 		if (typeof evidenceOperationId !== "string") throw new Error("Missing evidence operation ID");
+		const storedEvidence = await readRecord(temporaryDirectory, "evidence", firstEvidenceId);
+		expect(storedEvidence).toMatchObject({
+			ok: true,
+			value: {
+				extraction: {
+					method: "model_suggested",
+					operationId: evidenceOperationId,
+					modelProvider: "deepseek",
+					modelId: "deepseek-v4-flash",
+					promptHash: { algorithm: "sha256", value: expect.stringMatching(/^[a-f0-9]{64}$/u) },
+					toolSchemaHash: { algorithm: "sha256", value: expect.stringMatching(/^[a-f0-9]{64}$/u) },
+					turnId: expect.stringMatching(/^turn-/u),
+				},
+				sourceVerification: {
+					method: "deterministic",
+					operationId: evidenceOperationId,
+					locatorStatus: "verified",
+					excerptStatus: "verified",
+				},
+			},
+		});
 		let storedClaim = await readRecord(temporaryDirectory, "claim", claimId);
 		expect(storedClaim).toMatchObject({
 			ok: true,
 			value: {
 				supportStatus: "supported",
 				evidenceLinks: [{ evidenceId: firstEvidenceId, relation: "supports" }],
+				semanticProvenance: {
+					claim: { method: "model_suggested", modelProvider: "deepseek", modelId: "deepseek-v4-flash" },
+					evidenceLinks: [{ method: "model_suggested", operationId: evidenceOperationId }],
+				},
 				publishability: "exploratory",
 			},
 		});
@@ -523,12 +630,24 @@ describe("research tools", () => {
 			paraphrase: "The fixture only establishes the relationship in its synthetic setting.",
 			evidenceStatement: "The reported relationship is limited to the fixture setting.",
 			claimLinks: [{ claimId, relation: "qualifies", rationale: "Scope qualification" }],
-			extraction: { method: "deterministic" },
 			confidence: { level: "high", basis: "Exact located text", limitations: ["Synthetic fixture"] },
 			rights: { excerptAllowed: true, maxStoredWords: 100, publicExportAllowed: true },
 			humanStatus: "not_reviewed",
 			supersedesEvidenceId: null,
 		};
+		const commitEvidenceTool = harness.tools.get("research_commit_evidence");
+		if (commitEvidenceTool === undefined) throw new Error("Missing research_commit_evidence tool");
+		const commitEvidenceSchema = Compile(commitEvidenceTool.parameters);
+		for (const method of ["deterministic", "imported"] as const) {
+			expect(
+				commitEvidenceSchema.Check({
+					evidenceCards: [{ ...qualificationDraft, extraction: { method } }],
+					claims: [],
+					expectedRevision: opened.manifest.revision,
+					validationMode: "strict",
+				}),
+			).toBe(false);
+		}
 		const qualifiedEvidence = await callTool(
 			harness,
 			"research_commit_evidence",
@@ -606,7 +725,6 @@ describe("research tools", () => {
 						paraphrase: "The fixture does not justify a universal causal interpretation.",
 						evidenceStatement: "The reported relationship does not establish a universal causal effect.",
 						claimLinks: [{ claimId, relation: "refutes", rationale: "Causal overreach" }],
-						extraction: { method: "deterministic" },
 						confidence: { level: "high", basis: "Exact located text", limitations: ["Synthetic fixture"] },
 						rights: { excerptAllowed: true, maxStoredWords: 100, publicExportAllowed: true },
 						humanStatus: "not_reviewed",
@@ -668,6 +786,38 @@ describe("research tools", () => {
 				],
 			},
 		});
+
+		harness.confirm.mockResolvedValue(true);
+		await harness.commands.get("research-policy")?.('set {"modelEgressAllowed":false}', ctx);
+		for (const [scope, query] of [
+			["sources", "Algorithmic Governance"],
+			["documents", "Collaborative governance"],
+			["evidence", "better service coordination"],
+			["claims", "Collaborative governance"],
+			["all", "Collaborative governance"],
+		] as const) {
+			const blocked = await callTool(
+				harness,
+				"research_query_corpus",
+				{ query, scope, filters: {}, limit: 5, maxCharsPerHit: 4_000, cursor: null },
+				ctx,
+			);
+			expect(blocked).toMatchObject({
+				ok: false,
+				status: "PERMISSION_BLOCKED",
+				errors: [{ code: "MODEL_EGRESS_DENIED" }],
+			});
+			expect(JSON.stringify(blocked)).not.toContain("Collaborative governance");
+			expect(JSON.stringify(blocked)).not.toContain("Algorithmic Governance in Public Organizations");
+		}
+		opened = await openProject(temporaryDirectory);
+		if (opened.compatibility !== "current") throw new Error("Expected current project");
+		const operationLog: unknown[] = [];
+		for (const operationId of await listProjectRecordIds(opened.root, opened.manifest, "operation")) {
+			operationLog.push(await readRecord(opened.root, "operation", operationId));
+		}
+		expect(JSON.stringify(operationLog)).not.toContain("Collaborative governance");
+		expect(JSON.stringify(operationLog)).not.toContain("Algorithmic Governance in Public Organizations");
 		const validation = await validateProject(opened.root);
 		expect(validation.issues).toEqual([]);
 		expect(validation).toMatchObject({ valid: true, pendingTransactionIds: [] });

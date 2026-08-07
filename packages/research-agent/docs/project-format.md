@@ -4,7 +4,7 @@
 
 `research-project.json` and the versioned JSON records under `.research/records/` are the canonical research state. Pi Session stores only a link to the project ID, manifest path, observed revision, and last operation. A Session can be discarded without losing research facts; a project can be reopened from another Session with `/research-open`.
 
-The current schema version is `1.5.0`. Package v2.0 adds SDK/RPC protocol schemas under `schemas/v2.0` but does not change canonical project state. Public project JSON Schemas are under `schemas/v1.5`, generated from `@research-agent/contracts`; the committed v0.1–v1.1 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.1–v1.1 versions migrate directly to the v1.5 manifest shape without rewriting canonical record files.
+The current schema version is `1.5.1`. SDK/RPC protocol schemas remain under `schemas/v2.0`; protocol versioning is independent from canonical project state. Public project JSON Schemas are under `schemas/v1.5`, generated from `@research-agent/contracts`; the committed v0.1–v1.1 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. Supported v0.1–v1.5.0 projects migrate directly to 1.5.1.
 
 ## Layout
 
@@ -94,15 +94,15 @@ Metadata, abstract, acquired full text, located full-text evidence, and verified
 
 ## Transactions and recovery
 
-Canonical writes use expected manifest and record revisions. A multi-file transaction stages content, verifies old/new hashes, writes records, and updates the manifest last. Interrupted work remains under `.research/transactions/pending`; `/research-recover` requires an interactive choice to commit or roll it back. `/research-validate` reports mixed state, broken hashes, references, paths, or records rather than repairing them silently.
+Canonical writes and backups acquire one project writer lease containing PID, host, nonce, and expiry. A renewable lease serializes independent processes; stale same-host owners can be reclaimed only after their process has ended. Writes still use expected manifest and record revisions. A multi-file transaction stages content, verifies old/new hashes, writes records, updates the manifest last, and syncs parent directories after rename. Interrupted work remains under `.research/transactions/pending`; `/research-recover` requires an interactive choice to commit or roll it back. `/research-validate` reports mixed state, broken hashes, references, paths, or records rather than repairing them silently.
 
 Original PDFs, imported CSV/text, analysis scripts/environments, and raw provider receipts are content-addressed immutable inputs. Analysis executes copies and rechecks every original hash afterward; a mutation attempt fails the run and restores the original bytes. Derived parsed text, outputs, exports, and indexes can be rebuilt from their input hashes and generator versions. Raw files and excerpts retain their access and redistribution status; project ownership does not imply public redistribution rights.
 
-## v0.1–v1.1 to v1.5 migration
+## v0.1–v1.5.0 to v1.5.1 migration
 
-Migration changes only the manifest schema version, revision, record-set declarations, required directories, and the default built-in Domain Package reference when it is absent. v1.5 adds empty Adapter-registration, exchange, collaboration-merge, and model-route record sets. It does not create records, infer missing facts, move data, register code, or reinterpret a historical record. Preparation creates a full hash-bound project backup and hash-bound before/after manifest snapshots. One project-scoped migration lock prevents concurrent writers. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores the old manifest only when no later v1.5 write occurred.
+Migration updates the manifest, record-set declarations, required directories, and default built-in Domain Package reference when absent. The 1.5.1 step also rewrites legacy EvidenceCard and Claim provenance where the old schema lacked the new fields. It never guesses a model, importer, or deterministic author: uncertain historical semantic content is marked `unknown_legacy`. Every changed record has hash-bound before/after snapshots in the migration journal, and the full project backup is created while the writer lease is held. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores snapshots only when no later project write occurred.
 
-Scenario D keeps the frozen v1.0 matrix covering v0.1–v0.5 at staged-write, record-replace, and manifest-commit interruption points. v1.5 additionally tests direct migration from every prior schema through v1.1, including the default Domain Package reference and new empty record sets. No migration rewrites canonical records.
+Scenario D keeps the frozen interruption matrix. Current migration tests cover every supported prior schema, record snapshot hashes, resume, rollback, `unknown_legacy` provenance, and post-migration validation.
 
 ## Domain and access policy state
 

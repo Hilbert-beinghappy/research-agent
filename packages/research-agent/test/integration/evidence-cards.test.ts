@@ -10,6 +10,7 @@ import type {
 	OperationRecord,
 	RecordRef,
 	ResearchProjectManifest,
+	SemanticProvenance,
 	SourceRecord,
 } from "../../src/contracts/schemas.ts";
 import type { ParsedPdfDocument } from "../../src/documents/pdf-parser.ts";
@@ -60,18 +61,19 @@ function operationRecord(
 	name: string,
 	inputs: RecordRef[] = [],
 	inputFiles: FileRef[] = [],
+	operationKind: "tool" | "human" = "tool",
 ): OperationRecord {
 	return {
 		kind: "operation",
 		schemaVersion: "0.1.0",
 		operationId,
 		taskId: null,
-		operationKind: "tool",
+		operationKind,
 		name,
 		implementationVersion: "0.1.0",
 		status: "planned",
 		session: null,
-		actor: { type: "tool", id: "research.evidence" },
+		actor: { type: operationKind, id: "research.evidence" },
 		modelExecution: null,
 		adapterExecution: null,
 		inputs,
@@ -106,12 +108,17 @@ async function createRunningOperation(
 	name: string,
 	inputs: RecordRef[] = [],
 	inputFiles: FileRef[] = [],
+	operationKind: "tool" | "human" = "tool",
 ): Promise<string> {
 	const operationId = createOpaqueId("operation");
-	const created = await createRecord(projectRoot, operationRecord(operationId, name, inputs, inputFiles), {
-		expectedManifestRevision: (await manifest()).revision,
-		operationId,
-	});
+	const created = await createRecord(
+		projectRoot,
+		operationRecord(operationId, name, inputs, inputFiles, operationKind),
+		{
+			expectedManifestRevision: (await manifest()).revision,
+			operationId,
+		},
+	);
 	if (!created.ok) throw new Error(created.errors[0].message);
 	const record = await readRecord(projectRoot, "operation", operationId);
 	if (!record.ok || record.value.kind !== "operation") throw new Error("expected operation");
@@ -320,10 +327,23 @@ async function extractionOperation(fixture: FixtureProject, name: string): Promi
 			{ kind: "document", id: fixture.document.documentId, revision: fixture.document.audit.revision },
 		],
 		[fixture.document.parsedOutput],
+		"human",
 	);
 }
 
-function locatedDraft(fixture: FixtureProject, operationId: string): EvidenceCardDraft {
+function humanProvenance(operationId: string): SemanticProvenance {
+	return {
+		method: "human_entered",
+		operationId,
+		modelProvider: null,
+		modelId: null,
+		promptHash: null,
+		toolSchemaHash: null,
+		turnId: null,
+	};
+}
+
+function locatedDraft(fixture: FixtureProject): EvidenceCardDraft {
 	const block = fixture.parsed.pages[0]?.blocks[0];
 	if (block === undefined) throw new Error("expected parsed block");
 	return {
@@ -351,13 +371,6 @@ function locatedDraft(fixture: FixtureProject, operationId: string): EvidenceCar
 				rationale: "The located finding directly reports the association in the claim.",
 			},
 		],
-		extraction: {
-			method: "deterministic",
-			operationId,
-			modelProvider: null,
-			modelId: null,
-			promptHash: null,
-		},
 		confidence: { level: "high", basis: "Exact parser match", limitations: [] },
 		rights: { excerptAllowed: true, maxStoredWords: 20, publicExportAllowed: false },
 		humanStatus: "not_reviewed",
@@ -458,7 +471,8 @@ describe("corpus query and evidence cards", () => {
 			operationId,
 			expectedManifestRevision: (await manifest()).revision,
 			validationMode: "strict",
-			draft: locatedDraft(fixture, operationId),
+			draft: locatedDraft(fixture),
+			semanticProvenance: humanProvenance(operationId),
 		});
 		expect(committed).toMatchObject({
 			ok: true,
@@ -477,14 +491,15 @@ describe("corpus query and evidence cards", () => {
 				operationId: mismatchOperationId,
 				expectedManifestRevision: (await manifest()).revision,
 				validationMode: "strict",
-				draft: { ...locatedDraft(fixture, mismatchOperationId), excerpt: "The abstract reports transparency." },
+				draft: { ...locatedDraft(fixture), excerpt: "The abstract reports transparency." },
+				semanticProvenance: humanProvenance(mismatchOperationId),
 			}),
 		).resolves.toMatchObject({
 			ok: false,
 			status: "DATA_CONFLICT",
 			errors: [{ code: "EVIDENCE_EXCERPT_MISMATCH" }],
 		});
-		const locator = locatedDraft(fixture, mismatchOperationId).locator;
+		const locator = locatedDraft(fixture).locator;
 		if (locator === null) throw new Error("expected locator");
 		await expect(
 			commitEvidenceCard(projectRoot, {
@@ -492,9 +507,10 @@ describe("corpus query and evidence cards", () => {
 				expectedManifestRevision: (await manifest()).revision,
 				validationMode: "strict",
 				draft: {
-					...locatedDraft(fixture, mismatchOperationId),
+					...locatedDraft(fixture),
 					locator: { ...locator, locatorType: "page_range", pageEnd: 2 },
 				},
+				semanticProvenance: humanProvenance(mismatchOperationId),
 			}),
 		).resolves.toMatchObject({ ok: false, errors: [{ code: "EVIDENCE_LOCATOR_INVALID" }] });
 
@@ -502,6 +518,7 @@ describe("corpus query and evidence cards", () => {
 			"evidence.abstract-promotion",
 			[{ kind: "source", id: fixture.source.sourceId, revision: fixture.source.audit.revision }],
 			[],
+			"human",
 		);
 		await expect(
 			commitEvidenceCard(projectRoot, {
@@ -509,11 +526,12 @@ describe("corpus query and evidence cards", () => {
 				expectedManifestRevision: (await manifest()).revision,
 				validationMode: "strict",
 				draft: {
-					...locatedDraft(fixture, promotionOperationId),
+					...locatedDraft(fixture),
 					documentId: null,
 					locator: null,
 					excerpt: fixture.source.abstractText,
 				},
+				semanticProvenance: humanProvenance(promotionOperationId),
 			}),
 		).resolves.toMatchObject({ ok: false, errors: [{ code: "EVIDENCE_DOCUMENT_REQUIRED" }] });
 	});
@@ -524,9 +542,10 @@ describe("corpus query and evidence cards", () => {
 			"evidence.abstract",
 			[{ kind: "source", id: fixture.source.sourceId, revision: fixture.source.audit.revision }],
 			[],
+			"human",
 		);
 		const draft: EvidenceCardDraft = {
-			...locatedDraft(fixture, operationId),
+			...locatedDraft(fixture),
 			documentId: null,
 			evidenceLevel: "abstract",
 			locator: null,
@@ -543,6 +562,7 @@ describe("corpus query and evidence cards", () => {
 				expectedManifestRevision: (await manifest()).revision,
 				validationMode: "strict",
 				draft,
+				semanticProvenance: humanProvenance(operationId),
 			}),
 		).resolves.toMatchObject({
 			ok: true,
@@ -557,7 +577,8 @@ describe("corpus query and evidence cards", () => {
 			operationId: firstOperationId,
 			expectedManifestRevision: (await manifest()).revision,
 			validationMode: "strict",
-			draft: locatedDraft(fixture, firstOperationId),
+			draft: locatedDraft(fixture),
+			semanticProvenance: humanProvenance(firstOperationId),
 		});
 		if (!first.ok) throw new Error(first.errors[0].message);
 
@@ -568,11 +589,12 @@ describe("corpus query and evidence cards", () => {
 			expectedManifestRevision: revisionBefore,
 			validationMode: "strict",
 			draft: {
-				...locatedDraft(fixture, secondOperationId),
+				...locatedDraft(fixture),
 				paraphrase: "Transparent, understandable procedures are associated with public trust.",
 				evidenceStatement: "The located finding qualifies how transparency is associated with public trust.",
 				supersedesEvidenceId: first.value.evidenceId,
 			},
+			semanticProvenance: humanProvenance(secondOperationId),
 		});
 		if (!second.ok) throw new Error(second.errors[0].message);
 		expect((await manifest()).revision).toBe(revisionBefore + 1);
@@ -597,11 +619,12 @@ describe("corpus query and evidence cards", () => {
 			expectedManifestRevision: (await manifest()).revision,
 			validationMode: "strict",
 			draft: {
-				...locatedDraft(fixture, reviewedOperationId),
+				...locatedDraft(fixture),
 				evidenceStatement: "A human-reviewed evidence statement.",
 				claimLinks: [],
 				humanStatus: "accepted",
 			},
+			semanticProvenance: humanProvenance(reviewedOperationId),
 		});
 		if (!reviewed.ok) throw new Error(reviewed.errors[0].message);
 		const protectedInvalidationOperationId = await createRunningOperation("evidence.invalidate.reviewed");
@@ -623,7 +646,8 @@ describe("corpus query and evidence cards", () => {
 			operationId: thirdOperationId,
 			expectedManifestRevision: (await manifest()).revision,
 			validationMode: "strict",
-			draft: { ...locatedDraft(fixture, thirdOperationId), claimLinks: [] },
+			draft: { ...locatedDraft(fixture), claimLinks: [] },
+			semanticProvenance: humanProvenance(thirdOperationId),
 		});
 		if (!third.ok) throw new Error(third.errors[0].message);
 		const reparseOperationId = await createRunningOperation("document.reparse");
@@ -684,7 +708,8 @@ describe("corpus query and evidence cards", () => {
 			operationId: extractionOperationId,
 			expectedManifestRevision: (await manifest()).revision,
 			validationMode: "strict",
-			draft: locatedDraft(fixture, extractionOperationId),
+			draft: locatedDraft(fixture),
+			semanticProvenance: humanProvenance(extractionOperationId),
 		});
 		if (!committed.ok) throw new Error(committed.errors[0].message);
 		if (fixture.document.parsedOutput === null) throw new Error("expected parsed output");

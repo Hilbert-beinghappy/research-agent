@@ -34,7 +34,7 @@ npm run conform:adapter -w packages/research-agent -- ./my-adapter
 npm run conform:adapter -w packages/research-agent -- ./my-adapter --strong
 ```
 
-The first command checks the package and contract through a separate JSONL process. It is portable but is not an OS security sandbox. `--strong` additionally uses the built-in macOS strong-isolation profile. On an unsupported operating system it returns a blocked isolation result; it never silently falls back.
+The first command checks the package and contract through a separate JSONL process. It is portable but is not an OS security sandbox. `--strong` uses macOS Seatbelt or Linux bubblewrap. On Windows or when the native mechanism is unavailable, it returns a blocked isolation result; it never silently falls back.
 
 Conformance validates the package hash, SPDX license declaration, provenance, optional SBOM, capability identity, and one category operation. The conformance broker denies all external effects, so a fixture must complete without network access, credentials, project reads, or committed output.
 
@@ -55,7 +55,7 @@ Registration is ordered and fail closed:
 3. after approval, run conformance under strong isolation;
 4. record the registration only when the matching report passes.
 
-The built-in interactive registration path currently succeeds only on macOS because that is the only shipped strong-isolation implementation. There is no automatic downgrade to `jsonl_process`. Direct library callers own their policy and approval boundary and must not represent an ordinary conformance result as governed Pi registration.
+The built-in interactive registration path supports qualified macOS and Linux profiles. Windows has no strong profile. There is no automatic downgrade to `jsonl_process`. Direct library callers own their policy and approval boundary and must not represent an ordinary conformance result as governed Pi registration.
 
 ## Distribution checklist
 

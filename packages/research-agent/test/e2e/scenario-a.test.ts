@@ -6,6 +6,7 @@ import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ExtensionContext,
+	SessionEntry,
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -432,14 +433,7 @@ function createHarness(
 	const commands = new Map<string, CommandHandler>();
 	const tools = new Map<string, ToolDefinition>();
 	const toolCalls: string[] = [];
-	const entries: Array<{
-		type: "custom";
-		customType: string;
-		data: unknown;
-		id: string;
-		parentId: string | null;
-		timestamp: string;
-	}> = [];
+	const entries: SessionEntry[] = [];
 	const notify = vi.fn();
 	const confirm = vi.fn(async () => true);
 	let activeTools = ["read", "bash", "edit", "write"];
@@ -488,7 +482,9 @@ function createHarness(
 			cwd,
 			hasUI: true,
 			mode: "tui",
+			model: { provider: "deepseek", id: "deepseek-v4-flash" },
 			signal: new AbortController().signal,
+			getSystemPrompt: () => "Synthetic Scenario A system prompt",
 			ui: {
 				notify,
 				confirm,
@@ -499,10 +495,11 @@ function createHarness(
 				getSessionId: () => "scenario-a-session",
 				getSessionFile: () => join(cwd, "session.jsonl"),
 				getEntries: () => [...entries],
+				buildContextEntries: () => [...entries],
 			},
 		}) as unknown as ExtensionCommandContext & ExtensionContext;
 
-	return { commands, tools, toolCalls, notify, confirm, activeTools: () => activeTools, context };
+	return { commands, tools, toolCalls, entries, notify, confirm, activeTools: () => activeTools, context };
 }
 
 async function callTool(
@@ -514,9 +511,47 @@ async function callTool(
 	const tool = harness.tools.get(name);
 	if (tool === undefined) throw new Error(`Missing tool: ${name}`);
 	harness.toolCalls.push(name);
-	const result = await tool.execute(`scenario-${harness.toolCalls.length}`, params, ctx.signal, undefined, ctx);
+	const toolCallId = `scenario-${harness.toolCalls.length}`;
+	harness.entries.push({
+		type: "message",
+		id: `turn-${harness.toolCalls.length}`,
+		parentId: harness.entries.at(-1)?.id ?? null,
+		timestamp: new Date().toISOString(),
+		message: {
+			role: "assistant",
+			content: [{ type: "toolCall", id: toolCallId, name, arguments: params }],
+			api: "openai-completions",
+			provider: "deepseek",
+			model: "deepseek-v4-flash",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "toolUse",
+			timestamp: Date.now(),
+		},
+	});
+	const result = await tool.execute(toolCallId, params, ctx.signal, undefined, ctx);
 	const content = result.content[0];
 	if (content?.type !== "text") throw new Error("Tool did not return JSON text");
+	harness.entries.push({
+		type: "message",
+		id: `result-${harness.toolCalls.length}`,
+		parentId: harness.entries.at(-1)?.id ?? null,
+		timestamp: new Date().toISOString(),
+		message: {
+			role: "toolResult",
+			toolCallId,
+			toolName: name,
+			content: [{ type: "text", text: content.text }],
+			isError: false,
+			timestamp: Date.now(),
+		},
+	});
 	return object(JSON.parse(content.text));
 }
 

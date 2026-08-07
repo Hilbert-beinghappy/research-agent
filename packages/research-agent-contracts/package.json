@@ -3,26 +3,56 @@
 	"version": "2.0.0",
 	"description": "Stable contracts for local-first research projects and adapters",
 	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./src/index.ts",
-		"./adapter-protocol": "./src/adapter-protocol.ts",
-		"./adapters": "./src/adapters.ts",
-		"./canonical-json": "./src/canonical-json.ts",
-		"./integrity": "./src/integrity.ts",
-		"./schemas": "./src/schemas.ts",
-		"./sdk-rpc": "./src/sdk-rpc.ts",
-		"./validators": "./src/validators.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./adapter-protocol": {
+			"types": "./dist/adapter-protocol.d.ts",
+			"import": "./dist/adapter-protocol.js"
+		},
+		"./adapters": {
+			"types": "./dist/adapters.d.ts",
+			"import": "./dist/adapters.js"
+		},
+		"./canonical-json": {
+			"types": "./dist/canonical-json.d.ts",
+			"import": "./dist/canonical-json.js"
+		},
+		"./integrity": {
+			"types": "./dist/integrity.d.ts",
+			"import": "./dist/integrity.js"
+		},
+		"./schemas": {
+			"types": "./dist/schemas.d.ts",
+			"import": "./dist/schemas.js"
+		},
+		"./sdk-rpc": {
+			"types": "./dist/sdk-rpc.d.ts",
+			"import": "./dist/sdk-rpc.js"
+		},
+		"./validators": {
+			"types": "./dist/validators.d.ts",
+			"import": "./dist/validators.js"
+		},
+		"./package.json": "./package.json"
 	},
 	"files": [
-		"src",
+		"dist",
 		"schemas",
 		"README.md",
 		"LICENSE"
 	],
 	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
 		"check": "biome check src scripts test vitest.config.ts tsconfig.json && tsgo --noEmit -p tsconfig.json",
+		"clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
 		"generate:schemas": "node scripts/generate-schemas.ts",
-		"scan:release": "node scripts/scan-release.ts",
+		"prepublishOnly": "npm run clean && npm run build",
+		"scan:release": "npm run clean && npm run build && node scripts/scan-release.ts",
 		"test": "vitest run test"
 	},
 	"dependencies": {

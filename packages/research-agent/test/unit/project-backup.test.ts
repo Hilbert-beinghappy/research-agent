@@ -12,6 +12,7 @@ import {
 } from "../../src/project/backup.ts";
 import { initializeProject } from "../../src/project/init.ts";
 import { openProject } from "../../src/project/open.ts";
+import { validateProject } from "../../src/project/validate.ts";
 
 let temporaryDirectory: string;
 let projectRoot: string;
@@ -44,6 +45,7 @@ describe("project backup and restore", () => {
 			"# Decision\n\nSynthetic project note.\n",
 		);
 		await expect(openProject(destination)).resolves.toMatchObject({ compatibility: "current" });
+		expect(await validateProject(destination)).toMatchObject({ valid: true, issues: [] });
 	});
 
 	it("rejects a modified backup file", async () => {

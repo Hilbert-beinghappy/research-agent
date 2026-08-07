@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClaimRecord, EvidenceCard, OperationRecord, ResearchResult } from "../contracts/schemas.ts";
+import type {
+	ClaimRecord,
+	EvidenceCard,
+	OperationRecord,
+	ResearchResult,
+	SemanticProvenance,
+} from "../contracts/schemas.ts";
 import { RESEARCH_SCHEMA_VERSION } from "../contracts/schemas.ts";
-import { type EvidenceCardDraft, evidenceFingerprint, validateEvidenceCardDraft } from "../evidence/commit.ts";
+import {
+	type EvidenceCardDraft,
+	evidenceFingerprint,
+	validateEvidenceCardDraft,
+	validateSemanticProvenance,
+} from "../evidence/commit.ts";
 import { type CorpusQueryInput, type CorpusQueryPage, queryCorpusRecords } from "../evidence/query.ts";
 import { createOpaqueId } from "../kernel/identity.ts";
 import { hashCanonicalJson } from "../kernel/integrity.ts";
@@ -20,6 +31,7 @@ export interface CommitEvidenceCardRequest {
 	expectedManifestRevision: number;
 	validationMode: "strict";
 	draft: EvidenceCardDraft;
+	semanticProvenance: SemanticProvenance;
 }
 
 export interface InvalidateEvidenceCardRequest {
@@ -35,6 +47,7 @@ export interface CommitClaimRequest {
 	operationId: string;
 	expectedManifestRevision: number;
 	draft: ClaimDraft;
+	semanticProvenance: SemanticProvenance;
 }
 
 function propagatedFailure<Value>(
@@ -143,7 +156,12 @@ export async function commitEvidenceCard(
 	}
 	const opened = await currentProject(projectRoot, request.expectedManifestRevision, request.operationId);
 	if (!opened.ok) return opened;
-	const validated = await validateEvidenceCardDraft(projectRoot, request.draft, request.operationId);
+	const validated = await validateEvidenceCardDraft(
+		projectRoot,
+		request.draft,
+		request.operationId,
+		request.semanticProvenance,
+	);
 	if (!validated.ok) return validated;
 	const fingerprint = evidenceFingerprint(validated.value.card).value;
 	const existing = await findActiveEvidenceCardByFingerprint(projectRoot, fingerprint, request.operationId);
@@ -194,6 +212,106 @@ export function deriveClaimSupportStatus(evidenceLinks: ClaimRecord["evidenceLin
 	return "unassessed";
 }
 
+export async function linkEvidenceToClaim(
+	projectRoot: string,
+	operationId: string,
+	claimId: string,
+	evidence: EvidenceCard,
+	relation: EvidenceCard["claimLinks"][number]["relation"],
+	assessment: string,
+	reviewedUpdateApproved: boolean,
+	semanticProvenance: SemanticProvenance,
+): Promise<ResearchResult<ClaimRecord>> {
+	const current = await readRecord(projectRoot, "claim", claimId);
+	if (!current.ok) return propagatedFailure(current, operationId);
+	if (current.value.kind !== "claim") {
+		return failureResult(
+			"PERMANENT_FAILURE",
+			"EVIDENCE_CLAIM_INVALID",
+			"integrity",
+			`Record ${claimId} is not a claim`,
+			operationId,
+		);
+	}
+	const existing = current.value.evidenceLinks.find(({ evidenceId }) => evidenceId === evidence.evidenceId);
+	const conflictLinked = relation !== "refutes" || current.value.conflictEvidenceIds.includes(evidence.evidenceId);
+	const sameLink = existing !== undefined && existing.relation === relation && existing.assessment === assessment;
+	if (sameLink && conflictLinked) return successResult(current.value, operationId);
+	if (existing !== undefined && !sameLink) {
+		return failureResult(
+			"DATA_CONFLICT",
+			"CLAIM_EVIDENCE_LINK_CONFLICT",
+			"data_conflict",
+			`Claim ${claimId} already links evidence ${evidence.evidenceId} differently`,
+			operationId,
+		);
+	}
+	if (current.value.humanConfirmation.status !== "not_reviewed" && !reviewedUpdateApproved) {
+		return failureResult(
+			"PERMISSION_BLOCKED",
+			"CLAIM_LINK_APPROVAL_REQUIRED",
+			"permission",
+			`Claim ${claimId} was human-reviewed and requires approval before adding evidence`,
+			operationId,
+			{ claimId, evidenceId: evidence.evidenceId },
+		);
+	}
+	if (current.value.semanticProvenance === undefined) {
+		return failureResult(
+			"PERMANENT_FAILURE",
+			"CLAIM_SEMANTIC_PROVENANCE_MISSING",
+			"integrity",
+			`Claim ${claimId} has no semantic provenance`,
+			operationId,
+		);
+	}
+	const evidenceLinks =
+		existing === undefined
+			? [...current.value.evidenceLinks, { evidenceId: evidence.evidenceId, relation, assessment }]
+			: current.value.evidenceLinks;
+	const supportStatus = deriveClaimSupportStatus(evidenceLinks);
+	const opened = await openProject(projectRoot);
+	if (opened.compatibility !== "current") {
+		return failureResult(
+			"PERMANENT_FAILURE",
+			"EVIDENCE_PROJECT_READ_ONLY",
+			"migration",
+			"Research project schema is read-only",
+			operationId,
+		);
+	}
+	const updated = await updateRecord(projectRoot, "claim", claimId, {
+		expectedManifestRevision: opened.manifest.revision,
+		expectedRecordRevision: current.value.audit.revision,
+		operationId,
+		changes: {
+			evidenceLinks,
+			semanticProvenance: {
+				...current.value.semanticProvenance,
+				evidenceLinks: [...current.value.semanticProvenance.evidenceLinks, semanticProvenance],
+			},
+			supportStatus,
+			conflictEvidenceIds:
+				relation === "refutes"
+					? [...new Set([...current.value.conflictEvidenceIds, evidence.evidenceId])]
+					: current.value.conflictEvidenceIds,
+			publishability: supportStatus === "unassessed" || supportStatus === "unsupported" ? "blocked" : "exploratory",
+		},
+	});
+	if (!updated.ok) return propagatedFailure(updated, operationId);
+	const stored = await readRecord(projectRoot, "claim", claimId);
+	if (!stored.ok) return propagatedFailure(stored, operationId);
+	return stored.value.kind === "claim"
+		? successResult(stored.value, operationId)
+		: failureResult(
+				"PERMANENT_FAILURE",
+				"CLAIM_LINK_READBACK_INVALID",
+				"integrity",
+				`Updated claim ${claimId} could not be read back`,
+				operationId,
+			);
+}
+
 function claimFingerprint(
 	claim: Pick<ClaimRecord, "text" | "claimType" | "scope" | "evidenceLinks" | "conflictEvidenceIds">,
 ) {
@@ -212,6 +330,8 @@ export async function commitClaim(
 ): Promise<ResearchResult<ClaimRecord>> {
 	const operation = await runningOperation(projectRoot, request.operationId);
 	if (!operation.ok) return operation;
+	const provenance = await validateSemanticProvenance(projectRoot, request.semanticProvenance, request.operationId);
+	if (!provenance.ok) return provenance;
 	const opened = await currentProject(projectRoot, request.expectedManifestRevision, request.operationId);
 	if (!opened.ok) return opened;
 	if (request.draft.text.trim().length === 0 || request.draft.scope.trim().length === 0) {
@@ -270,6 +390,10 @@ export async function commitClaim(
 		evidenceLinks: request.draft.evidenceLinks,
 		supportStatus,
 		conflictEvidenceIds: request.draft.conflictEvidenceIds,
+		semanticProvenance: {
+			claim: request.semanticProvenance,
+			evidenceLinks: request.draft.evidenceLinks.map(() => request.semanticProvenance),
+		},
 		humanConfirmation: { status: "not_reviewed", decidedAt: null, note: null },
 		publishability: supportStatus === "unassessed" || supportStatus === "unsupported" ? "blocked" : "exploratory",
 		audit: {

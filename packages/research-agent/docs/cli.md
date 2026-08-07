@@ -7,12 +7,12 @@
 | `/research-version` | Show the loaded package version. | None |
 | `/research-init [--domain <id>] [title]` | Initialize the current empty directory with a built-in domain, create the bootstrap task and operation, and link the Pi Session. The default is public administration. | Adds a project; no overwrite |
 | `/research-open [path]` | Validate and link an existing current-schema project. | Session link only |
-| `/research-migrate [path]` | Create a verified backup, then migrate any supported v0.1–v1.1 manifest directly to v1.5 after confirmation. `/research-migrate rollback <id>` restores the backup only when no later write occurred. | Confirmed migration or unchanged rollback |
+| `/research-migrate [path]` | Create a verified backup, then migrate any supported v0.1–v1.5.0 project to 1.5.1 after confirmation, including hash-snapshotted provenance normalization. `/research-migrate rollback <id>` restores snapshots only when no later write occurred. | Confirmed migration or unchanged rollback |
 | `/research-backup [list \| create [label]]` | List backups or create a content-hashed snapshot of canonical project files and immutable inputs. | `create` adds a backup outside canonical record sets |
 | `/research-restore <backup-id> <empty-destination>` | Verify a backup manifest, file hashes, root hash, and project identity, then restore into a new empty directory. | Adds files only to the empty destination |
 | `/research-doctor [path]` | Diagnose schema compatibility, integrity, missing files, pending transactions/migrations, Adapter and Domain Package availability, and declared external drift. | None; repair actions are recommendations |
 | `/research-adapter inspect <package-directory>` | Parse, validate, hash-check, and describe an Adapter package without running it. | None |
-| `/research-adapter register <package-directory>` | After policy and interactive approval, run macOS strong-isolation conformance and record only a matching successful registration. | Operation, Approval, and AdapterRegistration records; blocks when strong isolation is unavailable |
+| `/research-adapter register <package-directory>` | After policy and interactive approval, run macOS Seatbelt or Linux bubblewrap conformance and record only a matching successful registration. | Operation, Approval, and AdapterRegistration records; blocks when strong isolation is unavailable |
 | `/research-exchange pack [--include-raw] <new-directory>` | Create a hash-verified portable bundle. Raw originals/imports require explicit opt-in. | External destination and ExchangeRecord after approval |
 | `/research-exchange unpack <json>` | Verify and import a bundle into a new destination; JSON contains `bundle` and `destination`. | New project directory and ExchangeRecord after approval |
 | `/research-model-route <v1-json-input>` | Select or block one model deterministically under project policy, sensitivity, capability, context, and cost constraints. | Appends an Operation and ModelRouteDecision; no model call |
@@ -55,19 +55,19 @@ Skills orchestrate model judgment. They do not parse PDFs, decide dedup matches,
 | `research_search_sources` | Frozen query plan, Crossref/OpenAlex selection, filters, result/request budget, cache policy. | Normalized and deduplicated SourceRecords, raw response references, usage and errors. |
 | `research_import_sources` | Project-relative or explicitly selected RIS, BibTeX, CSL-JSON, or PDF inputs and copy/reference mode. | Imported candidates, immutable copies or references, parse issues, dedup decisions. |
 | `research_documents` | `locate`, `acquire`, `parse`, or `retry_failed`, source IDs, acquisition policy. | Access, license, full-text, parser, locator, and structured failure states. |
-| `research_query_corpus` | Bounded text query, record scope, filters, limit, character bound, cursor. | Deterministically paginated source-located hits. |
+| `research_query_corpus` | Bounded text query, record scope, filters, limit, character bound, cursor. | Authorized, deterministically paginated source-located hits; restricted model-visible payloads fail before return. |
 | `research_commit_evidence` | Strict EvidenceCard and Claim drafts plus expected project revision. | Validated canonical evidence/claims or a revision/provenance failure. |
 | `research_verify_citations` | Source IDs, Crossref/OpenAlex providers, refresh rule, field thresholds. | Existence, metadata, publication-status checks and final verification state. |
 | `research_artifacts` | Structured export or Markdown commit, source record refs, target status, optional portable output path. | Markdown, JSON, RIS/BibTeX, Obsidian ZIP, DOCX, PDF, XLSX, or PPTX output, hash, ArtifactRecord, warnings and blockers. |
 | `research_knowledge` | Create an export profile; render it; push a bounded Zotero batch; build/query a selected-project catalog. | Profile/link/task records, portable Artifact, external-write reconciliation, or content-hashed catalog results. |
 | `research_monitor` | Create/revise/list a subscription or run one confirmed provider page under its query, cursor, request, and cost bounds. | Immutable MonitorRun plus exactly one next checkpoint on success/partial success, or a retry task with unchanged cursor on failure. |
 | `research_design` | Create a question, concept, relation, critical decision, or protocol; or confirm/reject an exact record revision. | Versioned design record, explicit confirmation state, Operation provenance, or a method/dependency/revision failure. |
-| `research_analysis` | Import UTF-8 CSV, create/decide a frozen specification, detect Python/R/Stata, or run an approved local script. | Dataset/variable/specification records, terminal Task and AnalysisRun, command/cwd/runtime, logs, output hashes, raw-integrity checks, or explicit failure. |
+| `research_analysis` | Import UTF-8 CSV, create/decide a frozen specification, detect Python/R/Stata, or run an approved local script. | Strongly isolated macOS/Linux execution by default, explicit host-user fallback approval where unavailable, terminal Task/AnalysisRun, hashes, logs, or failure. |
 | `research_qualitative` | Import UTF-8 text, segment, version/decide a codebook or theme, record a model suggestion or human coding decision, or render an audit. | Stable segment locators, immutable suggestions, human decisions/supersession, themes/negative cases, and Markdown/JSON audit output. |
 | `research_manuscript` | Create/diff immutable revisions, confirm disclosure, or evaluate a submission candidate. | Manuscript/Section/ClaimOccurrence/Disclosure/SubmissionGate records and deterministic blockers. |
 | `research_review` | Record deterministic or model findings, capture the user's disposition, or change the active revision pointer. | Deduplicated ReviewFinding and immutable RevisionDecision records with provenance. |
 
-Tool parameter schemas are registered with Pi from `src/extension/tools.ts`. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
+Tool parameter schemas live in `src/extension/tool-schemas.ts`; Pi registration is split across the source, knowledge, methods, and writing modules under `src/extension/handlers/`. Every model-visible handler enters through the same fail-closed egress wrapper, and every mutating handler uses the shared operation journal. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
 
 ## Minimal interactive flow
 

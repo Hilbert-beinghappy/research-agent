@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import type { ResearchRpcRequest, ResearchRpcResponse } from "@research-agent/contracts";
@@ -44,7 +44,7 @@ async function rpc(
 
 describe("stable SDK and stdio RPC", () => {
 	it("returns identical results for two configured canonical projects", async () => {
-		const management = join(root, "management");
+		const management = join(root, "API_KEY_SHOULD_NOT_LEAK");
 		const publicAdministration = join(root, "public-administration");
 		const managementManifest = await initializeProject(management, {
 			title: "Management project",
@@ -57,6 +57,7 @@ describe("stable SDK and stdio RPC", () => {
 		if (managementManifest.compatibility !== "current" || publicManifest.compatibility !== "current") {
 			throw new Error("Expected current project fixtures");
 		}
+		await writeFile(join(management, "notes", "private.txt"), "PRIVATE_INTERVIEW_TEXT_SHOULD_NOT_LEAK");
 		const managementProjectId = managementManifest.manifest.projectId;
 		const publicProjectId = publicManifest.manifest.projectId;
 		const operation = await startOperation(management, {
@@ -134,15 +135,43 @@ describe("stable SDK and stdio RPC", () => {
 			result: {
 				ok: true,
 				value: {
+					version: 2,
 					packageVersion: "2.0.0",
-					projectSchemaVersion: "1.5.0",
+					projectSchemaVersion: "1.5.1",
 					mutations: "pi-governed-surfaces-only",
+					hostPaths: "redacted",
+					evidenceSubmission: {
+						supportedLevels: ["metadata", "abstract", "fulltext_unlocated", "fulltext_located"],
+						unsupportedLevels: ["table_or_figure_located", "dataset_or_appendix_located"],
+					},
 				},
 			},
 		});
-		expect(responses[1]?.result).toMatchObject({ ok: true, value: [{}, {}] });
+		expect(responses[1]?.result).toMatchObject({
+			ok: true,
+			value: [
+				{ projectId: managementProjectId, projectLocator: `research-project:${managementProjectId}` },
+				{ projectId: publicProjectId, projectLocator: `research-project:${publicProjectId}` },
+			],
+		});
 		expect(responses[5]?.result).toMatchObject({ ok: true, value: [operation.value.operationId] });
 		expect(responses[6]?.result).toMatchObject({ ok: true, value: { name: "sdk.fixture", status: "succeeded" } });
+		const snapshot = JSON.stringify(responses);
+		expect(snapshot).not.toContain(management);
+		expect(snapshot).not.toContain(homedir());
+		expect(snapshot).not.toContain("API_KEY_SHOULD_NOT_LEAK");
+		expect(snapshot).not.toContain("PRIVATE_INTERVIEW_TEXT_SHOULD_NOT_LEAK");
+
+		const hostPathSdk = await createResearchSdk([management], { includeHostPaths: true });
+		await expect(
+			hostPathSdk.invoke({
+				protocol: "pi-research-rpc",
+				version: 1,
+				requestId: "host-paths",
+				method: "projects.list",
+				params: null,
+			}),
+		).resolves.toMatchObject({ ok: true, value: [{ hostRoot: managementManifest.root }] });
 	});
 
 	it("keeps malformed or unconfigured requests inside unified failures", async () => {

@@ -1,0 +1,20 @@
+{
+	"format": "pi-research-public-corpus",
+	"version": 1,
+	"documents": [
+		{
+			"id": "nist-ai-rmf-1.0",
+			"title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+			"author": "Elham Tabassi",
+			"publisher": "National Institute of Standards and Technology",
+			"issued": "2023-01-26",
+			"doi": "10.6028/NIST.AI.100-1",
+			"url": "https://nvlpubs.nist.gov/nistpubs/ai/nist.ai.100-1.pdf",
+			"sha256": "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1",
+			"bytes": 1946127,
+			"rights": "LicenseRef-NIST-PD-US",
+			"rightsUrl": "https://www.nist.gov/open/copyright-fair-use-and-licensing-statements-srd-data-software-and-technical-series-publications",
+			"redistribution": "Fetched by hash during the networked qualification; the PDF is not vendored in the npm package."
+		}
+	]
+}

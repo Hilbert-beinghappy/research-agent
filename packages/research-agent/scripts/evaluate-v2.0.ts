@@ -177,9 +177,10 @@ check(
 		contractsManifest.license === "Apache-2.0",
 	"Contracts v2.0 package metadata changed",
 );
-check(RESEARCH_SCHEMA_VERSION === "1.5.0", "Package v2.0 invented an unverified project-schema migration");
+check(RESEARCH_SCHEMA_VERSION === "1.5.1", "Semantic-provenance schema hardening is missing");
 check(
-	RESEARCH_MIGRATABLE_SCHEMA_VERSIONS.length === rubric.thresholds.migratableSchemaVersions,
+	RESEARCH_MIGRATABLE_SCHEMA_VERSIONS.length === rubric.thresholds.migratableSchemaVersions + 1 &&
+		RESEARCH_MIGRATABLE_SCHEMA_VERSIONS.includes("1.5.0"),
 	"Legacy migration coverage changed",
 );
 check(RESEARCH_SDK_METHODS.length === rubric.thresholds.sdkMethods, "SDK documented method count changed");
