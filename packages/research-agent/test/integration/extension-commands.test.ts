@@ -313,7 +313,11 @@ describe("research extension commands", () => {
 		const ordinaryContext = ordinary.context(temporaryDirectory);
 		await ordinary.emit("session_start", { type: "session_start", reason: "new" }, ordinaryContext);
 		const headerFactory = ordinary.setHeader.mock.calls.at(-1)?.[0] as (() => { render: () => string[] }) | undefined;
-		expect(headerFactory?.().render()).toEqual(["Doro Research Agent v2.0.0 Powered by Pi 0.83.0"]);
+		const header = headerFactory?.().render();
+		expect(header).toHaveLength(12);
+		expect(header?.at(-1)).toBe("Doro Research Agent v2.0.0 Powered by Pi 0.83.0");
+		expect(header?.slice(0, -1).join("\n")).toContain("38;5;75");
+		expect(header?.slice(0, -1).join("\n")).toContain("48;5;220");
 		expect(ordinary.activeTools()).toEqual([
 			"read",
 			"bash",
