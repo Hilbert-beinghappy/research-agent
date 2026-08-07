@@ -101,8 +101,8 @@ const paths = {
 	qualitative: join(packageRoot, "evals/v0.3/qualitative-audit-gate.json"),
 	model: join(packageRoot, "evals/v0.3/baselines/deepseek-v4-flash-method-boundary.json"),
 	prompt: join(packageRoot, "evals/v0.3/model-method-prompt.md"),
-	quantitativeSkill: join(packageRoot, "skills/quantitative-research/SKILL.md"),
-	qualitativeSkill: join(packageRoot, "skills/qualitative-research/SKILL.md"),
+	quantitativeSkill: join(packageRoot, "evals/v0.3/inputs/quantitative-research.SKILL.md"),
+	qualitativeSkill: join(packageRoot, "evals/v0.3/inputs/qualitative-research.SKILL.md"),
 };
 
 function json<Value>(path: string): Value {
