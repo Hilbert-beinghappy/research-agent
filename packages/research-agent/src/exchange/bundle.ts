@@ -74,7 +74,7 @@ async function collectPaths(projectRoot: string, roots: readonly string[]): Prom
 
 async function parallelFor<Value>(values: readonly Value[], worker: (value: Value, index: number) => Promise<void>) {
 	let next = 0;
-	await Promise.all(
+	const results = await Promise.allSettled(
 		Array.from({ length: Math.min(16, values.length) }, async () => {
 			for (;;) {
 				const index = next;
@@ -85,6 +85,8 @@ async function parallelFor<Value>(values: readonly Value[], worker: (value: Valu
 			}
 		}),
 	);
+	const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+	if (failure !== undefined) throw failure.reason;
 }
 
 async function fileManifest(projectRoot: string, paths: readonly string[]): Promise<ProjectBackupFile[]> {

@@ -45,6 +45,15 @@ const COMMITTED_DIRECTORY = ".research/transactions/committed";
 const FAILED_DIRECTORY = ".research/transactions/failed";
 const TRANSACTION_IO_BATCH_SIZE = 512;
 
+async function settleBatch<Value>(promises: readonly Promise<Value>[]): Promise<Value[]> {
+	const values: Value[] = [];
+	for (const result of await Promise.allSettled(promises)) {
+		if (result.status === "rejected") throw result.reason;
+		values.push(result.value);
+	}
+	return values;
+}
+
 async function transactionPathResolver(projectRoot: string): Promise<(path: string) => Promise<string>> {
 	const canonicalRoot = await realpath(projectRoot);
 	const directories = new Map<string, Promise<string>>([["", Promise.resolve(canonicalRoot)]]);
@@ -226,7 +235,7 @@ export async function prepareProjectTransaction(projectRoot: string, input: Proj
 	for (let offset = 0; offset < writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
 		const batch = writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
 		entries.push(
-			...(await Promise.all(
+			...(await settleBatch(
 				batch.map(async (write, batchIndex): Promise<TransactionEntry> => {
 					const index = offset + batchIndex;
 					const target = await resolveTransactionPath(write.path);
@@ -295,7 +304,7 @@ export async function commitPreparedTransaction(projectRoot: string, transaction
 	const manifestIndex = journal.entries.length - 1;
 	for (let offset = 0; offset < manifestIndex; offset += TRANSACTION_IO_BATCH_SIZE) {
 		const batch = journal.entries.slice(offset, Math.min(offset + TRANSACTION_IO_BATCH_SIZE, manifestIndex));
-		await Promise.all(
+		await settleBatch(
 			batch.map(async (entry, batchIndex) => {
 				const index = offset + batchIndex;
 				if (states[index] === "new") return;
