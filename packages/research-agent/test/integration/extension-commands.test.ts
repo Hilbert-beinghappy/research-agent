@@ -2,7 +2,7 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import researchExtension from "../../extensions/research.ts";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
@@ -310,14 +310,28 @@ describe("research extension commands", () => {
 		expect(openedFromAnotherSession.activeTools()).toEqual([]);
 
 		const ordinary = createHarness();
-		const ordinaryContext = ordinary.context(temporaryDirectory);
+		const ordinaryContext = {
+			...ordinary.context(temporaryDirectory),
+			model: { id: "deepseek-v4-flash" },
+			thinkingLevel: "max",
+		} as unknown as ExtensionContext;
 		await ordinary.emit("session_start", { type: "session_start", reason: "new" }, ordinaryContext);
-		const headerFactory = ordinary.setHeader.mock.calls.at(-1)?.[0] as (() => { render: () => string[] }) | undefined;
-		const header = headerFactory?.().render();
+		const theme = {
+			bold: (text: string) => text,
+			fg: (_color: string, text: string) => text,
+		} as unknown as Theme;
+		const headerFactory = ordinary.setHeader.mock.calls.at(-1)?.[0] as
+			| ((tui: unknown, theme: Theme) => { render: (width: number) => string[] })
+			| undefined;
+		const header = headerFactory?.(undefined, theme).render(80);
 		expect(header).toHaveLength(12);
-		expect(header?.at(-1)).toBe("Doro Research Agent v2.0.0 Powered by Pi 0.83.0");
-		expect(header?.slice(0, -1).join("\n")).toContain("38;5;75");
-		expect(header?.slice(0, -1).join("\n")).toContain("48;5;220");
+		expect(header?.[0]).toContain("Doro Research Agent v2.0.0");
+		expect(header?.[1]).toContain("deepseek-v4-flash with max effort · Powered by Pi 0.83.0");
+		expect(header?.[2]).toContain(temporaryDirectory);
+		expect(header?.join("\n")).toContain("65;177;225");
+		expect(header?.join("\n")).toContain("255;211;54");
+		expect(header?.join("\n")).toContain("239;145;163");
+		expect(header?.[0]?.startsWith("\x1b[0m ")).toBe(true);
 		expect(ordinary.activeTools()).toEqual([
 			"read",
 			"bash",
