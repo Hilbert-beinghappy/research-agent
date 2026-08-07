@@ -1,4 +1,4 @@
-# Threat model v1.1
+# Threat model v1.5
 
 ## Assets
 
@@ -12,18 +12,24 @@
 1. **Pi host and user account:** trusted to read and modify accessible files. Pi Extensions have full host-process authority.
 2. **Research Package kernel:** trusted built-in code validates schemas, paths, revisions, hashes, policy, transactions, migration locks, backups, and deterministic model routes.
 3. **Model and Skills:** untrusted decision inputs. They can request only registered Tools while governed mode is active; their text is not canonical state.
-4. **Built-in Adapters and external services:** Adapter code is trusted in process; provider data and availability are untrusted. Network side effects go through the HTTP broker.
-5. **Imported files:** untrusted bytes. Format, size, path and PDF parser outcomes are validated before evidence use.
-6. **Local analysis runtimes and scripts:** user-confirmed but not sandboxed code. They receive copied inputs and a designated output directory, while the host verifies immutable originals before and after execution.
+4. **Built-in Adapters and external services:** built-in Adapter code is trusted in process; provider data and availability are untrusted. Network side effects go through the HTTP broker.
+5. **Third-party Adapter process:** untrusted code communicates through JSONL. Ordinary process separation contains protocol failure but is not an OS sandbox. Governed registration requires the built-in macOS strong-isolation profile and Host-mediated effects.
+6. **Imported files:** untrusted bytes. Format, size, path and PDF parser outcomes are validated before evidence use.
+7. **Local analysis runtimes and scripts:** user-confirmed but not sandboxed code. They receive copied inputs and a designated output directory, while the host verifies immutable originals before and after execution.
 
 Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are not an OS sandbox. A malicious Extension, Adapter, dependency, host user, or compromised Pi process can bypass them.
 
 ## Enforced controls
 
-| Threat | v1.1 control | Residual risk |
+| Threat | v1.5 control | Residual risk |
 |---|---|---|
 | Model writes canonical files directly | Governed mode removes write/edit/bash tools; canonical mutations use transactions and expected revisions. | Other host code can still write files. |
 | Path escape or overwrite | Portable relative-path validation, symlink checks, protected paths, action fingerprints, confirmation for overwrite/delete. | Host-level changes outside Pi are not prevented. |
+| Unknown Adapter executes before review | Static manifest/hash/license/provenance/SBOM checks occur before execution; default policy denies unknown code; registration binds interactive approval to package identity/hash/profile before conformance. | A user can approve malicious code; only the documented strong profile is intended to contain it. |
+| Adapter escapes process authority | macOS strong isolation strips the environment, denies direct network/subprocess/private reads/project writes, allows declared package/runtime reads, and limits writes to staging. Host brokers mediate effects. | Linux and Windows strong isolation are not shipped in v1.5. `jsonl_process` alone is not an OS sandbox, and a compromised host is out of scope. |
+| Malformed or crashed Adapter harms the Host | Exact executable/no shell, JSONL schema and ID validation, one terminal result, timeout, abort, output cap, and canonical failure mapping. | Resource exhaustion outside configured time/output limits remains an OS responsibility. |
+| Tampered portable exchange | Portable/case/symlink checks, file size/hash verification, file-list root hash, optional Ed25519 signature, staging, empty-destination import, and full project validation. | An unsigned root hash does not authenticate every manifest metadata field; default exchange does not redact sensitive derived content. |
+| Concurrent file collaboration loses work | Base/proposed hashes, consecutive revisions, successful author Operation, governance-record exclusion, and all-or-nothing conflict handling. | ChangeSets are not real-time synchronization and referenced files travel separately. |
 | Partial or mixed project state | Staged multi-file transactions, manifest-last commit, hashes, pending recovery, explicit validate/recover. | Disk or filesystem failure can still require manual recovery. |
 | Concurrent or interrupted migration | One exclusive project lock, a pre-migration hash-bound backup, immutable before/after snapshots, manifest-last commit, and interruption-matrix tests. | A stale lock after process termination needs diagnosis and explicit operator removal; the doctor never guesses that the process is dead. |
 | Corrupt or incomplete backup | Per-file hashes, a root hash, project identity check, and restore only into an empty destination. | Backup storage on the same failed physical device is not disaster recovery; copy a verified project backup to separate storage under the user's own policy. |
@@ -49,15 +55,15 @@ Tool hooks and `setActiveTools` enforce the intended Pi workflow, but they are n
 
 ## Privacy defaults
 
-Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
+Low-risk local reads, deterministic profiling, and new project outputs can run automatically. Executing a Python/R script is governed as unknown code; Stata uses the commercial-runtime action class. Unknown third-party Adapter code is denied by default; a user must change policy to `ask`, approve the exact package, and pass strong conformance before registration. Paid calls, sensitive egress, external writes, overwrites, deletion, dependency installation, commercial runtimes, and publish/submit actions require explicit approval or are denied by project policy. Disabling model egress blocks qualitative model suggestions for the linked project.
 
-Project exports, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, backups, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. A restricted project should disable model egress and external writes unless a destination-bound approval explicitly permits them. v1.1 has no process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
+Project exports, exchange bundles, manuscripts, review findings, runtime logs, Zotero payloads, Obsidian notes, backups, and catalogs can contain titles, authors, excerpts, research notes, variable names, participant text, parameters, and filenames. Review them before sharing. A restricted project should disable model egress and external writes unless a destination-bound approval explicitly permits them. v1.5 has no general host-process sandbox, secret vault, participant-data de-identification service, telemetry, background daemon, cloud sync, automated email, or automated submission.
 
 ## Security non-goals
 
 - Protecting against a malicious local user, root/administrator, compromised OS, compromised Pi host, or malicious in-process extension.
-- Running unknown third-party Adapters safely.
+- Protecting unknown Adapters outside the documented macOS strong-isolation profile or after a Host broker grants an unsafe action.
 - Circumventing authentication, robots controls, CAPTCHAs, paywalls, or provider terms.
 - Certifying academic correctness, legal compliance, privacy compliance, or publication readiness without human review.
 
-Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and host-mediated staging. That protocol is not claimed by v1.1; the isolated Adapter protocol is a v1.5 milestone.
+Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and Host-mediated staging. v1.5 claims this only for the tested built-in macOS strong-isolation profile; unsupported platforms block registration rather than falling back.

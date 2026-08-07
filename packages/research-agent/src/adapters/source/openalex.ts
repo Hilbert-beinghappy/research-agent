@@ -323,7 +323,8 @@ export class OpenAlexAdapter implements SourceAdapter {
 		return {
 			adapterId: "openalex",
 			adapterVersion: OPENALEX_ADAPTER_VERSION,
-			contractVersion: "0.1.0",
+			adapterKind: "source",
+			contractVersion: "1",
 			capabilities: ["health", "search", "lookup", "retracted-flag", "topics", "open-access-metadata"],
 			supportsPagination: true,
 			supportsResumeCursor: true,

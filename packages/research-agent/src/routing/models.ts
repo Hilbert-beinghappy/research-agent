@@ -3,20 +3,11 @@
 import { type Static, Type } from "typebox";
 import { Compile } from "typebox/compile";
 import type { ResearchPolicyConfig } from "../contracts/schemas.ts";
-import { MoneySchema } from "../contracts/schemas.ts";
+import { ModelRouteCandidateSchema, type ModelRouteDecision, MoneySchema } from "../contracts/schemas.ts";
+import { createOpaqueId } from "../kernel/identity.ts";
+import { hashCanonicalJson } from "../kernel/integrity.ts";
 
-export const ResearchModelCandidateSchema = Type.Object(
-	{
-		provider: Type.String({ minLength: 1 }),
-		model: Type.String({ minLength: 1 }),
-		local: Type.Boolean(),
-		available: Type.Boolean(),
-		capabilities: Type.Array(Type.String({ minLength: 1 })),
-		contextWindow: Type.Integer({ minimum: 1 }),
-		estimatedCost: MoneySchema,
-	},
-	{ additionalProperties: false },
-);
+export const ResearchModelCandidateSchema = ModelRouteCandidateSchema;
 export type ResearchModelCandidate = Static<typeof ResearchModelCandidateSchema>;
 
 export const ResearchModelRouteRequestSchema = Type.Object(
@@ -112,4 +103,22 @@ export function selectResearchModelRoute(
 	return candidate === undefined
 		? { status: "blocked", candidate: null, evaluations }
 		: { status: "selected", candidate, evaluations };
+}
+
+export function createResearchModelRouteDecision(
+	projectId: string,
+	request: ResearchModelRouteRequest,
+	route: ResearchModelRoute,
+	decidedAt = new Date().toISOString(),
+): ModelRouteDecision {
+	return {
+		format: "pi-research-model-route-decision",
+		version: 1,
+		decisionId: createOpaqueId("model_route_decision"),
+		projectId,
+		requestHash: hashCanonicalJson(request),
+		selected: route.candidate,
+		evaluations: route.evaluations,
+		decidedAt,
+	};
 }

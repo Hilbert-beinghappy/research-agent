@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Compile } from "typebox/compile";
 import { describe, expect, it } from "vitest";
-import type { ResearchPolicyConfig } from "../../src/contracts/schemas.ts";
-import { type ResearchModelRouteRequest, selectResearchModelRoute } from "../../src/routing/models.ts";
+import { ModelRouteDecisionSchema, type ResearchPolicyConfig } from "../../src/contracts/schemas.ts";
+import { hashCanonicalJson } from "../../src/kernel/integrity.ts";
+import {
+	createResearchModelRouteDecision,
+	type ResearchModelRouteRequest,
+	selectResearchModelRoute,
+} from "../../src/routing/models.ts";
 
 const policy: ResearchPolicyConfig = {
 	sensitivity: "internal",
@@ -116,5 +122,48 @@ describe("research model routing", () => {
 			status: "blocked",
 			evaluations: [{ eligible: false, reasons: ["cost_limit_exceeded"] }],
 		});
+	});
+
+	it("routes the same task differently by privacy policy and records an explainable decision", () => {
+		const candidates = [
+			{
+				provider: "local",
+				model: "private",
+				local: true,
+				available: true,
+				capabilities: ["structured-output"],
+				contextWindow: 20_000,
+				estimatedCost: { amount: 0.04, currency: "USD" },
+			},
+			{
+				provider: "approved-provider",
+				model: "remote",
+				local: false,
+				available: true,
+				capabilities: ["structured-output"],
+				contextWindow: 20_000,
+				estimatedCost: { amount: 0.01, currency: "USD" },
+			},
+		];
+		const privateRoute = selectResearchModelRoute({ ...policy, modelEgressAllowed: false }, request, candidates);
+		const openRoute = selectResearchModelRoute(
+			{ ...policy, budgetHardLimit: { amount: 0.02, currency: "USD" } },
+			request,
+			candidates,
+		);
+		expect(privateRoute).toMatchObject({ candidate: { model: "private" } });
+		expect(openRoute).toMatchObject({ candidate: { model: "remote" } });
+		const decision = createResearchModelRouteDecision(
+			"project_fixture",
+			request,
+			openRoute,
+			"2026-08-07T00:00:00.000Z",
+		);
+		expect(Compile(ModelRouteDecisionSchema).Check(decision)).toBe(true);
+		expect(decision.requestHash).toEqual(hashCanonicalJson(request));
+		expect(decision.evaluations).toEqual([
+			expect.objectContaining({ model: "private", eligible: false, reasons: ["cost_limit_exceeded"] }),
+			expect.objectContaining({ model: "remote", eligible: true, reasons: [] }),
+		]);
 	});
 });

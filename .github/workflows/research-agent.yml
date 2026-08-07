@@ -5,11 +5,13 @@ on:
     paths:
       - ".github/workflows/research-agent.yml"
       - "packages/research-agent/**"
+      - "packages/research-agent-contracts/**"
       - "package-lock.json"
   pull_request:
     paths:
       - ".github/workflows/research-agent.yml"
       - "packages/research-agent/**"
+      - "packages/research-agent-contracts/**"
       - "package-lock.json"
   workflow_dispatch:
 
@@ -19,7 +21,7 @@ concurrency:
 
 jobs:
   v1-core:
-    name: v1.1 core (${{ matrix.os }})
+    name: v1.5 core (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -42,16 +44,19 @@ jobs:
         run: npm run hydrate:model-data
 
       - name: Check package
-        run: npm run check -w packages/research-agent
+        run: |
+          npm run check -w packages/research-agent-contracts
+          npm run check -w packages/research-agent
 
       - name: Run deterministic tests
         run: |
+          npm test -w packages/research-agent-contracts
           npm run test:unit -w packages/research-agent
           npm run test:integration -w packages/research-agent
           npm run test:e2e -w packages/research-agent
           npm run test:compat -w packages/research-agent
 
-      - name: Replay v0.1 through v1.1 release gates
+      - name: Replay v0.1 through v1.5 release gates
         run: |
           npm run eval -w packages/research-agent -- v0.1
           npm run eval:v0.2 -w packages/research-agent -- v0.2
@@ -60,8 +65,9 @@ jobs:
           npm run eval:v0.5 -w packages/research-agent -- v0.5
           npm run eval:v1.0 -w packages/research-agent -- v1.0
           npm run eval:v1.1 -w packages/research-agent -- v1.1
+          npm run eval:v1.5 -w packages/research-agent -- v1.5
 
-      - name: Benchmark v0.1 through v1.1
+      - name: Benchmark v0.1 through v1.5
         run: |
           node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark-v0.1.json
           node packages/research-agent/scripts/benchmark-v0.2.ts --output research-agent-benchmark-v0.2.json
@@ -70,6 +76,17 @@ jobs:
           node packages/research-agent/scripts/benchmark-v0.5.ts --output research-agent-benchmark-v0.5.json
           node packages/research-agent/scripts/benchmark-v1.0.ts --output research-agent-benchmark-v1.0.json
           node packages/research-agent/scripts/benchmark-v1.1.ts --output research-agent-benchmark-v1.1.json
+          node packages/research-agent/scripts/benchmark-v1.5.ts --output research-agent-benchmark-v1.5.json
+
+      - name: Run Adapter v1 conformance
+        run: |
+          npm run conform:adapter -w packages/research-agent -- examples/adapters/open-catalog
+          npm run conform:adapter -w packages/research-agent -- examples/adapters/repro-runtime
+          npm run conform:adapter -w packages/research-agent -- examples/adapters/json-artifact
+
+      - name: Qualify strong Adapter isolation
+        if: runner.os == 'macOS'
+        run: node packages/research-agent/scripts/qualify-v1.5-isolation.ts --output research-agent-isolation-v1.5.json
 
       - name: Qualify installed Python and R runtimes
         if: runner.os != 'Windows'
@@ -87,9 +104,12 @@ jobs:
             research-agent-benchmark-v0.5.json
             research-agent-benchmark-v1.0.json
             research-agent-benchmark-v1.1.json
+            research-agent-benchmark-v1.5.json
+            research-agent-isolation-v1.5.json
 
       - name: Qualify release package
         run: |
+          npm run scan:release -w packages/research-agent-contracts
           npm run scan:release -w packages/research-agent
           npm run test:clean-install -w packages/research-agent
           npm run test:clean-install:latest -w packages/research-agent

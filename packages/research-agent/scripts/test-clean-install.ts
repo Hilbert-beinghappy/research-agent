@@ -22,6 +22,7 @@ interface PackageManifest {
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
+const contractsRoot = join(repositoryRoot, "packages/research-agent-contracts");
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const piVersionIndex = process.argv.indexOf("--pi-version");
 const requestedPiVersion = piVersionIndex < 0 ? null : (process.argv[piVersionIndex + 1] ?? null);
@@ -52,6 +53,11 @@ try {
 	const installDirectory = join(tempRoot, "install");
 	await mkdir(packDirectory);
 	await mkdir(installDirectory);
+	const packedContracts = JSON.parse(
+		run(npm, ["pack", "--json", "--pack-destination", packDirectory], contractsRoot),
+	) as PackResult[];
+	const contractsFilename = packedContracts[0]?.filename;
+	if (contractsFilename === undefined) throw new Error("contracts npm pack returned no tarball");
 	const packed = JSON.parse(
 		run(npm, ["pack", "--json", "--pack-destination", packDirectory], packageRoot),
 	) as PackResult[];
@@ -69,6 +75,7 @@ try {
 			"--no-audit",
 			"--no-fund",
 			"--package-lock=false",
+			join(packDirectory, contractsFilename),
 			join(packDirectory, filename),
 			...peerPackages.map(({ name, version }) => `${name}@${requestedPiVersion ?? version}`),
 			`typebox@${typeboxVersion}`,

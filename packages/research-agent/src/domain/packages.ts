@@ -14,6 +14,7 @@ import {
 
 const DomainPackageValidator = Compile(DomainPackageManifestSchema);
 const PACKAGE_ID_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
+export const BUILT_IN_DOMAIN_PACKAGE_VERSION = "1.1.0";
 const BUILT_IN_DOMAIN_PATHS = new Map([
 	["pi-research-domain-management", fileURLToPath(new URL("../../domains/management/domain.json", import.meta.url))],
 	[

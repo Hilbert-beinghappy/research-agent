@@ -19,7 +19,8 @@ export function zoteroApiCapabilities(): AdapterCapabilitySnapshot {
 	return {
 		adapterId: "zotero-api",
 		adapterVersion: ZOTERO_API_ADAPTER_VERSION,
-		contractVersion: "experimental-v0.5",
+		adapterKind: "artifact",
+		contractVersion: "1",
 		capabilities: ["export_sources", "batch_create", "idempotent_write_token", "partial_reconciliation"],
 		supportsPagination: false,
 		supportsResumeCursor: false,

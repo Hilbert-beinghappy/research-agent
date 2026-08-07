@@ -209,7 +209,8 @@ export class UnpaywallAdapter {
 		return {
 			adapterId: "unpaywall",
 			adapterVersion: UNPAYWALL_ADAPTER_VERSION,
-			contractVersion: "0.1.0",
+			adapterKind: "source",
+			contractVersion: "1",
 			capabilities: ["health", "doi-oa-location"],
 			supportsPagination: false,
 			supportsResumeCursor: false,

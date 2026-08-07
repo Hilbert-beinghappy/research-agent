@@ -9,6 +9,7 @@ import {
 	RESEARCH_SCHEMA_VERSION,
 	type RecordKind,
 } from "../../src/contracts/schemas.ts";
+import { BUILT_IN_DOMAIN_PACKAGE_VERSION } from "../../src/domain/packages.ts";
 import { listProjectBackups, readProjectBackup } from "../../src/project/backup.ts";
 import { initializeProject } from "../../src/project/init.ts";
 import { INITIAL_RECORD_SETS, PROJECT_MANIFEST_PATH } from "../../src/project/layout.ts";
@@ -48,6 +49,10 @@ const introduced: Record<string, string> = {
 	external_item_link: "0.5.0",
 	monitor_subscription: "0.5.0",
 	monitor_run: "0.5.0",
+	adapter_registration: "1.5.0",
+	exchange_record: "1.5.0",
+	collaboration_merge: "1.5.0",
+	model_route_decision: "1.5.0",
 };
 
 function atLeast(left: string, right: string): boolean {
@@ -81,7 +86,7 @@ afterEach(async () => {
 	await rm(temporaryDirectory, { recursive: true, force: true });
 });
 
-describe("supported historical projects to v1.1 migration", () => {
+describe("supported historical projects to v1.5 migration", () => {
 	it.each(RESEARCH_MIGRATABLE_SCHEMA_VERSIONS)(
 		"prepares %s without manifest mutation, resumes, and retains a hash-bound backup",
 		async (version) => {
@@ -114,7 +119,7 @@ describe("supported historical projects to v1.1 migration", () => {
 			if (migrated.compatibility !== "current") throw new Error("Expected current project");
 			expect(migrated.manifest.domain).toMatchObject({
 				templatePackage: "pi-research-domain-public-administration",
-				templateVersion: RESEARCH_SCHEMA_VERSION,
+				templateVersion: BUILT_IN_DOMAIN_PACKAGE_VERSION,
 			});
 			expect(migrated.manifest.recordSets.map(({ kind }) => kind)).toEqual(
 				INITIAL_RECORD_SETS.map(({ kind }) => kind),

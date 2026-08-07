@@ -31,7 +31,8 @@ const adapter: SourceAdapter = {
 		return {
 			adapterId: "source.fixture",
 			adapterVersion: "0.1.0",
-			contractVersion: "0.1.0",
+			adapterKind: "source",
+			contractVersion: "1",
 			capabilities: ["search", "lookup"],
 			supportsPagination: true,
 			supportsResumeCursor: true,
@@ -110,7 +111,8 @@ describe("SourceAdapter contract", () => {
 		const context = adapterContext();
 		await expect(adapter.capabilities()).resolves.toMatchObject({
 			adapterId: "source.fixture",
-			contractVersion: "0.1.0",
+			adapterKind: "source",
+			contractVersion: "1",
 			capabilities: ["search", "lookup"],
 			supportsPagination: true,
 			supportsResumeCursor: true,

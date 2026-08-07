@@ -11,24 +11,24 @@ pi -e /path/to/pi-research-agent
 
 Start Pi inside an empty project directory, run `/research-version`, then `/research-init "title"`. Review the package before loading it: Pi Extensions run in the host process.
 
-v1.1 release qualification uses Pi npm packages 0.83.0 and 0.84.0. The authoritative tested matrix is `docs/compatibility/pi-baselines.json`; an unlisted Pi main commit is not implicitly supported.
+v1.5 release qualification uses Pi npm packages 0.83.0 and 0.84.0. The authoritative tested matrix is `docs/compatibility/pi-baselines.json`; an unlisted Pi main commit is not implicitly supported.
 
 ## Upgrade a project
 
 1. Stop project writes and run `/research-doctor` on the old installation.
 2. Create a user backup if desired; migration creates its own verified backup.
 3. Install the new package without changing the research project.
-4. Open the supported v0.1–v1.0 project. It remains read-only and reports `migration_required`.
+4. Open the supported v0.1–v1.1 project. It remains read-only and reports `migration_required`.
 5. Run `/research-migrate` in an interactive Pi terminal and approve the exact schema transition.
 6. Run `/research-doctor`, `/research-validate`, `/research-status full`, and `/research-resume`.
 
-Migration adds missing record-set declarations, directories, and a default built-in Domain Package reference when needed, advances the manifest once, and leaves every historical canonical record byte-for-byte unchanged. It is idempotent after success.
+Migration adds missing record-set declarations and directories, including v1.5 Adapter/exchange/collaboration/model-route sets, and a default built-in Domain Package reference when needed. It advances the manifest once and leaves every historical canonical record byte-for-byte unchanged. It is idempotent after success.
 
 ## Interrupted upgrade
 
 - A staged migration that never became pending is discarded and prepared again.
 - A pending migration resumes from its hash-verified journal.
-- A project already carrying the v1.1 manifest but a pending journal completes the journal move on retry.
+- A project already carrying the v1.5 manifest but a pending journal completes the journal move on retry.
 - An active or stale migration lock causes `MIGRATION_LOCKED`; inspect the process and doctor report. Do not delete a lock until the writer is known to be stopped and the project has been backed up.
 - Hash conflict, missing file, or a newer unsupported schema keeps the project read-only and requires user-directed repair; no canonical record is silently regenerated.
 
@@ -41,3 +41,5 @@ npm run test:compat -w packages/research-agent
 ```
 
 The first lane uses the pinned Pi baseline; the second uses the latest tested stable Pi release. Both pack the package and load it in a clean temporary install. CI repeats supported behavior on Ubuntu, macOS, and Windows.
+
+Third-party Adapter registration is a separate platform gate. Ordinary JSONL conformance runs cross-platform, but the shipped strong-isolation registration path is macOS-only in v1.5 and blocks elsewhere without downgrade.

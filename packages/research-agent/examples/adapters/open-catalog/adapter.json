@@ -1,0 +1,36 @@
+{
+	"format": "pi-research-adapter-package",
+	"manifestVersion": 1,
+	"contractVersion": 1,
+	"packageId": "example-open-catalog",
+	"packageVersion": "1.0.0",
+	"adapterId": "example-open-catalog",
+	"adapterVersion": "1.0.0",
+	"adapterKind": "source",
+	"entrypoint": "entry.mjs",
+	"capabilities": [
+		{
+			"capability": "search",
+			"required": true,
+			"constraints": {
+				"fixture": true
+			}
+		}
+	],
+	"requiredBrokers": [],
+	"isolationProfiles": ["jsonl_process", "strong_isolation"],
+	"licenseExpression": "Apache-2.0",
+	"provenance": {
+		"source": "pi-research-agent public example",
+		"repositoryUrl": "https://github.com/Hilbert-beinghappy/research-agent"
+	},
+	"packageHash": {
+		"algorithm": "sha256",
+		"value": "64d4754876a6c5e11c25a088ac17ad5163be9fc391c7b39bb26fd674049755b9"
+	},
+	"sbomPath": "SBOM.spdx.json",
+	"sbomHash": {
+		"algorithm": "sha256",
+		"value": "aaf55751fe07fa38df0bc011f6f71503edcd033caeb6cb8e18efe97ece01c54e"
+	}
+}

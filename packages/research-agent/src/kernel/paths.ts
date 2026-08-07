@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { PROJECT_RELATIVE_PATH_PATTERN } from "../contracts/schemas.ts";
 
@@ -52,4 +52,16 @@ export async function resolveProjectPath(projectRoot: string, projectPath: strin
 		throw new TypeError(`Project path escapes through a symbolic link: ${projectPath}`);
 	}
 	return existing === target ? canonicalExisting : target;
+}
+
+export async function resolveProjectPathWithoutSymlinks(projectRoot: string, projectPath: string): Promise<string> {
+	const relativePath = validateProjectRelativePath(projectPath);
+	let current = await realpath(projectRoot);
+	for (const segment of relativePath.split("/")) {
+		current = resolve(current, segment);
+		if ((await lstat(current)).isSymbolicLink()) {
+			throw new TypeError(`Project path contains a symbolic link: ${projectPath}`);
+		}
+	}
+	return current;
 }

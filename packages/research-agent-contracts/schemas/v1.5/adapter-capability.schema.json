@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent adapter capability v1",
+  "type": "object",
+  "required": [
+    "adapterId",
+    "adapterVersion",
+    "adapterKind",
+    "contractVersion",
+    "capabilities",
+    "supportsPagination",
+    "supportsResumeCursor",
+    "mayCostMoney",
+    "maySendDataExternally",
+    "requiresCredentials",
+    "supportedIdentifiers",
+    "limits",
+    "generatedAt"
+  ],
+  "properties": {
+    "adapterId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapterVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapterKind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "source"
+        },
+        {
+          "type": "string",
+          "const": "analysis_runtime"
+        },
+        {
+          "type": "string",
+          "const": "artifact"
+        }
+      ]
+    },
+    "contractVersion": {
+      "type": "string",
+      "const": "1"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "supportsPagination": {
+      "type": "boolean"
+    },
+    "supportsResumeCursor": {
+      "type": "boolean"
+    },
+    "mayCostMoney": {
+      "type": "boolean"
+    },
+    "maySendDataExternally": {
+      "type": "boolean"
+    },
+    "requiresCredentials": {
+      "type": "boolean"
+    },
+    "supportedIdentifiers": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "doi"
+          },
+          {
+            "type": "string",
+            "const": "arxiv"
+          },
+          {
+            "type": "string",
+            "const": "isbn"
+          },
+          {
+            "type": "string",
+            "const": "issn"
+          },
+          {
+            "type": "string",
+            "const": "pmid"
+          },
+          {
+            "type": "string",
+            "const": "pmcid"
+          },
+          {
+            "type": "string",
+            "const": "openalex"
+          },
+          {
+            "type": "string",
+            "const": "url"
+          },
+          {
+            "type": "string",
+            "const": "handle"
+          },
+          {
+            "type": "string",
+            "const": "local"
+          }
+        ]
+      }
+    },
+    "limits": {
+      "$defs": {
+        "JsonValue": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "JsonValue"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "$ref": "JsonValue"
+                }
+              }
+            }
+          ],
+          "$id": "JsonValue"
+        }
+      },
+      "$ref": "JsonValue"
+    },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

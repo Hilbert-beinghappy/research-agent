@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent adapter package v1",
+  "type": "object",
+  "required": [
+    "format",
+    "manifestVersion",
+    "contractVersion",
+    "packageId",
+    "packageVersion",
+    "adapterId",
+    "adapterVersion",
+    "adapterKind",
+    "entrypoint",
+    "capabilities",
+    "requiredBrokers",
+    "isolationProfiles",
+    "licenseExpression",
+    "provenance",
+    "packageHash",
+    "sbomPath",
+    "sbomHash"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "pi-research-adapter-package"
+    },
+    "manifestVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "contractVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "packageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "packageVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapterId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapterVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapterKind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "source"
+        },
+        {
+          "type": "string",
+          "const": "analysis_runtime"
+        },
+        {
+          "type": "string",
+          "const": "artifact"
+        }
+      ]
+    },
+    "entrypoint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "capability",
+          "required",
+          "constraints"
+        ],
+        "properties": {
+          "capability": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "constraints": {
+            "$defs": {
+              "JsonValue": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "JsonValue"
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "patternProperties": {
+                      "^.*$": {
+                        "$ref": "JsonValue"
+                      }
+                    }
+                  }
+                ],
+                "$id": "JsonValue"
+              }
+            },
+            "$ref": "JsonValue"
+          }
+        },
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "requiredBrokers": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "http"
+          },
+          {
+            "type": "string",
+            "const": "credential"
+          },
+          {
+            "type": "string",
+            "const": "project_read"
+          },
+          {
+            "type": "string",
+            "const": "staged_output"
+          }
+        ]
+      }
+    },
+    "isolationProfiles": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "legacy_trusted"
+          },
+          {
+            "type": "string",
+            "const": "jsonl_process"
+          },
+          {
+            "type": "string",
+            "const": "strong_isolation"
+          }
+        ]
+      },
+      "minItems": 1
+    },
+    "licenseExpression": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "repositoryUrl"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repositoryUrl": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "packageHash": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": true
+    },
+    "sbomPath": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sbomHash": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "value"
+          ],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

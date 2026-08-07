@@ -10,6 +10,7 @@ import {
 	type ResearchProjectManifest,
 } from "../contracts/schemas.ts";
 import { validatePersistedRecord } from "../contracts/validators.ts";
+import { BUILT_IN_DOMAIN_PACKAGE_VERSION } from "../domain/packages.ts";
 import { hashBytes, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { atomicWriteFile } from "./atomic-write.ts";
@@ -126,7 +127,7 @@ export function buildV1Manifest(raw: JsonValue): ResearchProjectManifest {
 						? raw.domain.templateVersion
 						: null
 					: typeof raw.domain.id === "string" && BUILT_IN_DOMAIN_PACKAGES[raw.domain.id] !== undefined
-						? RESEARCH_SCHEMA_VERSION
+						? BUILT_IN_DOMAIN_PACKAGE_VERSION
 						: null,
 		},
 		recordSets: INITIAL_RECORD_SETS.map((recordSet) => existing.get(recordSet.kind) ?? recordSet),

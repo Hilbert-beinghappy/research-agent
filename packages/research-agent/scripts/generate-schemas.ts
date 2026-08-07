@@ -2,8 +2,13 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { AdapterProtocolMessageSchema } from "../src/contracts/adapter-protocol.ts";
 import {
+	AdapterPackageManifestSchema,
+	CollaborationChangeSetSchema,
+	ExchangeBundleManifestSchema,
 	JsonResearchResultSchema,
+	ModelRouteDecisionSchema,
 	PersistedRecordSchema,
 	ProjectBackupManifestSchema,
 	ProjectCatalogSchema,
@@ -31,5 +36,25 @@ await Promise.all([
 	writeFile(
 		`${schemaDir}project-backup.schema.json`,
 		`${JSON.stringify({ $schema: jsonSchema, title: `Pi Research Agent project backup ${schemaLabel}`, ...ProjectBackupManifestSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${schemaDir}adapter-package.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: `Pi Research Agent adapter package ${schemaLabel}`, ...AdapterPackageManifestSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${schemaDir}adapter-protocol.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent adapter JSONL protocol v1", ...AdapterProtocolMessageSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${schemaDir}exchange-bundle.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent exchange bundle v1", ...ExchangeBundleManifestSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${schemaDir}collaboration-change-set.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent collaboration change set v1", ...CollaborationChangeSetSchema }, null, 2)}\n`,
+	),
+	writeFile(
+		`${schemaDir}model-route-decision.schema.json`,
+		`${JSON.stringify({ $schema: jsonSchema, title: "Pi Research Agent model route decision v1", ...ModelRouteDecisionSchema }, null, 2)}\n`,
 	),
 ]);

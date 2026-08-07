@@ -4,6 +4,7 @@ import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import { RESEARCH_SCHEMA_VERSION, type ResearchProjectManifest } from "../contracts/schemas.ts";
+import { BUILT_IN_DOMAIN_PACKAGE_VERSION } from "../domain/packages.ts";
 import { createOpaqueId } from "../kernel/identity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import {
@@ -73,7 +74,7 @@ export async function initializeProject(projectRoot: string, input: InitializePr
 			id: domain,
 			label: DOMAIN_LABELS[domain],
 			templatePackage: DOMAIN_PACKAGES[domain],
-			templateVersion: RESEARCH_SCHEMA_VERSION,
+			templateVersion: BUILT_IN_DOMAIN_PACKAGE_VERSION,
 		},
 		researchQuestions: [],
 		currentStage: "topic_exploration",

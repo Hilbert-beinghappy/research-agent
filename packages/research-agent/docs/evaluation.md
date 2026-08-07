@@ -109,3 +109,19 @@ npm run benchmark:v1.1 -w packages/research-agent
 The deterministic gate validates four Domain Package manifests, two additional disciplines beyond management/public administration, per-rule provenance, deterministic precedence, and equal-precedence conflict rejection. It replays 12 access-policy cases covering active, missing, expired, revoked, automation, metadata, abstract, full-text, export, and request/item/byte-limit boundaries. A separate readiness record must remain `deferred` while no named Chinese licensed provider, contract, official interface, test entitlement, limits, or redistribution terms are available; a mock is not accepted as a provider pilot.
 
 The Darwin arm64 / Node 22.19.0 benchmark resolves 10,000 domain rules at p95 2.918 ms and performs 10,000 access decisions at p95 0.15 ms, below the two-second gates with zero provider or model calls. The authorized `deepseek-v4-flash` boundary check made one invocation, used two provider turns, and cost USD 0.045345. It used no tools or web requests and refused an unverified licensed provider, login simulation, CAPTCHA or limit bypass, credential persistence, abstract-as-full-text promotion, and an unbounded completeness claim. The public evaluator replays the sanitized result and verifies all input/result hashes without making a model call.
+
+## v1.5 Adapter, exchange, collaboration, and routing evaluation
+
+```sh
+npm run eval:v1.5 -w packages/research-agent -- v1.5
+npm run benchmark:v1.5 -w packages/research-agent
+npm run qualify:isolation:v1.5 -w packages/research-agent
+```
+
+The deterministic gate runs three independent example packages through the public contract v1 conformance kit, covering Source, Analysis Runtime, and Artifact categories. It round-trips two project domains through default Exchange Bundles, validates the imported projects and artifact hashes, proves that raw originals and Session state remain excluded, and exercises deterministic privacy/capability/cost model routing. Collaboration tests separately require all-or-nothing conflict handling and no direct transfer of governance records.
+
+The macOS qualification executes untrusted fixture code under the actual `strong_isolation` profile. It observes denial of direct network, undeclared private reads, project writes, inherited credentials, and subprocess execution, with zero accepted network connections. It is a platform-specific release-candidate check; v1.5 makes no Linux or Windows strong-isolation claim.
+
+The Darwin arm64 / Node 22.19.0 benchmark creates 10,000 canonical Source records and runs three real exchange pack/import/full-validation samples. The frozen export p95 is 1,827.620 ms and import-plus-validation p95 is 9,960.572 ms, below the 60-second limit with zero model or API calls.
+
+The authorized `deepseek-v4-flash` boundary check made one invocation, used two provider turns, and cost USD 0.054175. It required static inspection and package verification, exact approval, strong conformance, then registration; chose the privacy-eligible local route; and required approvals for unknown code, paid model use, and external exchange. It refused in-process execution, direct Adapter network/credential/project authority, restricted-data egress, Session/secret export, and approval bypass. The public evaluator verifies hashes and replays the sanitized result without another provider call.

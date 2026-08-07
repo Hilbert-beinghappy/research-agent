@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,7 @@ import {
 	RESEARCH_SCHEMA_VERSION,
 	type ResearchTask,
 } from "../../src/contracts/schemas.ts";
+import { BUILT_IN_DOMAIN_PACKAGE_VERSION } from "../../src/domain/packages.ts";
 import { RESEARCH_SESSION_ENTRY_TYPE } from "../../src/extension/commands.ts";
 import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { hashBytes } from "../../src/kernel/integrity.ts";
@@ -20,6 +21,7 @@ import { openProject } from "../../src/project/open.ts";
 import { calculateRecordSetIndex, listProjectRecordIds, projectRecordPath } from "../../src/project/record-index.ts";
 import { readRecord } from "../../src/project/records.ts";
 import { prepareProjectTransaction } from "../../src/project/transactions.ts";
+import { validateProject } from "../../src/project/validate.ts";
 
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 type EventHandler = (event: Record<string, unknown>, ctx: ExtensionContext) => unknown | Promise<unknown>;
@@ -155,9 +157,11 @@ describe("research extension commands", () => {
 		const ctx = harness.context(projectRoot);
 
 		expect([...harness.commands.keys()].sort()).toEqual([
+			"research-adapter",
 			"research-backup",
 			"research-doctor",
 			"research-domain",
+			"research-exchange",
 			"research-init",
 			"research-migrate",
 			"research-model-route",
@@ -350,6 +354,127 @@ describe("research extension commands", () => {
 		).toMatchObject({ block: true });
 	});
 
+	it("persists a deterministic model-route decision without calling a model", async () => {
+		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-model-route-command-"));
+		const projectRoot = join(temporaryDirectory, "project");
+		await mkdir(projectRoot);
+		const harness = createHarness();
+		const ctx = harness.context(projectRoot);
+		await harness.commands.get("research-init")?.('"Route Project"', ctx);
+		await harness.commands.get("research-model-route")?.(
+			JSON.stringify({
+				request: {
+					dataClasses: ["public_metadata"],
+					requiredCapabilities: ["structured-output"],
+					estimatedInputTokens: 100,
+					maxCost: null,
+				},
+				candidates: [
+					{
+						provider: "local",
+						model: "fixture-local",
+						local: true,
+						available: true,
+						capabilities: ["structured-output"],
+						contextWindow: 1_000,
+						estimatedCost: { amount: 0, currency: "USD" },
+					},
+				],
+			}),
+			ctx,
+		);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: {
+				kind: "model_route_decision",
+				selected: { model: "fixture-local" },
+			},
+			meta: { operationId: expect.any(String) },
+		});
+		const opened = await openProject(projectRoot);
+		if (opened.compatibility !== "current") throw new Error("expected current project");
+		expect(opened.manifest.recordSets.find(({ kind }) => kind === "model_route_decision")?.count).toBe(1);
+		expect(opened.manifest.recordSets.find(({ kind }) => kind === "operation")?.count).toBe(2);
+		expect((await validateProject(projectRoot)).issues).toEqual([]);
+	});
+
+	it("registers an Adapter and requires ledgered approval for exchange writes", async () => {
+		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-exchange-command-"));
+		const projectRoot = join(temporaryDirectory, "project");
+		const bundle = join(temporaryDirectory, "bundle");
+		const imported = join(temporaryDirectory, "imported");
+		const exampleAdapter = fileURLToPath(new URL("../../examples/adapters/open-catalog/", import.meta.url));
+		await mkdir(projectRoot);
+		const harness = createHarness();
+		const ctx = harness.context(projectRoot);
+		await harness.commands.get("research-init")?.('"Exchange Project"', ctx);
+		await harness.commands.get("research-policy")?.('set {"unknownThirdPartyCode":"ask"}', ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { policy: { unknownThirdPartyCode: "ask" } },
+		});
+
+		await harness.commands.get("research-adapter")?.(`inspect "${exampleAdapter}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { packageId: "example-open-catalog", contractVersion: 1 },
+		});
+		await harness.commands.get("research-adapter")?.(`register "${exampleAdapter}"`, ctx);
+		if (process.platform === "darwin") {
+			expect(commandResult(harness)).toMatchObject({
+				ok: true,
+				value: {
+					status: "active",
+					manifest: { packageId: "example-open-catalog" },
+					conformance: { passed: true },
+					isolationProfile: "strong_isolation",
+				},
+			});
+		} else {
+			expect(commandResult(harness)).toMatchObject({
+				ok: false,
+				status: "PERMISSION_BLOCKED",
+				errors: [{ code: "ADAPTER_CONFORMANCE_BLOCKED" }],
+			});
+		}
+
+		await harness.commands.get("research-exchange")?.(`pack "${bundle}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { manifest: { format: "pi-research-exchange-bundle", includesRawMaterials: false } },
+		});
+		await expect(access(join(bundle, "bundle.json"))).resolves.toBeUndefined();
+		expect(harness.confirm).toHaveBeenCalledWith(
+			"Confirm research project exchange",
+			expect.stringContaining("without raw project material"),
+		);
+
+		await harness.commands.get("research-exchange")?.(
+			`unpack ${JSON.stringify({ bundle, destination: imported })}`,
+			ctx,
+		);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { manifest: { projectId: expect.any(String) } },
+		});
+		await expect(openProject(imported)).resolves.toMatchObject({ compatibility: "current" });
+		expect((await validateProject(projectRoot)).issues).toEqual([]);
+		expect((await openProject(projectRoot)).manifest).toMatchObject({
+			recordSets: expect.arrayContaining([
+				expect.objectContaining({ kind: "adapter_registration", count: process.platform === "darwin" ? 1 : 0 }),
+				expect.objectContaining({ kind: "exchange_record", count: 2 }),
+			]),
+		});
+
+		const deniedBundle = join(temporaryDirectory, "no-ui-bundle");
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		await harness.commands.get("research-exchange")?.(`pack "${deniedBundle}"`, harness.context(projectRoot, false));
+		const denied = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as Record<string, unknown>;
+		stdout.mockRestore();
+		expect(denied).toMatchObject({ ok: false, status: "PERMISSION_BLOCKED" });
+		await expect(access(deniedBundle)).rejects.toThrow();
+	});
+
 	it("initializes and changes a domain only through a confirmed manifest update", async () => {
 		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-domain-command-"));
 		const projectRoot = join(temporaryDirectory, "domain-project");
@@ -363,7 +488,7 @@ describe("research extension commands", () => {
 				domain: {
 					id: "sociology",
 					templatePackage: "pi-research-domain-sociology",
-					templateVersion: RESEARCH_SCHEMA_VERSION,
+					templateVersion: BUILT_IN_DOMAIN_PACKAGE_VERSION,
 				},
 			},
 		});

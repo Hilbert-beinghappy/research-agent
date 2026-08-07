@@ -62,6 +62,10 @@ const RECORD_KINDS = new Set<RecordKind>([
 	"external_item_link",
 	"monitor_subscription",
 	"monitor_run",
+	"adapter_registration",
+	"exchange_record",
+	"collaboration_merge",
+	"model_route_decision",
 	"task",
 	"operation",
 	"analysis_run",
@@ -1068,6 +1072,14 @@ export async function validateProject(projectRoot: string): Promise<ProjectValid
 					}
 					break;
 				}
+				case "adapter_registration":
+				case "exchange_record":
+				case "model_route_decision":
+					break;
+				case "collaboration_merge":
+					for (const ref of record.applied) requireRecord(ref.kind, ref.id, `${path}#applied`);
+					for (const ref of record.skipped) requireRecord(ref.kind, ref.id, `${path}#skipped`);
+					break;
 				case "task":
 					for (const dependencyId of record.dependencyTaskIds)
 						requireRecord("task", dependencyId, `${path}#dependencyTaskIds`);

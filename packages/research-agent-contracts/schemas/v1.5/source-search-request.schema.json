@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent source search request v1",
+  "type": "object",
+  "required": [
+    "queryText",
+    "filters",
+    "pageSize",
+    "cursor",
+    "maxResults",
+    "maxCost"
+  ],
+  "properties": {
+    "queryText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "filters": {
+      "$defs": {
+        "JsonValue": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "JsonValue"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "$ref": "JsonValue"
+                }
+              }
+            }
+          ],
+          "$id": "JsonValue"
+        }
+      },
+      "$ref": "JsonValue"
+    },
+    "pageSize": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cursor": {
+      "$defs": {
+        "JsonValue": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "JsonValue"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "$ref": "JsonValue"
+                }
+              }
+            }
+          ],
+          "$id": "JsonValue"
+        }
+      },
+      "$ref": "JsonValue"
+    },
+    "maxResults": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maxCost": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "amount",
+            "currency"
+          ],
+          "properties": {
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

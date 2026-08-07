@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- Data-only `@research-agent/contracts` package with seven public entry points, generated v1.5 schemas, and frozen Source, Analysis Runtime, Artifact, JSONL, exchange, collaboration, and model-route contracts.
+- Third-party Adapter package verification, three-category conformance kit, bounded JSONL runner, macOS strong-isolation qualification, approval-bound Pi registration, and three independent public examples.
+- Hash-verified portable Exchange Bundles, optional Ed25519 manifest signatures, record-only all-or-nothing Collaboration ChangeSets, and deterministic model-route decision records.
+- v1.5 evaluation, 10,000-record exchange benchmark, strong-isolation attack fixture, public development/protocol/exchange/routing guides, and a sanitized `deepseek-v4-flash` boundary baseline.
+
+### Changed
+
+- New projects and generated schemas use v1.5; v0.1–v1.1 projects migrate directly by adding empty v1.5 record sets and directories without rewriting canonical records.
+- Package and Extension versions advance to 1.5.0. Public Host integration exports now cover Adapter conformance/registration/runner and exchange/collaboration.
+- Unknown third-party code remains denied by default. Interactive registration requires policy `ask`, an approval bound to exact package identity/hash/profile, and successful strong-isolation conformance before persistence.
+
+### Known limitations
+
+- Built-in strong isolation is macOS-only. Linux and Windows registration blocks rather than silently falling back; ordinary JSONL process separation is not an OS sandbox.
+- The v1.5 conformance runner launches Node.js entry points; other runtime launchers are deferred.
+- Default exchange excludes raw inputs, Session, credentials, and internal state but does not classify or redact sensitive text already present in canonical records, notes, or artifacts.
+- Collaboration is record-only and not real-time sync. v1.5 adds no marketplace, hosted service, remote execution, database, CRDT, message queue, or separate UI.
+
 ## [1.1.0] - 2026-08-07
 
 ### Added

@@ -11,6 +11,7 @@ interface LockEntry {
 	resolved?: string;
 	integrity?: string;
 	license?: string;
+	link?: boolean;
 	dependencies?: Record<string, string>;
 	optionalDependencies?: Record<string, string>;
 }
@@ -64,14 +65,15 @@ function dependencyPath(fromPath: string, name: string): string {
 	let current = fromPath;
 	while (current.length > 0) {
 		const nested = `${current}/node_modules/${name}`;
-		if (lockfile.packages[nested] !== undefined) return nested;
+		const entry = lockfile.packages[nested];
+		if (entry !== undefined) return entry.link && entry.resolved !== undefined ? entry.resolved : nested;
 		const parentMarker = current.lastIndexOf("/node_modules/");
 		current = parentMarker < 0 ? "" : current.slice(0, parentMarker);
 	}
 	const root = `node_modules/${name}`;
-	if (lockfile.packages[root] === undefined)
-		throw new Error(`Runtime dependency is absent from package-lock.json: ${name}`);
-	return root;
+	const entry = lockfile.packages[root];
+	if (entry === undefined) throw new Error(`Runtime dependency is absent from package-lock.json: ${name}`);
+	return entry.link && entry.resolved !== undefined ? entry.resolved : root;
 }
 
 const rootEntry = lockfile.packages[workspacePath];

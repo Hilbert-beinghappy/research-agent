@@ -1,0 +1,27 @@
+{
+  "version": "1.5.0",
+  "hardGates": [
+    "adapter_contract_v1_is_public_and_frozen",
+    "three_adapter_categories_pass_conformance",
+    "external_adapter_requires_no_core_patch",
+    "malformed_or_crashed_adapter_does_not_crash_host",
+    "strong_isolation_denies_network_private_read_project_write_credentials_and_subprocess",
+    "exchange_round_trip_preserves_project_hashes_and_semantics",
+    "exchange_excludes_secrets_sessions_and_raw_material_by_default",
+    "collaboration_conflicts_apply_no_partial_change",
+    "model_route_decisions_explain_capability_cost_and_privacy",
+    "no_route_silently_weakens_privacy",
+    "ten_thousand_record_exchange_p95_is_under_sixty_seconds",
+    "real_model_preserves_adapter_exchange_and_routing_boundaries"
+  ],
+  "thresholds": {
+    "adapterCategories": 3,
+    "exchangeProjects": 2,
+    "isolationEscapeSuccessMax": 0,
+    "exchangeRecords": 10000,
+    "exchangeP95Ms": 60000,
+    "modelInvocationCountMax": 1,
+    "modelProviderTurnsMax": 2,
+    "modelCostUsdMax": 0.1
+  }
+}

@@ -315,7 +315,8 @@ export class CrossrefAdapter implements SourceAdapter {
 		return {
 			adapterId: "crossref",
 			adapterVersion: CROSSREF_ADAPTER_VERSION,
-			contractVersion: "0.1.0",
+			adapterKind: "source",
+			contractVersion: "1",
 			capabilities: ["health", "search", "lookup", "publication-status-relations"],
 			supportsPagination: true,
 			supportsResumeCursor: true,

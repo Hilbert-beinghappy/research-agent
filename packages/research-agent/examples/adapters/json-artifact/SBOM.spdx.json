@@ -1,0 +1,23 @@
+{
+	"SPDXID": "SPDXRef-DOCUMENT",
+	"spdxVersion": "SPDX-2.3",
+	"dataLicense": "CC0-1.0",
+	"name": "example-json-artifact-adapter-1.0.0",
+	"documentNamespace": "https://github.com/Hilbert-beinghappy/research-agent/sbom/example-json-artifact-1.0.0",
+	"creationInfo": {
+		"created": "2026-08-07T00:00:00Z",
+		"creators": ["Tool: pi-research-agent"]
+	},
+	"packages": [
+		{
+			"SPDXID": "SPDXRef-Package-example-json-artifact",
+			"name": "example-json-artifact",
+			"versionInfo": "1.0.0",
+			"downloadLocation": "NOASSERTION",
+			"filesAnalyzed": false,
+			"licenseConcluded": "Apache-2.0",
+			"licenseDeclared": "Apache-2.0",
+			"copyrightText": "NOASSERTION"
+		}
+	]
+}

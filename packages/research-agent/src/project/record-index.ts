@@ -76,6 +76,14 @@ export function projectRecordId(record: ProjectRecord): string {
 			return record.monitorSubscriptionId;
 		case "monitor_run":
 			return record.monitorRunId;
+		case "adapter_registration":
+			return record.adapterRegistrationId;
+		case "exchange_record":
+			return record.exchangeRecordId;
+		case "collaboration_merge":
+			return record.collaborationMergeId;
+		case "model_route_decision":
+			return record.modelRouteDecisionId;
 		case "task":
 			return record.taskId;
 		case "operation":
@@ -155,6 +163,14 @@ export function projectRecordIdField(kind: RecordKind): string {
 			return "monitorSubscriptionId";
 		case "monitor_run":
 			return "monitorRunId";
+		case "adapter_registration":
+			return "adapterRegistrationId";
+		case "exchange_record":
+			return "exchangeRecordId";
+		case "collaboration_merge":
+			return "collaborationMergeId";
+		case "model_route_decision":
+			return "modelRouteDecisionId";
 		case "task":
 			return "taskId";
 		case "operation":

@@ -1,9 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { AdapterProtocolMessageSchema } from "../../src/contracts/adapter-protocol.ts";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
 import {
+	AdapterPackageManifestSchema,
+	CollaborationChangeSetSchema,
+	ExchangeBundleManifestSchema,
 	JsonResearchResultSchema,
+	ModelRouteDecisionSchema,
 	PersistedRecordSchema,
 	ProjectBackupManifestSchema,
 	ProjectCatalogSchema,
@@ -556,18 +561,23 @@ describe("v1.1 persisted contracts", () => {
 	});
 
 	it("keeps committed JSON schemas generated from TypeBox", async () => {
-		const schemaDir = fileURLToPath(new URL("../../schemas/v1.1/", import.meta.url));
+		const schemaDir = fileURLToPath(new URL("../../schemas/v1.5/", import.meta.url));
 		const persisted = JSON.parse(await readFile(`${schemaDir}persisted-record.schema.json`, "utf8"));
 		const result = JSON.parse(await readFile(`${schemaDir}research-result.schema.json`, "utf8"));
 		const catalog = JSON.parse(await readFile(`${schemaDir}project-catalog.schema.json`, "utf8"));
 		const backup = JSON.parse(await readFile(`${schemaDir}project-backup.schema.json`, "utf8"));
+		const adapterPackage = JSON.parse(await readFile(`${schemaDir}adapter-package.schema.json`, "utf8"));
+		const adapterProtocol = JSON.parse(await readFile(`${schemaDir}adapter-protocol.schema.json`, "utf8"));
+		const exchange = JSON.parse(await readFile(`${schemaDir}exchange-bundle.schema.json`, "utf8"));
+		const collaboration = JSON.parse(await readFile(`${schemaDir}collaboration-change-set.schema.json`, "utf8"));
+		const route = JSON.parse(await readFile(`${schemaDir}model-route-decision.schema.json`, "utf8"));
 		const jsonSchema = "https://json-schema.org/draft/2020-12/schema";
 
 		expect(persisted).toEqual(
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent persisted record v1.1",
+					title: "Pi Research Agent persisted record v1.5",
 					...PersistedRecordSchema,
 				}),
 			),
@@ -576,7 +586,7 @@ describe("v1.1 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent result v1.1",
+					title: "Pi Research Agent result v1.5",
 					...JsonResearchResultSchema,
 				}),
 			),
@@ -585,7 +595,7 @@ describe("v1.1 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent project catalog v1.1",
+					title: "Pi Research Agent project catalog v1.5",
 					...ProjectCatalogSchema,
 				}),
 			),
@@ -594,11 +604,20 @@ describe("v1.1 persisted contracts", () => {
 			JSON.parse(
 				JSON.stringify({
 					$schema: jsonSchema,
-					title: "Pi Research Agent project backup v1.1",
+					title: "Pi Research Agent project backup v1.5",
 					...ProjectBackupManifestSchema,
 				}),
 			),
 		);
+		for (const [actual, title, schema] of [
+			[adapterPackage, "Pi Research Agent adapter package v1.5", AdapterPackageManifestSchema],
+			[adapterProtocol, "Pi Research Agent adapter JSONL protocol v1", AdapterProtocolMessageSchema],
+			[exchange, "Pi Research Agent exchange bundle v1", ExchangeBundleManifestSchema],
+			[collaboration, "Pi Research Agent collaboration change set v1", CollaborationChangeSetSchema],
+			[route, "Pi Research Agent model route decision v1", ModelRouteDecisionSchema],
+		] as const) {
+			expect(actual).toEqual(JSON.parse(JSON.stringify({ $schema: jsonSchema, title, ...schema })));
+		}
 
 		const legacyDir = fileURLToPath(new URL("../../schemas/v0.1/", import.meta.url));
 		await expect(readFile(`${legacyDir}persisted-record.schema.json`, "utf8")).resolves.toContain(

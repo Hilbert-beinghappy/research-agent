@@ -1,4 +1,4 @@
-# Public API v1
+# Public API v1.5
 
 Pi Research Agent exposes a deliberately small public surface. Files under `src/` that are not reachable through a package export are internal and may change within v1.x.
 
@@ -8,20 +8,25 @@ Pi Research Agent exposes a deliberately small public surface. Files under `src/
 |---|---|
 | `pi-research-agent` | Canonical JSON helpers, persisted schemas and types, validators, `ResearchResult`, project manifest, backup, catalog, evidence, citation, design, analysis, writing, approval, task, and operation contracts. |
 | `pi-research-agent/contracts` | The same contract surface as the package root. |
+| `@research-agent/contracts` | Data-only v1 contracts for projects, Adapters, JSONL messages, exchange, collaboration, model routes, canonical JSON, hashing, and validation. |
+| `pi-research-agent/adapters/conformance` | Package loading, hashing, category conformance, and process-based conformance. |
+| `pi-research-agent/adapters/runner` | Bounded JSONL process runner and Host broker boundary. |
+| `pi-research-agent/adapters/registration` | Persist a matching successful conformance report as project registration. Embedders own approval when bypassing Pi commands. |
+| `pi-research-agent/exchange` | Exchange pack/read/unpack and record-only collaboration create/read/merge APIs. |
 | `pi-research-agent/routing/models` | `parseResearchModelRouteInput`, `selectResearchModelRoute`, their TypeBox schemas, and route/result types. |
 | `pi-research-agent/domains` | `loadDomainPackage`, `resolveDomainResources`, and resolved-resource types. |
 | `pi-research-agent/access` | `evaluateAuthorizedSourceAccess`, built-in policy snapshot construction, request/decision types, and access-policy contracts. |
-| `pi-research-agent/schemas/v1.1/*` | Generated JSON Schema for persisted records, machine results, project catalogs, and project backups. |
+| `pi-research-agent/schemas/v1.5/*` | Generated JSON Schema for persisted records, machine results, project catalogs/backups, Adapter packages/protocol, exchange, collaboration, and model routes. |
 
-The v1 compatibility promise covers backward reading of published 1.x minor records, direct migration from 0.1–1.0 projects, and the machine-readable `ResearchResult` envelope. A security fix may reject input that an older validator accepted; release notes must identify the tightened rule.
+The v1 compatibility promise covers backward reading of published 1.x minor records, direct migration from 0.1–1.1 projects, Adapter contract v1, and the machine-readable `ResearchResult` envelope. A security fix may reject input that an older validator accepted; release notes must identify the tightened rule.
 
-## Experimental exports
+## Built-in integration exports
 
-`pi-research-agent/adapters/source`, `adapters/crossref`, `adapters/openalex`, `adapters/unpaywall`, and `adapters/http` are built-in integration surfaces. They are public for testing and composition but are not the stable isolated third-party Adapter contract. That contract and its conformance kit are a v1.5 milestone.
+`pi-research-agent/adapters/source`, `adapters/crossref`, `adapters/openalex`, `adapters/unpaywall`, and `adapters/http` remain built-in provider surfaces. Third-party packages should implement the frozen interfaces from `@research-agent/contracts/adapters` and communicate through the JSONL protocol instead of importing a provider implementation.
 
 ## Extension boundary
 
-The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and fourteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. The Extension, project doctor, backup engine, migration engine, transaction internals, and filesystem layout helpers are not imported as SDK APIs in v1.1; automation uses Pi command/Tool surfaces until the v2.0 SDK/RPC release.
+The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and sixteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. Project doctor, backup, migration, transaction internals, and filesystem layout helpers are not public SDK APIs in v1.5; automation uses Pi command/Tool surfaces until the v2.0 SDK/RPC release.
 
 ## Change process
 

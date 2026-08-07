@@ -23,6 +23,7 @@ Generated from the production dependency closure in the repository package lock.
 | @napi-rs/canvas-linux-x64-musl | 0.1.100 | MIT | [npm](https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-0.1.100.tgz) |
 | @napi-rs/canvas-win32-arm64-msvc | 0.1.100 | MIT | [npm](https://registry.npmjs.org/@napi-rs/canvas-win32-arm64-msvc/-/canvas-win32-arm64-msvc-0.1.100.tgz) |
 | @napi-rs/canvas-win32-x64-msvc | 0.1.100 | MIT | [npm](https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.100.tgz) |
+| @research-agent/contracts | 1.5.0 | Apache-2.0 | lockfile |
 | data-uri-to-buffer | 4.0.1 | MIT | [npm](https://registry.npmjs.org/data-uri-to-buffer/-/data-uri-to-buffer-4.0.1.tgz) |
 | fetch-blob | 3.2.0 | MIT | [npm](https://registry.npmjs.org/fetch-blob/-/fetch-blob-3.2.0.tgz) |
 | formdata-polyfill | 4.0.10 | MIT | [npm](https://registry.npmjs.org/formdata-polyfill/-/formdata-polyfill-4.0.10.tgz) |
@@ -32,6 +33,7 @@ Generated from the production dependency closure in the repository package lock.
 | pdfjs-dist | 5.7.284 | Apache-2.0 | [npm](https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.7.284.tgz) |
 | sync-fetch | 0.6.0 | MIT | [npm](https://registry.npmjs.org/sync-fetch/-/sync-fetch-0.6.0.tgz) |
 | timeout-signal | 2.0.0 | MIT | [npm](https://registry.npmjs.org/timeout-signal/-/timeout-signal-2.0.0.tgz) |
+| typebox | 1.3.7 | MIT | [npm](https://registry.npmjs.org/typebox/-/typebox-1.3.7.tgz) |
 | web-streams-polyfill | 3.3.3 | MIT | [npm](https://registry.npmjs.org/web-streams-polyfill/-/web-streams-polyfill-3.3.3.tgz) |
 | whatwg-mimetype | 4.0.0 | MIT | [npm](https://registry.npmjs.org/whatwg-mimetype/-/whatwg-mimetype-4.0.0.tgz) |
 

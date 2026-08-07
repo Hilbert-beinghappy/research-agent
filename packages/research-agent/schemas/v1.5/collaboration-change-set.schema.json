@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Research Agent collaboration change set v1",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "changeSetId",
+    "projectId",
+    "baseManifestRevision",
+    "authorOperationId",
+    "createdAt",
+    "changes",
+    "rootHash"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "pi-research-collaboration-change-set"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "changeSetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseManifestRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "authorOperationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "path",
+          "baseHash",
+          "proposedHash",
+          "proposedRevision"
+        ],
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "source"
+              },
+              {
+                "type": "string",
+                "const": "document"
+              },
+              {
+                "type": "string",
+                "const": "evidence"
+              },
+              {
+                "type": "string",
+                "const": "claim"
+              },
+              {
+                "type": "string",
+                "const": "citation_verification"
+              },
+              {
+                "type": "string",
+                "const": "research_question_version"
+              },
+              {
+                "type": "string",
+                "const": "concept"
+              },
+              {
+                "type": "string",
+                "const": "theory_relation"
+              },
+              {
+                "type": "string",
+                "const": "design_decision"
+              },
+              {
+                "type": "string",
+                "const": "protocol"
+              },
+              {
+                "type": "string",
+                "const": "dataset"
+              },
+              {
+                "type": "string",
+                "const": "variable"
+              },
+              {
+                "type": "string",
+                "const": "analysis_specification"
+              },
+              {
+                "type": "string",
+                "const": "qualitative_material"
+              },
+              {
+                "type": "string",
+                "const": "qualitative_segment"
+              },
+              {
+                "type": "string",
+                "const": "codebook_version"
+              },
+              {
+                "type": "string",
+                "const": "model_suggestion"
+              },
+              {
+                "type": "string",
+                "const": "coding_decision"
+              },
+              {
+                "type": "string",
+                "const": "theme_synthesis"
+              },
+              {
+                "type": "string",
+                "const": "manuscript"
+              },
+              {
+                "type": "string",
+                "const": "section"
+              },
+              {
+                "type": "string",
+                "const": "claim_occurrence"
+              },
+              {
+                "type": "string",
+                "const": "review_finding"
+              },
+              {
+                "type": "string",
+                "const": "revision_decision"
+              },
+              {
+                "type": "string",
+                "const": "disclosure"
+              },
+              {
+                "type": "string",
+                "const": "submission_gate_report"
+              },
+              {
+                "type": "string",
+                "const": "adapter_export_profile"
+              },
+              {
+                "type": "string",
+                "const": "external_item_link"
+              },
+              {
+                "type": "string",
+                "const": "monitor_subscription"
+              },
+              {
+                "type": "string",
+                "const": "monitor_run"
+              },
+              {
+                "type": "string",
+                "const": "adapter_registration"
+              },
+              {
+                "type": "string",
+                "const": "exchange_record"
+              },
+              {
+                "type": "string",
+                "const": "collaboration_merge"
+              },
+              {
+                "type": "string",
+                "const": "model_route_decision"
+              },
+              {
+                "type": "string",
+                "const": "task"
+              },
+              {
+                "type": "string",
+                "const": "analysis_run"
+              },
+              {
+                "type": "string",
+                "const": "artifact"
+              },
+              {
+                "type": "string",
+                "const": "approval"
+              },
+              {
+                "type": "string",
+                "const": "operation"
+              }
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
+          },
+          "baseHash": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "algorithm",
+                  "value"
+                ],
+                "properties": {
+                  "algorithm": {
+                    "type": "string",
+                    "const": "sha256"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposedHash": {
+            "type": "object",
+            "required": [
+              "algorithm",
+              "value"
+            ],
+            "properties": {
+              "algorithm": {
+                "type": "string",
+                "const": "sha256"
+              },
+              "value": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "additionalProperties": true
+          },
+          "proposedRevision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "rootHash": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

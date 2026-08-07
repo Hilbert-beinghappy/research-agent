@@ -1,0 +1,22 @@
+{
+  "qualification": "pi-research-agent-v1.5-strong-isolation",
+  "generatedAt": "2026-08-07T02:47:08.015Z",
+  "platform": "darwin-arm64",
+  "node": "v22.19.0",
+  "profile": "strong_isolation",
+  "checks": {
+    "directNetworkDenied": true,
+    "externalReadDenied": true,
+    "projectWriteDenied": true,
+    "credentialDenied": true,
+    "subprocessDenied": true
+  },
+  "acceptedNetworkConnections": 0,
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

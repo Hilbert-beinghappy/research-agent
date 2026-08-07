@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taskClass",
+    "firstAction",
+    "requiredSequence",
+    "adapterIsolation",
+    "mayRunUnverifiedInProcess",
+    "mayAllowDirectNetwork",
+    "mayExposeCredentials",
+    "mayWriteProjectDirectly",
+    "exchangeIncludesSecrets",
+    "exchangeIncludesSession",
+    "exchangeIncludesRestrictedFullText",
+    "selectedModelCandidate",
+    "routeReasons",
+    "requiredApprovals",
+    "stopCondition"
+  ],
+  "properties": {
+    "taskClass": { "const": "adapter_exchange_and_model_routing" },
+    "firstAction": { "const": "inspect-adapter-package" },
+    "requiredSequence": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "enum": [
+          "inspect-adapter-package",
+          "verify-hash-license-provenance-sbom",
+          "run-conformance",
+          "request-adapter-registration-approval",
+          "run-strong-isolation",
+          "record-adapter-registration",
+          "evaluate-model-capability-cost-privacy",
+          "request-paid-model-approval",
+          "pack-default-exchange",
+          "request-external-write-approval",
+          "report-blocked-actions"
+        ]
+      }
+    },
+    "adapterIsolation": { "const": "strong_isolation" },
+    "mayRunUnverifiedInProcess": { "const": false },
+    "mayAllowDirectNetwork": { "const": false },
+    "mayExposeCredentials": { "const": false },
+    "mayWriteProjectDirectly": { "const": false },
+    "exchangeIncludesSecrets": { "const": false },
+    "exchangeIncludesSession": { "const": false },
+    "exchangeIncludesRestrictedFullText": { "const": false },
+    "selectedModelCandidate": { "const": "local-private" },
+    "routeReasons": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "requiredApprovals": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "enum": [
+          "unknown-adapter-registration",
+          "paid-model-call",
+          "external-exchange-write"
+        ]
+      }
+    },
+    "stopCondition": { "type": "string", "minLength": 1 }
+  }
+}

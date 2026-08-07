@@ -1,10 +1,10 @@
-# Research project format v1.1
+# Research project format v1.5
 
 ## Source of truth
 
 `research-project.json` and the versioned JSON records under `.research/records/` are the canonical research state. Pi Session stores only a link to the project ID, manifest path, observed revision, and last operation. A Session can be discarded without losing research facts; a project can be reopened from another Session with `/research-open`.
 
-The current schema version is `1.1.0`. Public JSON Schemas are under `schemas/v1.1`, generated from `src/contracts/schemas.ts`; the committed v0.1–v1.0 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.1–v1.0 versions migrate directly to the v1.1 manifest shape without rewriting canonical record files.
+The current schema version is `1.5.0`. Public JSON Schemas are under `schemas/v1.5`, generated from `@research-agent/contracts`; the committed v0.1–v1.1 schemas remain immutable. Unknown fields are preserved where the persisted contract permits them. An older manifest opens read-only until `/research-migrate` is confirmed, and a newer schema remains read-only. All supported v0.1–v1.1 versions migrate directly to the v1.5 manifest shape without rewriting canonical record files.
 
 ## Layout
 
@@ -29,6 +29,10 @@ README.md
     writing/{manuscripts,sections,claim-occurrences,review-findings,revision-decisions,disclosures,submission-gates}/
     adapters/{export-profiles,external-links}/
     monitors/{subscriptions,runs}/
+    plugins/adapters/
+    exchanges/
+    collaboration/merges/
+    model-routes/
     analysis-runs/
     tasks/
     operations/
@@ -76,6 +80,10 @@ Each analysis run has an independent `.research/runs/<analysis-run-id>/` directo
 | `DisclosureRecord` / `SubmissionGateReport` | Confirmed AI-use disclosure and deterministic readiness checks with coverage, P0 state, approval and publishability. |
 | `AdapterExportProfile` / `ExternalItemLink` | Versioned destination/format/credential alias and the per-record external item/version/hash/reconciliation state. External systems are never canonical facts. |
 | `MonitorSubscription` / `MonitorRun` | Immutable query/Adapter/budget/cursor revision and one confirmed batch's inputs, results, cost, errors, retry task, and next checkpoint. |
+| `AdapterRegistrationRecord` | Exact package manifest, successful conformance report, isolation profile, status, package hash, and registration provenance. |
+| `ExchangeRecord` | Packed/imported bundle identity, manifest hash, peer project/revision, raw-material flag, status, and Operation provenance. |
+| `CollaborationMergeRecord` | ChangeSet hash, applied/skipped records, exact conflicts, and all-or-nothing merge status. |
+| `ModelRouteDecision` | Hash of the request, selected candidate or block, per-candidate reasons, and decision time. It is not proof of model execution. |
 | `ProjectCatalog` / `CrossProjectSourceRef` | Rebuildable file index of strong identifiers across selected projects. It is hash-checked derived state, not a project record set. |
 | `ResearchTask` | Workflow state, dependencies, attempts, cursor, budget and errors. |
 | `OperationRecord` | Actor/model/Adapter execution, exact inputs and outputs, raw receipts, approvals, usage, cost and failure. |
@@ -90,11 +98,11 @@ Canonical writes use expected manifest and record revisions. A multi-file transa
 
 Original PDFs, imported CSV/text, analysis scripts/environments, and raw provider receipts are content-addressed immutable inputs. Analysis executes copies and rechecks every original hash afterward; a mutation attempt fails the run and restores the original bytes. Derived parsed text, outputs, exports, and indexes can be rebuilt from their input hashes and generator versions. Raw files and excerpts retain their access and redistribution status; project ownership does not imply public redistribution rights.
 
-## v0.1–v1.0 to v1.1 migration
+## v0.1–v1.1 to v1.5 migration
 
-Migration changes only the manifest schema version, revision, record-set declarations, required directories, and the default built-in Domain Package reference when it is absent. It does not create records, infer missing facts, move data, or reinterpret a historical record. Preparation creates a full hash-bound project backup and hash-bound before/after manifest snapshots. One project-scoped migration lock prevents concurrent writers. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores the old manifest only when no later v1.1 write occurred.
+Migration changes only the manifest schema version, revision, record-set declarations, required directories, and the default built-in Domain Package reference when it is absent. v1.5 adds empty Adapter-registration, exchange, collaboration-merge, and model-route record sets. It does not create records, infer missing facts, move data, register code, or reinterpret a historical record. Preparation creates a full hash-bound project backup and hash-bound before/after manifest snapshots. One project-scoped migration lock prevents concurrent writers. An interrupted staged directory is discarded and prepared again; an interrupted pending migration resumes. Rollback verifies the backup and restores the old manifest only when no later v1.5 write occurred.
 
-Scenario D keeps the frozen v1.0 matrix covering v0.1–v0.5 at staged-write, record-replace, and manifest-commit interruption points. v1.1 additionally tests direct migration from every v0.x schema and v1.0, including the default Domain Package reference. No migration rewrites canonical records.
+Scenario D keeps the frozen v1.0 matrix covering v0.1–v0.5 at staged-write, record-replace, and manifest-commit interruption points. v1.5 additionally tests direct migration from every prior schema through v1.1, including the default Domain Package reference and new empty record sets. No migration rewrites canonical records.
 
 ## Domain and access policy state
 
@@ -108,8 +116,8 @@ Design, analysis-specification, codebook, and theme confirmation are record stat
 
 Manifest paths and file references use normalized project-relative POSIX paths. Absolute paths, parent traversal, symlink escape, and case-colliding portable paths are rejected. A `reference` import can intentionally remain machine-local and is marked non-portable; use `copy` for a self-contained project when rights permit it.
 
-Session files, credential values, caches, locks, installed Domain Packages, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v1.1 stores package references, policy snapshots, credential aliases, and external item IDs/versions. Obsidian, Office, PDF, project-catalog, and corpus-index files are derived and may be deleted/rebuilt; Zotero remains external. A project backup includes canonical state and project-local immutable inputs but excludes caches, locks, and nested backups. The v1.5 exchange bundle remains a separate future contract.
+Session files, credential values, caches, locks, installed Domain Packages, installed Python/R packages, and commercial Stata binaries are not part of a portable project exchange. v1.5 stores package references/hashes, policy snapshots, credential aliases, and external item IDs/versions. The Exchange Bundle includes canonical records, parsed sources, notes, and artifacts; raw originals/imports require explicit opt-in. Default exclusion does not redact sensitive text already present in records, notes, or artifacts. Obsidian, Office, PDF, project-catalog, and corpus-index files are derived and may be deleted/rebuilt; Zotero remains external. A project backup includes canonical state and project-local immutable inputs but excludes caches, locks, and nested backups.
 
 ## Derived corpus index
 
-Source, evidence, and claim queries may use `.research/cache/corpus-*-v1.json`. Each file is bound to the relevant canonical record-set fingerprint and its own content hash. A missing, corrupt, or stale cache is rebuilt from canonical files. PDF blocks remain hash-checked from their live parsed documents. The cache is never a source of truth and may be deleted; v1.1 does not require SQLite or another database.
+Source, evidence, and claim queries may use `.research/cache/corpus-*-v1.json`. Each file is bound to the relevant canonical record-set fingerprint and its own content hash. A missing, corrupt, or stale cache is rebuilt from canonical files. PDF blocks remain hash-checked from their live parsed documents. The cache is never a source of truth and may be deleted; v1.5 does not require SQLite or another database.

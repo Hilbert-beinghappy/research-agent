@@ -2,12 +2,17 @@
 
 import { basename, dirname, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { conformAdapterPackage, loadAdapterPackage } from "../adapters/conformance.ts";
+import { registerAdapterPackage } from "../adapters/registration.ts";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import type {
 	ApprovalRecord,
 	DomainPackageManifest,
+	ExchangeBundleManifest,
+	ExchangeRecord,
 	JsonValue,
 	ManuscriptRecord,
+	ModelRouteDecisionRecord,
 	OperationRecord,
 	RecordKind,
 	ResearchPolicyConfig,
@@ -25,7 +30,9 @@ import {
 	loadDomainPackageById,
 	resolveDomainResources,
 } from "../domain/packages.ts";
+import { packProjectExchange, readProjectExchange, unpackProjectExchange } from "../exchange/bundle.ts";
 import { createOpaqueId } from "../kernel/identity.ts";
+import { hashCanonicalJson } from "../kernel/integrity.ts";
 import { operationTransitionPatch } from "../kernel/operations.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
 import { createProjectBackup, listProjectBackups, readProjectBackup, restoreProjectBackup } from "../project/backup.ts";
@@ -42,10 +49,16 @@ import {
 	rollbackPreparedTransaction,
 } from "../project/transactions.ts";
 import { validateProject } from "../project/validate.ts";
-import { parseResearchModelRouteInput, selectResearchModelRoute } from "../routing/models.ts";
+import {
+	createResearchModelRouteDecision,
+	parseResearchModelRouteInput,
+	selectResearchModelRoute,
+} from "../routing/models.ts";
 import { createActionRequest } from "../security/policy.ts";
 import { isDesignRecord } from "../tools/design.ts";
+import { finishOperation, startOperation } from "../tools/operations.ts";
 import {
+	approveAction,
 	executeMonitorCommand,
 	RESEARCH_TOOL_NAMES,
 	type RegisterResearchToolsOptions,
@@ -438,6 +451,34 @@ function expectMutation(result: ResearchResult<unknown>): void {
 	if (!result.ok) throw new Error(result.errors[0].message);
 }
 
+function exchangeRecord(
+	operationId: string,
+	manifest: ExchangeBundleManifest,
+	direction: "pack" | "unpack",
+): ExchangeRecord {
+	const now = new Date().toISOString();
+	return {
+		kind: "exchange_record",
+		schemaVersion: RESEARCH_SCHEMA_VERSION,
+		exchangeRecordId: createOpaqueId("exchange_record"),
+		bundleId: manifest.bundleId,
+		direction,
+		bundleManifestHash: hashCanonicalJson(manifest),
+		peerProjectId: manifest.projectId,
+		projectRevision: manifest.projectRevision,
+		includesRawMaterials: manifest.includesRawMaterials,
+		status: "succeeded",
+		createdAt: now,
+		audit: {
+			createdAt: now,
+			updatedAt: now,
+			revision: 0,
+			createdByOperationId: operationId,
+			updatedByOperationId: operationId,
+		},
+	};
+}
+
 export function registerResearchCommands(
 	pi: ExtensionAPI,
 	version: string,
@@ -491,6 +532,80 @@ export function registerResearchCommands(
 		const link = latestSessionProjectLink(ctx);
 		if (link === null) throw new Error("No research project is linked to this Pi session");
 		return bindProject(ctx, dirname(link.manifestPath), link.projectId);
+	};
+
+	const approveExternalWrite = async (
+		project: CurrentProject,
+		ctx: ExtensionCommandContext,
+		actionName: string,
+		destination: string,
+		message: string,
+		dataClasses: string[],
+	): Promise<{ ok: true; operationId: string } | { ok: false; result: CommandResult }> => {
+		const started = await startOperation(project.root, {
+			operationKind: "tool",
+			name: actionName,
+			implementationVersion: version,
+			session: operationSessionLink(ctx),
+		});
+		if (!started.ok) return { ok: false, result: started as CommandResult };
+		const operationId = started.value.operationId;
+		const request = createActionRequest({
+			projectId: project.manifest.projectId,
+			operationId,
+			sessionId: ctx.sessionManager.getSessionId(),
+			actionClass: "external_write",
+			actionName,
+			destination,
+			paths: ["exchange-bundle"],
+			dataClasses,
+			estimatedCost: null,
+			destructive: false,
+			recoverable: true,
+			fingerprintParameters: { destination },
+			policy: project.manifest.policy,
+		});
+		const approved = await approveAction(
+			project.root,
+			operationId,
+			ctx,
+			request,
+			"Confirm research project exchange",
+			message,
+			[],
+			[],
+		);
+		if (!approved.ok) {
+			await finishOperation(project.root, operationId, approved);
+			return { ok: false, result: approved as CommandResult };
+		}
+		return { ok: true, operationId };
+	};
+
+	const commitExchangeRecord = async (
+		project: CurrentProject,
+		ctx: ExtensionCommandContext,
+		manifest: ExchangeBundleManifest,
+		direction: "pack" | "unpack",
+		operationId: string,
+	): Promise<CommandResult> => {
+		const record = exchangeRecord(operationId, manifest, direction);
+		const current = await openProject(project.root);
+		if (current.compatibility !== "current") throw new TypeError("Project became read-only");
+		const created = await createRecord(project.root, record, {
+			expectedManifestRevision: current.manifest.revision,
+			operationId,
+		});
+		if (!created.ok) {
+			await finishOperation(project.root, operationId, created);
+			return created as CommandResult;
+		}
+		const result = successResult(asJson({ manifest, exchangeRecordId: record.exchangeRecordId }), operationId);
+		const finished = await finishOperation(project.root, operationId, result, [created.value]);
+		if (!finished.ok) return finished as CommandResult;
+		const bound = await bindProject(ctx, project.root, project.manifest.projectId);
+		appendProjectLink(bound);
+		return result;
 	};
 
 	const domainPackageForProject = async (project: CurrentProject): Promise<DomainPackageManifest> => {
@@ -823,14 +938,211 @@ export function registerResearchCommands(
 		},
 	);
 
+	register("research-adapter", "Inspect or register a contract-v1 Adapter package", async (args, ctx) => {
+		const separator = args.indexOf(" ");
+		const action = separator < 0 ? args : args.slice(0, separator);
+		const path = separator < 0 ? "" : stripOuterQuotes(args.slice(separator + 1));
+		if ((action !== "inspect" && action !== "register") || path.length === 0) {
+			throw new TypeError("Usage: /research-adapter <inspect|register> <package-directory>");
+		}
+		const packageRoot = resolve(ctx.cwd, path);
+		const manifest = await loadAdapterPackage(packageRoot);
+		if (action === "inspect") return successResult(asJson(manifest), null);
+		const project = await requireProject(ctx);
+		const started = await startOperation(project.root, {
+			operationKind: "tool",
+			name: "research.adapter.register",
+			implementationVersion: version,
+			session: operationSessionLink(ctx),
+		});
+		if (!started.ok) return started as CommandResult;
+		const request = createActionRequest({
+			projectId: project.manifest.projectId,
+			operationId: started.value.operationId,
+			sessionId: ctx.sessionManager.getSessionId(),
+			actionClass: "unknown_script_execution",
+			actionName: "research.adapter.register",
+			destination: null,
+			paths: [manifest.entrypoint],
+			dataClasses: ["third_party_adapter_code"],
+			estimatedCost: null,
+			destructive: false,
+			recoverable: true,
+			fingerprintParameters: {
+				packageId: manifest.packageId,
+				packageVersion: manifest.packageVersion,
+				packageHash: manifest.packageHash,
+				manifestHash: hashCanonicalJson(manifest),
+				isolationProfile: "strong_isolation",
+			},
+			policy: project.manifest.policy,
+		});
+		const approved = await approveAction(
+			project.root,
+			started.value.operationId,
+			ctx,
+			request,
+			"Approve unknown Adapter",
+			`Run conformance under strong isolation and register ${manifest.packageId}@${manifest.packageVersion}?`,
+			[],
+			[],
+		);
+		if (!approved.ok) {
+			await finishOperation(project.root, started.value.operationId, approved);
+			return approved as CommandResult;
+		}
+		let conformance: Awaited<ReturnType<typeof conformAdapterPackage>>;
+		try {
+			conformance = await conformAdapterPackage(packageRoot, "strong_isolation", manifest);
+		} catch (error) {
+			const failed = failureResult<JsonValue>(
+				"PERMISSION_BLOCKED",
+				"ADAPTER_CONFORMANCE_BLOCKED",
+				"permission",
+				error instanceof Error ? error.message : String(error),
+				started.value.operationId,
+			);
+			await finishOperation(project.root, started.value.operationId, failed);
+			return failed;
+		}
+		const registered = await registerAdapterPackage(project.root, packageRoot, {
+			operationId: started.value.operationId,
+			conformance: conformance.report,
+			isolationProfile: "strong_isolation",
+		});
+		if (!registered.ok) return registered as CommandResult;
+		const bound = await bindProject(ctx, project.root, project.manifest.projectId);
+		appendProjectLink(bound);
+		return successResult(asJson(registered.value), registered.meta.operationId);
+	});
+
+	register("research-exchange", "Pack or unpack a verified project exchange bundle", async (args, ctx) => {
+		const separator = args.indexOf(" ");
+		const action = separator < 0 ? args : args.slice(0, separator);
+		const remainder = separator < 0 ? "" : args.slice(separator + 1).trim();
+		const project = await requireProject(ctx);
+		if (action === "pack") {
+			const includeRawMaterials = remainder.startsWith("--include-raw ");
+			const path = stripOuterQuotes(includeRawMaterials ? remainder.slice("--include-raw ".length) : remainder);
+			if (path.length === 0) {
+				throw new TypeError("Usage: /research-exchange pack [--include-raw] <new-bundle-directory>");
+			}
+			const destination = resolve(ctx.cwd, path);
+			const approved = await approveExternalWrite(
+				project,
+				ctx,
+				"research.exchange.pack",
+				destination,
+				`Create an exchange bundle at ${destination}${includeRawMaterials ? " including raw project material" : " without raw project material"}?`,
+				includeRawMaterials
+					? ["research_project_exchange", "raw_research_material"]
+					: ["research_project_exchange"],
+			);
+			if (!approved.ok) return approved.result;
+			try {
+				const manifest = await packProjectExchange(project.root, destination, { includeRawMaterials });
+				return commitExchangeRecord(project, ctx, manifest, "pack", approved.operationId);
+			} catch (error) {
+				const failed = failureResult<JsonValue>(
+					"PERMANENT_FAILURE",
+					"EXCHANGE_PACK_FAILED",
+					"runtime",
+					error instanceof Error ? error.message : String(error),
+					approved.operationId,
+				);
+				await finishOperation(project.root, approved.operationId, failed);
+				return failed;
+			}
+		}
+		if (action === "unpack") {
+			const input = canonicalizeJson(JSON.parse(remainder));
+			if (
+				input === null ||
+				typeof input !== "object" ||
+				Array.isArray(input) ||
+				typeof input.bundle !== "string" ||
+				typeof input.destination !== "string"
+			) {
+				throw new TypeError('Usage: /research-exchange unpack {"bundle":"path","destination":"new-project-path"}');
+			}
+			const bundle = resolve(ctx.cwd, input.bundle);
+			const destination = resolve(ctx.cwd, input.destination);
+			const manifest = await readProjectExchange(bundle);
+			const approved = await approveExternalWrite(
+				project,
+				ctx,
+				"research.exchange.unpack",
+				destination,
+				`Import verified bundle ${manifest.bundleId} into ${destination}?`,
+				manifest.includesRawMaterials
+					? ["research_project_exchange", "raw_research_material"]
+					: ["research_project_exchange"],
+			);
+			if (!approved.ok) return approved.result;
+			try {
+				await unpackProjectExchange(bundle, destination);
+				return commitExchangeRecord(project, ctx, manifest, "unpack", approved.operationId);
+			} catch (error) {
+				const failed = failureResult<JsonValue>(
+					"PERMANENT_FAILURE",
+					"EXCHANGE_UNPACK_FAILED",
+					"runtime",
+					error instanceof Error ? error.message : String(error),
+					approved.operationId,
+				);
+				await finishOperation(project.root, approved.operationId, failed);
+				return failed;
+			}
+		}
+		throw new TypeError("Usage: /research-exchange <pack|unpack> ...");
+	});
+
 	register("research-model-route", "Select one deterministic model route under project policy", async (args, ctx) => {
 		if (args.length === 0) throw new TypeError("Usage: /research-model-route <v1-json-input>");
 		const project = await requireProject(ctx);
 		const input = parseResearchModelRouteInput(canonicalizeJson(JSON.parse(args)));
-		return successResult(
-			asJson(selectResearchModelRoute(project.manifest.policy, input.request, input.candidates)),
-			null,
-		);
+		const route = selectResearchModelRoute(project.manifest.policy, input.request, input.candidates);
+		const decision = createResearchModelRouteDecision(project.manifest.projectId, input.request, route);
+		const started = await startOperation(project.root, {
+			operationKind: "tool",
+			name: "research.model.route",
+			implementationVersion: version,
+			session: operationSessionLink(ctx),
+		});
+		if (!started.ok) return started as CommandResult;
+		const operationId = started.value.operationId;
+		const record: ModelRouteDecisionRecord = {
+			kind: "model_route_decision",
+			schemaVersion: RESEARCH_SCHEMA_VERSION,
+			modelRouteDecisionId: decision.decisionId,
+			requestHash: decision.requestHash,
+			selected: decision.selected,
+			evaluations: decision.evaluations,
+			decidedAt: decision.decidedAt,
+			audit: {
+				createdAt: decision.decidedAt,
+				updatedAt: decision.decidedAt,
+				revision: 0,
+				createdByOperationId: operationId,
+				updatedByOperationId: operationId,
+			},
+		};
+		const current = await openProject(project.root);
+		if (current.compatibility !== "current") throw new TypeError("Project became read-only");
+		const created = await createRecord(project.root, record, {
+			expectedManifestRevision: current.manifest.revision,
+			operationId,
+		});
+		if (!created.ok) {
+			await finishOperation(project.root, operationId, created);
+			return created as CommandResult;
+		}
+		const result = successResult(asJson(record), operationId);
+		const finished = await finishOperation(project.root, operationId, result, [created.value]);
+		if (!finished.ok) return finished as CommandResult;
+		const bound = await bindProject(ctx, project.root, project.manifest.projectId);
+		appendProjectLink(bound);
+		return result;
 	});
 
 	register("research-init", "Initialize a governed research project in the current directory", async (args, ctx) => {

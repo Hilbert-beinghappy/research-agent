@@ -1112,7 +1112,7 @@ async function linkApprovalToOperation(
 			);
 }
 
-async function approveAction(
+export async function approveAction(
 	projectRoot: string,
 	operationId: string,
 	ctx: ExtensionContext,
