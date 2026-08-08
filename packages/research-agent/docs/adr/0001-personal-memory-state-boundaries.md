@@ -16,7 +16,7 @@ Five state classes have independent authorities and lifecycles.
 |---|---|---|---|
 | Pi Session | Pi Host Session state | Opaque references to a Project or Memory receipt | Research evidence or automatic long-term memory |
 | Research Project | Project manifest, records, artifacts, and transactions | Verified sources, evidence, analyses, and artifacts | Personal profile storage or preference-as-fact promotion |
-| Personal Memory | Profile, policy, signals, candidates, items, feedback, receipts, audit, and transfer manifests | Logical and hash-only references to safe Session, Project, or artifact observations | Restricted project text, credentials, or reverse writes into a Project |
+| Personal Memory | Profile (including policy), signals, candidates, items, feedback, receipts, audit, and transfer manifests | Logical and hash-only references to safe Session, Project, or artifact observations | Restricted project text, credentials, or reverse writes into a Project |
 | Team Memory | A separate v4 workspace | Explicit publication receipts and team changesets | Automatic copies of Personal Memory or personal raw signals |
 | Derived index/cache | The owning store's cache directory | Query acceleration only | State decisions, export authority, deletion proof, or migration authority |
 
@@ -24,8 +24,7 @@ Personal Memory uses a separate logical root resolved by the Host. Paths never e
 
 ```text
 <DORO_HOME>/profiles/<profile-id>/
-  profile.json
-  policy.json
+  profile.json  # profile state, policy, revision, and active-item root
   signals/YYYY/MM/
   candidates/
   items/<category>/<memory-id>/<revision>.json
@@ -37,6 +36,8 @@ Personal Memory uses a separate logical root resolved by the Host. Paths never e
   locks/writer.lock
   cache/
 ```
+
+The public `ResearcherProfileV1` contract embeds learning, sensitivity, retention, and budget policy. The store therefore keeps those fields in `profile.json` instead of writing a second canonical `policy.json`; transfer code may expose policy as a logical inclusion class without creating a second fact source.
 
 Canonical JSON, schema validation, SHA-256 content hashes, a single writer lease, staged transactions, and atomic rename govern normative state. Signals, feedback, receipts, and audit events are immutable append records. Item revisions only increase; older revisions are never edited in place. Caches carry `basedOnProfileRevision` and are discarded when it differs from canonical state.
 

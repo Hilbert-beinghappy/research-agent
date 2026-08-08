@@ -4,6 +4,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, stat, unlink } from "node:fs/promises";
 import { hostname } from "node:os";
+import { dirname } from "node:path";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
@@ -15,7 +16,7 @@ import {
 	traceProjectTransactionPhase,
 } from "./transaction-trace.ts";
 
-const WRITER_LOCK = ".research/locks/writer.lock";
+const PROJECT_WRITER_LOCK = ".research/locks/writer.lock";
 const LEASE_DURATION_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
 const ACQUIRE_TIMEOUT_MS = 30_000;
@@ -46,13 +47,17 @@ function scopeHoldsWriterLease(scope: WriterLeaseScope | undefined, path: string
 	return false;
 }
 
-export async function assertProjectWriterLeaseHeld(projectRoot: string): Promise<void> {
-	const path = await resolveProjectPath(projectRoot, WRITER_LOCK);
+export async function assertWriterLeaseHeld(root: string, writerLock: string, errorNamespace: string): Promise<void> {
+	const path = await resolveProjectPath(root, writerLock);
 	if (!scopeHoldsWriterLease(writerLeaseScope.getStore(), path)) {
 		throw new Error(
-			"PROJECT_WRITER_LEASE_REQUIRED: the current async operation does not hold the project writer lease",
+			`${errorNamespace}_WRITER_LEASE_REQUIRED: the current async operation does not hold the writer lease`,
 		);
 	}
+}
+
+export async function assertProjectWriterLeaseHeld(projectRoot: string): Promise<void> {
+	return assertWriterLeaseHeld(projectRoot, PROJECT_WRITER_LOCK, "PROJECT");
 }
 
 async function readLease(path: string): Promise<WriterLease | null> {
@@ -110,13 +115,15 @@ async function reclaimLease(path: string): Promise<boolean> {
 	return true;
 }
 
-export async function withProjectWriterLease<Value>(
-	projectRoot: string,
+export async function withWriterLease<Value>(
+	root: string,
+	writerLock: string,
+	errorNamespace: string,
 	action: () => Promise<Value>,
 	traceContext: ProjectTransactionTraceContext = {},
 ): Promise<Value> {
-	await mkdir(await resolveProjectPath(projectRoot, ".research/locks"), { recursive: true });
-	const path = await resolveProjectPath(projectRoot, WRITER_LOCK);
+	await mkdir(await resolveProjectPath(root, dirname(writerLock)), { recursive: true });
+	const path = await resolveProjectPath(root, writerLock);
 	const host = hostname();
 	const deadline = Date.now() + ACQUIRE_TIMEOUT_MS;
 	const waitStarted = performance.now();
@@ -124,7 +131,7 @@ export async function withProjectWriterLease<Value>(
 	const parentScope = writerLeaseScope.getStore();
 	if (scopeHoldsWriterLease(parentScope, path)) {
 		const error = new Error(
-			"PROJECT_WRITER_LOCK_REENTRANT: the current async operation already holds the project writer lease",
+			`${errorNamespace}_WRITER_LOCK_REENTRANT: the current async operation already holds the writer lease`,
 		);
 		emitProjectTransactionTrace("writer_lease_wait", "failed", traceContext, performance.now() - waitStarted, error);
 		throw error;
@@ -154,7 +161,7 @@ export async function withProjectWriterLease<Value>(
 					continue;
 				}
 				if (Date.now() >= deadline) {
-					throw new Error("PROJECT_WRITER_LOCKED: another process holds the project writer lease");
+					throw new Error(`${errorNamespace}_WRITER_LOCKED: another process holds the writer lease`);
 				}
 				await delay(25);
 			}
@@ -222,7 +229,7 @@ export async function withProjectWriterLease<Value>(
 		const current = await readLease(path);
 		await handle.close();
 		if (renewalError !== null || current?.nonce !== nonce) {
-			throw new Error("PROJECT_WRITER_LEASE_LOST: project writer ownership changed during the transaction", {
+			throw new Error(`${errorNamespace}_WRITER_LEASE_LOST: writer ownership changed during the transaction`, {
 				cause: renewalError,
 			});
 		}
@@ -231,4 +238,12 @@ export async function withProjectWriterLease<Value>(
 	});
 	if (!outcome.ok) throw outcome.error;
 	return outcome.value;
+}
+
+export async function withProjectWriterLease<Value>(
+	projectRoot: string,
+	action: () => Promise<Value>,
+	traceContext: ProjectTransactionTraceContext = {},
+): Promise<Value> {
+	return withWriterLease(projectRoot, PROJECT_WRITER_LOCK, "PROJECT", action, traceContext);
 }
