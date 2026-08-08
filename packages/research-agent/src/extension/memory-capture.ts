@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { access, readdir } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { type ExtensionAPI, type ExtensionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { DataClass, SafeRef } from "@research-agent/contracts/memory";
 import { hashBytes } from "../contracts/integrity.ts";
 import { memoryProfileRoot, validateMemoryIdentifier } from "../memory/layout.ts";
@@ -30,7 +31,15 @@ function isDataClass(value: string): value is DataClass {
 export function configuredMemoryHome(): string | null {
 	const doroHome = process.env.DORO_HOME?.trim();
 	if (doroHome !== undefined && doroHome.length > 0) return isAbsolute(doroHome) ? doroHome : null;
-	return join(getAgentDir(), "doro");
+	const configuredAgentDir = process.env.PI_CODING_AGENT_DIR;
+	if (!configuredAgentDir) return join(homedir(), ".pi", "agent", "doro");
+	const agentDir =
+		configuredAgentDir === "~"
+			? homedir()
+			: configuredAgentDir.startsWith("~/") || (process.platform === "win32" && configuredAgentDir.startsWith("~\\"))
+				? join(homedir(), configuredAgentDir.slice(2))
+				: configuredAgentDir;
+	return join(agentDir, "doro");
 }
 
 export async function configuredProfileRoots(): Promise<string[]> {
