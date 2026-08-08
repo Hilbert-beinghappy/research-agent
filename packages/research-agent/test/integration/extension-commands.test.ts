@@ -361,6 +361,8 @@ describe("research extension commands", () => {
 			"research_qualitative",
 			"research_manuscript",
 			"research_review",
+			"research_memory_inspect",
+			"research_memory_feedback",
 		]);
 		expect(
 			(await ordinary.emit("tool_call", { type: "tool_call", toolName: "write", input: {} }, ordinaryContext)).at(

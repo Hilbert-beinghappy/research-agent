@@ -14,10 +14,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRecordedHttpTransport, type RecordedHttpExchange } from "../../src/adapters/http/transport.ts";
 import { registerResearchCommands } from "../../src/extension/commands.ts";
 import { RESEARCH_TOOL_NAMES, type RegisterResearchToolsOptions } from "../../src/extension/tools.ts";
+import { memoryProfileRoot } from "../../src/memory/layout.ts";
+import { retrievePersonalMemoryForUse } from "../../src/memory/receipts.ts";
+import {
+	appendMemoryItem,
+	createMemoryProfile,
+	loadCanonicalMemoryState,
+	openMemoryProfile,
+} from "../../src/memory/store.ts";
+import { runMemoryTransaction } from "../../src/memory/transactions.ts";
 import { openProject } from "../../src/project/open.ts";
 import { listProjectRecordIds } from "../../src/project/record-index.ts";
 import { readRecord, updateRecord } from "../../src/project/records.ts";
 import { validateProject } from "../../src/project/validate.ts";
+import { itemDraft, retrievalQuery } from "./memory/security/retrieval-fixtures.ts";
 
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 
@@ -25,6 +35,7 @@ const fixtures = fileURLToPath(new URL("../fixtures/", import.meta.url));
 let temporaryDirectory: string | undefined;
 
 afterEach(async () => {
+	vi.unstubAllEnvs();
 	if (temporaryDirectory !== undefined) await rm(temporaryDirectory, { recursive: true, force: true });
 });
 
@@ -171,7 +182,7 @@ function createHarness(
 	const tools = new Map<string, ToolDefinition>();
 	const entries: SessionEntry[] = [];
 	const notify = vi.fn();
-	const confirm = vi.fn(async () => true);
+	const confirm = vi.fn(async (_title: string, _message: string) => true);
 	let activeTools = ["read", "bash", "edit", "write"];
 	const pi = {
 		registerTool(tool: ToolDefinition): void {
@@ -301,6 +312,16 @@ async function callTool(
 	return object(JSON.parse(content.text));
 }
 
+function pushUserTurn(harness: ReturnType<typeof createHarness>, text: string): void {
+	harness.entries.push({
+		type: "message",
+		id: `user-${harness.entries.length + 1}`,
+		parentId: harness.entries.at(-1)?.id ?? null,
+		timestamp: new Date().toISOString(),
+		message: { role: "user", content: text, timestamp: Date.now() },
+	});
+}
+
 describe("research tools", () => {
 	it("routes all model-visible tools through the project egress guard before starting operations", async () => {
 		temporaryDirectory = join(tmpdir(), `pi-research-tools-egress-${crypto.randomUUID()}`);
@@ -348,6 +369,256 @@ describe("research tools", () => {
 		);
 		expect(result).toMatchObject({ ok: true, status: "SUCCESS" });
 	});
+
+	it("keeps model-visible Personal Memory inspection classified and mutations user-governed", async () => {
+		temporaryDirectory = join(tmpdir(), `pi-research-memory-tools-${crypto.randomUUID()}`);
+		const projectRoot = join(temporaryDirectory, "project");
+		const doroHome = join(temporaryDirectory, "doro");
+		const harness = createHarness(createRecordedHttpTransport([]));
+		const ctx = harness.context(projectRoot);
+		await harness.commands.get("research-init")?.("Memory Tool Fixture", ctx);
+		let project = await openProject(projectRoot);
+		if (project.compatibility !== "current") throw new Error("Expected current project");
+		const profileRoot = memoryProfileRoot(doroHome, "profile-tools");
+		const created = await createMemoryProfile(profileRoot, { profileId: "profile-tools" });
+		if (created.mode !== "read-write") throw new Error("Expected writable memory profile");
+		await runMemoryTransaction(profileRoot, 0, (profile, transactionId) => ({
+			profile: {
+				...profile,
+				revision: 1,
+				sensitivityPolicy: {
+					...profile.sensitivityPolicy,
+					allowedDataClasses: ["public", "internal", "restricted"],
+				},
+				updatedAt: new Date().toISOString(),
+				lastTransactionId: transactionId,
+			},
+			writes: [],
+			result: null,
+		}));
+		await appendMemoryItem(
+			profileRoot,
+			itemDraft("profile-tools", "memory-language", {
+				category: "writing",
+				key: "language",
+				value: "zh-CN",
+				allowedEffects: ["formatting"],
+			}),
+			{ expectedProfileRevision: 1 },
+		);
+		await appendMemoryItem(
+			profileRoot,
+			{
+				...itemDraft("profile-tools", "memory-delete", {
+					category: "writing",
+					key: "tone",
+					value: "conservative",
+					dataClass: "restricted",
+					scope: { level: "project", projectId: project.manifest.projectId },
+					allowedEffects: ["formatting"],
+				}),
+				status: "quarantined",
+				allowedEffects: [],
+			},
+			{ expectedProfileRevision: 2 },
+		);
+		await appendMemoryItem(
+			profileRoot,
+			itemDraft("profile-tools", "memory-other-project", {
+				category: "writing",
+				key: "tone",
+				value: "technical",
+				scope: { level: "project", projectId: "project-other" },
+				allowedEffects: ["formatting"],
+			}),
+			{ expectedProfileRevision: 3 },
+		);
+		await retrievePersonalMemoryForUse(profileRoot, retrievalQuery(), {
+			sessionRef: { kind: "session", locator: "session:memory-tools", dataClass: "internal" },
+			taskRef: { kind: "task", locator: "task:memory-tools", dataClass: "internal" },
+			decisionCodeBefore: "format.default",
+			decisionCodeAfter: "format.personalized",
+			explanationCodes: ["memory.preference_applied"],
+			criticalResearchDecisionTouched: false,
+			approvalRequired: false,
+			appliedAt: "2026-08-08T12:00:00.000Z",
+		});
+		vi.stubEnv("DORO_HOME", doroHome);
+		const operationsBefore = await listProjectRecordIds(project.root, project.manifest, "operation");
+
+		const listed = await callTool(harness, "research_memory_inspect", { action: "list" }, ctx);
+		expect(listed).toMatchObject({
+			ok: true,
+			value: { items: [{ memoryId: "memory-language", dataClass: "public" }], totalItemCount: 1 },
+		});
+		const shown = await callTool(
+			harness,
+			"research_memory_inspect",
+			{ action: "show", memoryId: "memory-language" },
+			ctx,
+		);
+		expect(shown).toMatchObject({ ok: true, value: { item: { key: "language", dataClass: "public" } } });
+		const explained = await callTool(
+			harness,
+			"research_memory_inspect",
+			{ action: "explain", receiptId: "last" },
+			ctx,
+		);
+		expect(explained).toMatchObject({
+			ok: true,
+			value: { receipt: { effect: "formatting", decisionCodeAfter: "format.personalized" } },
+		});
+		for (const result of [listed, shown, explained]) {
+			expect(JSON.stringify(result)).not.toContain("zh-CN");
+			expect(JSON.stringify(result)).not.toContain("conservative");
+			expect(JSON.stringify(result)).not.toContain("technical");
+			expect(JSON.stringify(result)).not.toContain("session:memory-tools");
+			expect(JSON.stringify(result)).not.toContain("sha256:");
+		}
+		const crossProject = await callTool(
+			harness,
+			"research_memory_inspect",
+			{ action: "show", memoryId: "memory-other-project" },
+			ctx,
+		);
+		expect(crossProject).toMatchObject({ errors: [{ code: "MEMORY_NOT_FOUND" }] });
+		const restricted = await callTool(
+			harness,
+			"research_memory_inspect",
+			{ action: "show", memoryId: "memory-delete" },
+			ctx,
+		);
+		expect(restricted).toMatchObject({ errors: [{ code: "MEMORY_NOT_FOUND" }] });
+		pushUserTurn(harness, "请删除个人记忆 memory-other-project");
+		const crossProjectDelete = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "delete", memoryId: "memory-other-project" },
+			ctx,
+		);
+		expect(crossProjectDelete).toMatchObject({ errors: [{ code: "MEMORY_NOT_FOUND" }] });
+		expect(harness.confirm).not.toHaveBeenCalled();
+
+		pushUserTurn(harness, "请删除个人记忆 memory-delete-extra");
+		const wrongId = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "delete", memoryId: "memory-delete" },
+			ctx,
+		);
+		expect(wrongId).toMatchObject({
+			ok: false,
+			status: "PERMISSION_BLOCKED",
+			errors: [{ code: "MEMORY_USER_AUTHORIZATION_REQUIRED" }],
+		});
+		pushUserTurn(harness, "请删除个人记忆 memory-delete，但不要执行");
+		const negated = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "delete", memoryId: "memory-delete" },
+			ctx,
+		);
+		expect(negated).toMatchObject({ errors: [{ code: "MEMORY_USER_AUTHORIZATION_REQUIRED" }] });
+		pushUserTurn(harness, "请纠正个人记忆 memory-language 为 en-US-extra");
+		const wrongValue = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "correct", memoryId: "memory-language", value: "en-US" },
+			ctx,
+		);
+		expect(wrongValue).toMatchObject({ errors: [{ code: "MEMORY_USER_AUTHORIZATION_REQUIRED" }] });
+
+		pushUserTurn(harness, "请纠正个人记忆 memory-language 为 en-US");
+		const headless = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "correct", memoryId: "memory-language", value: "en-US" },
+			{ ...ctx, hasUI: false } as ExtensionContext,
+		);
+		expect(headless).toMatchObject({ errors: [{ code: "MEMORY_CONFIRMATION_REQUIRED" }] });
+		harness.confirm.mockResolvedValueOnce(false);
+		pushUserTurn(harness, "请纠正个人记忆 memory-language 为 en-US");
+		const denied = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "correct", memoryId: "memory-language", value: "en-US" },
+			ctx,
+		);
+		expect(denied).toMatchObject({ errors: [{ code: "MEMORY_CONFIRMATION_DENIED" }] });
+
+		pushUserTurn(harness, "请纠正个人记忆 memory-language 为 en-US");
+		const corrected = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "correct", memoryId: "memory-language", value: "en-US" },
+			ctx,
+		);
+		expect(corrected).toMatchObject({
+			ok: true,
+			value: {
+				action: "correct",
+				confirmation: { kind: "memory_feedback" },
+				memoryId: "memory-language",
+				resultingRevision: 2,
+				status: "active",
+			},
+		});
+		expect(harness.confirm.mock.calls.at(-1)?.[1]).toContain('"en-US"');
+		expect(JSON.stringify(corrected)).not.toContain("en-US");
+		pushUserTurn(harness, "请忘记个人记忆 memory-language");
+		const forgotten = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "forget", memoryId: "memory-language" },
+			ctx,
+		);
+		expect(forgotten).toMatchObject({
+			ok: true,
+			value: { memoryId: "memory-language", resultingRevision: 3, status: "forgotten" },
+		});
+		pushUserTurn(harness, "请删除个人记忆 memory-delete");
+		const deleted = await callTool(
+			harness,
+			"research_memory_feedback",
+			{ action: "delete", memoryId: "memory-delete" },
+			ctx,
+		);
+		expect(deleted).toMatchObject({
+			ok: true,
+			value: { confirmation: { kind: "memory_feedback" }, verification: { status: "verified" } },
+		});
+		expect(JSON.stringify(deleted)).not.toContain("conservative");
+		expect(JSON.stringify(deleted)).not.toContain("sha256:");
+
+		const opened = await openMemoryProfile(profileRoot);
+		if (opened.mode !== "read-write") throw new Error("Expected writable memory profile");
+		const state = await loadCanonicalMemoryState(profileRoot, opened.profile);
+		expect(state.feedback).toHaveLength(3);
+		expect(state.feedback.map(({ action, actor }) => ({ action, actor }))).toEqual(
+			expect.arrayContaining([
+				{ action: "correct", actor: "user" },
+				{ action: "forget", actor: "user" },
+				{ action: "delete", actor: "user" },
+			]),
+		);
+		expect(state.feedback.map(({ sourceRef }) => sourceRef.locator)).toEqual([
+			expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
+			expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
+			expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
+		]);
+		expect(JSON.stringify(state.feedback)).not.toContain("research-tools-session");
+		expect(
+			state.items.find(({ memoryId, revision }) => memoryId === "memory-language" && revision === 3),
+		).toMatchObject({
+			status: "forgotten",
+		});
+		expect(state.items.find(({ memoryId }) => memoryId === "memory-other-project")).toMatchObject({
+			value: "technical",
+		});
+		project = await openProject(projectRoot);
+		if (project.compatibility !== "current") throw new Error("Expected current project");
+		expect(await listProjectRecordIds(project.root, project.manifest, "operation")).toEqual(operationsBefore);
+	}, 30_000);
 
 	it("runs the M1 aggregate-tool vertical without direct canonical writes", async () => {
 		temporaryDirectory = join(tmpdir(), `pi-research-tools-${crypto.randomUUID()}`);

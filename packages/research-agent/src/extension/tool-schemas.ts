@@ -61,6 +61,25 @@ export const SearchSourcesParameters = Type.Object(
 	{ additionalProperties: false },
 );
 
+export const MemoryInspectParameters = Type.Object(
+	{
+		action: Type.Union([Type.Literal("status"), Type.Literal("list"), Type.Literal("show"), Type.Literal("explain")]),
+		filter: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+		memoryId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+		receiptId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+	},
+	{ additionalProperties: false },
+);
+
+export const MemoryFeedbackParameters = Type.Object(
+	{
+		action: Type.Union([Type.Literal("correct"), Type.Literal("forget"), Type.Literal("delete")]),
+		memoryId: Type.String({ minLength: 1, maxLength: 256 }),
+		value: Type.Optional(JsonValueSchema),
+	},
+	{ additionalProperties: false },
+);
+
 export const ImportSourcesParameters = Type.Object(
 	{
 		inputs: Type.Array(

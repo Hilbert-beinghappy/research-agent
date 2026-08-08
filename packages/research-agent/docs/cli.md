@@ -4,6 +4,7 @@
 
 | Command | Actual v2.0 behavior | State change |
 |---|---|---|
+| `/memory <action>` | `status`, `list`, `show`, `explain`, `correct`, `forget`, `delete`, `pause`, `resume`, encrypted `export`/`import`, or `verify-delete` for one private Personal Memory profile. First use, mutations, and transfer require interactive confirmation; restricted values and host paths are not printed. | Read-only inspection or a confirmed isolated profile transaction; never a research-project record. |
 | `/research-version` | Show the loaded package version. | None |
 | `/research-init [--domain <id>] [title]` | Initialize the current empty directory with a built-in domain, create the bootstrap task and operation, and link the Pi Session. The default is public administration. | Adds a project; no overwrite |
 | `/research-open [path]` | Validate and link an existing current-schema project. | Session link only |
@@ -66,8 +67,10 @@ Skills orchestrate model judgment. They do not parse PDFs, decide dedup matches,
 | `research_qualitative` | Import UTF-8 text, segment, version/decide a codebook or theme, record a model suggestion or human coding decision, or render an audit. | Stable segment locators, immutable suggestions, human decisions/supersession, themes/negative cases, and Markdown/JSON audit output. |
 | `research_manuscript` | Create/diff immutable revisions, confirm disclosure, or evaluate a submission candidate. | Manuscript/Section/ClaimOccurrence/Disclosure/SubmissionGate records and deterministic blockers. |
 | `research_review` | Record deterministic or model findings, capture the user's disposition, or change the active revision pointer. | Deduplicated ReviewFinding and immutable RevisionDecision records with provenance. |
+| `research_memory_inspect` | Request status, a bounded filter, one memory ID, or a use-receipt ID. | At most 100 current-project/domain/global summaries or revisions, excluding restricted items, semantic values, host paths, and integrity hashes; never research evidence. |
+| `research_memory_feedback` | Exact current-user request to correct one value, forget one item, or delete one item, followed by interactive confirmation. | Isolated profile transaction plus immutable user feedback confirmation and deletion verification; no general model write authority. |
 
-Tool parameter schemas live in `src/extension/tool-schemas.ts`; Pi registration is split across the source, knowledge, methods, and writing modules under `src/extension/handlers/`. Every model-visible handler enters through the same fail-closed egress wrapper, and every mutating handler uses the shared operation journal. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
+Tool parameter schemas live in `src/extension/tool-schemas.ts`; Pi registration is split across source, knowledge, methods, writing, and memory handlers under `src/extension/handlers/`. Every model-visible handler enters through the same fail-closed egress wrapper. Project mutations use the shared operation journal; Personal Memory feedback uses its separate profile transaction and immutable feedback record. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
 
 ## Minimal interactive flow
 

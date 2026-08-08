@@ -21,6 +21,8 @@ const allowedTools = new Set([
 	"research_review",
 	"research_knowledge",
 	"research_monitor",
+	"research_memory_inspect",
+	"research_memory_feedback",
 ]);
 
 function researchTools(content: string): string[] {

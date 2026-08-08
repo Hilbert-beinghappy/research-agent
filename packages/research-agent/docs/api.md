@@ -24,7 +24,7 @@ Provider implementations, project storage/mutation, migration, backup, routing, 
 
 ## Extension boundary
 
-The Pi package loads `extensions/research.ts`, registers fourteen governed aggregate Tools and sixteen research administration commands plus `/research-version`, and stores only a project link in Pi Session entries. Command results use the same `ResearchResult` shape as Tools. The SDK/RPC subset exposes project open/validate/doctor and record list/read operations for explicitly configured projects, redacts host paths by default, and advertises supported evidence-submission levels. Backup, migration, transaction, Adapter registration, exchange, collaboration merge, and all other mutations remain Pi-governed internal surfaces.
+The Pi package loads `extensions/research.ts`, registers sixteen governed aggregate Tools, sixteen research administration commands, the bounded `/memory` command family, and `/research-version`; Pi Session entries store only a project link. Command results use the same `ResearchResult` shape as Tools. The two Personal Memory Tools expose only bounded current-project/domain/global summaries or exact current-user feedback confirmed in the interactive UI; restricted items, semantic values, host paths, and internal integrity hashes are not model-visible, and no general model write authority exists. The SDK/RPC subset exposes project open/validate/doctor and record list/read operations for explicitly configured projects, redacts host paths by default, and advertises supported evidence-submission levels. Backup, migration, transaction, Adapter registration, exchange, collaboration merge, and all other mutations remain Pi-governed internal surfaces.
 
 ## Change process
 

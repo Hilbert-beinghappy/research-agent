@@ -9,6 +9,7 @@
 - Opt-in, identifier-redacted transaction phase tracing plus a bounded manual scaling diagnostic for single- and dual-process writers.
 - Offline Personal Memory export/import with scrypt-wrapped AES-256-GCM keys, encrypted manifests, bounded canonical containers, fast-forward lineage checks, and crash-recoverable atomic profile exchange.
 - One `/memory` command family for confirmed first-use profile creation, status, inspection, explanation, correction/deletion, pause/resume, encrypted transfer, and deletion verification, with private profile roots, logical-path output, and restricted-value redaction.
+- `research_memory_inspect` for bounded, scope-filtered, value/hash-free classified summaries that exclude restricted items, and `research_memory_feedback` for exact current-user correction, forgetting, or deletion with interactive confirmation and immutable feedback receipts.
 
 ### Changed
 
@@ -17,7 +18,7 @@
 - Doro terminal sessions replace Pi's generic startup help with a compact side-by-side identity panel showing a scaled-down Bocchi pet with the blue-yellow hair ornament preserved, the active model and effort, and current directory.
 - Public package exports now load compiled `dist` modules and expose only contracts, Adapter protocol, SDK, RPC, schemas, and package metadata.
 - Canonical schema 1.5.1 records semantic provenance and source verification separately; SDK/RPC defaults to logical project locators and advertises supported evidence-submission levels.
-- The 14 model-visible tools keep their public names and schemas while source, knowledge, methods, and writing handlers now share one egress guard and operation wrapper.
+- The 16 model-visible tools share one egress guard; project mutations use the operation wrapper, while Personal Memory feedback uses its isolated profile transaction and confirmation record.
 - Product language now describes Doro as a Pi profile, Zotero as an export/push adapter, Obsidian as a compatible Markdown export, and Stata as unqualified until a real licensed runner passes.
 
 ### Fixed

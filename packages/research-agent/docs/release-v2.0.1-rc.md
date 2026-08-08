@@ -1,6 +1,6 @@
 # v2.0.1 release-candidate boundary
 
-v2.0.1 is an unpublished hardening candidate for the existing Pi Research Agent architecture. It preserves Pi Core, fourteen model-visible aggregate Tools, eleven Skills, file-based canonical project state, and the inspection-only SDK/RPC boundary.
+v2.0.1 is an unpublished hardening candidate for the existing Pi Research Agent architecture. It preserves Pi Core, sixteen model-visible aggregate Tools, eleven Skills, file-based canonical project state, and the inspection-only SDK/RPC boundary.
 
 ## Product and version identity
 
@@ -17,6 +17,7 @@ The canonical project schema is 1.5.1. Schema 1.5.0 is the direct migration inpu
 - compiled public exports, reproducible packages, Pi 0.83.0/0.84.0 clean install/uninstall probes, and read-only SDK/RPC path redaction;
 - strong local process isolation on macOS Seatbelt and Linux bubblewrap, with explicit host-user fallback approval; Windows has no strong profile;
 - a hash-pinned, redistribution-permitted NIST public-corpus workflow;
+- isolated Personal Memory profiles with one bounded command family, value-free model inspection, and exact current-user feedback that requires interactive confirmation;
 - PR/main/tag security gates, waiver validation, upstream replay policy, release checklist, and Skill provenance.
 
 Python and R are qualified only where their real runtime and strong isolation gate pass. Stata remains an optional user-owned commercial runtime and is not qualified by a mock executor. Zotero is an export/push adapter, and Obsidian support is an Obsidian-compatible Markdown export; neither is claimed as a verified bidirectional desktop integration.

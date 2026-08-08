@@ -62,6 +62,8 @@ export const RESEARCH_TOOL_NAMES = [
 	"research_qualitative",
 	"research_manuscript",
 	"research_review",
+	"research_memory_inspect",
+	"research_memory_feedback",
 ] as const;
 
 export interface ToolOutcome<Value> {

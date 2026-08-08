@@ -36,7 +36,7 @@ pi-research-agent v2.0.1
 
 The source and packed candidate report 2.0.1. This is release-candidate identity, not evidence that npm publication or the GitHub release has occurred.
 
-The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes fourteen governed aggregate Tools; users do not edit canonical `.research/records` files directly. Seventeen administration commands cover project state, migration, domains, Adapter inspection/registration, deterministic model routing, and exchange.
+The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes sixteen governed aggregate Tools; Personal Memory inspection is value-free, and feedback requires the exact current user request plus interactive confirmation. Eighteen commands cover the bounded `/memory` family, project state, migration, domains, Adapter inspection/registration, deterministic model routing, exchange, and version reporting.
 
 ## Optional provider configuration
 

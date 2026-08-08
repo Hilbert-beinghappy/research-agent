@@ -9,7 +9,7 @@ Pi Research Agent 是基于 [Pi Agent Harness](https://github.com/earendil-works
 | 入口 | 用途 |
 | --- | --- |
 | [科研 Agent 主包](packages/research-agent/README.md) | 产品能力、运行边界和完整发布检查 |
-| [CLI、Skills 与 Tools](packages/research-agent/docs/cli.md) | 终端命令、11 个 Skills 和 14 个 governed aggregate Tools |
+| [CLI、Skills 与 Tools](packages/research-agent/docs/cli.md) | 终端命令、11 个 Skills 和 16 个 governed aggregate Tools |
 | [公共 API](packages/research-agent/docs/api.md) | Extension 与 Host 集成接口 |
 | [项目格式](packages/research-agent/docs/project-format.md) | 文件化状态、记录模型、恢复与迁移 |
 | [Adapter 开发](packages/research-agent/docs/adapter-development.md) | Source、Analysis Runtime 与 Artifact Adapter v1 |
