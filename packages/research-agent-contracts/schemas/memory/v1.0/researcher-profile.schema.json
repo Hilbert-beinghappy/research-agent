@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Researcher Profile v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "profileId",
+    "revision",
+    "status",
+    "preferenceRefs",
+    "learningPolicy",
+    "sensitivityPolicy",
+    "retentionPolicy",
+    "budgetPolicy",
+    "currentItemRootHash",
+    "createdAt",
+    "updatedAt",
+    "createdBy",
+    "lastTransactionId"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-researcher-profile"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "active"
+        },
+        {
+          "type": "string",
+          "const": "paused"
+        },
+        {
+          "type": "string",
+          "const": "deleted"
+        }
+      ]
+    },
+    "preferenceRefs": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "theory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "method": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "writing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "workflow": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "tool": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memoryId",
+              "revision"
+            ],
+            "properties": {
+              "memoryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "learningPolicy": {
+      "type": "object",
+      "required": [
+        "mode",
+        "explicitAutoActivation",
+        "inferredLowRiskThreshold",
+        "inferredResearchThreshold",
+        "minimumIndependentSignals",
+        "maxItemsPerTask",
+        "maxContextTokens",
+        "criticalDecisionMode"
+      ],
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "active"
+            },
+            {
+              "type": "string",
+              "const": "paused"
+            }
+          ]
+        },
+        "explicitAutoActivation": {
+          "type": "boolean"
+        },
+        "inferredLowRiskThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "inferredResearchThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "minimumIndependentSignals": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxItemsPerTask": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxContextTokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "criticalDecisionMode": {
+          "type": "string",
+          "const": "never_auto"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sensitivityPolicy": {
+      "type": "object",
+      "required": [
+        "allowedDataClasses",
+        "restrictedProjectLearning",
+        "externalProviderMemoryView",
+        "prohibitedAttributePolicyVersion"
+      ],
+      "properties": {
+        "allowedDataClasses": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "public"
+              },
+              {
+                "type": "string",
+                "const": "internal"
+              },
+              {
+                "type": "string",
+                "const": "restricted"
+              }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "restrictedProjectLearning": {
+          "type": "string",
+          "const": "disabled"
+        },
+        "externalProviderMemoryView": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "task_scoped_redacted"
+            },
+            {
+              "type": "string",
+              "const": "disabled"
+            }
+          ]
+        },
+        "prohibitedAttributePolicyVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "retentionPolicy": {
+      "type": "object",
+      "required": [
+        "signalDays",
+        "candidateDays",
+        "receiptDays",
+        "auditDays",
+        "tombstoneDays"
+      ],
+      "properties": {
+        "signalDays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidateDays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "receiptDays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "auditDays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tombstoneDays": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "const": "indefinite"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "budgetPolicy": {
+      "type": "object",
+      "required": [
+        "maxInferenceCallsPerSession",
+        "maxInferenceCostUsdPerSession",
+        "maxAdditionalTokensPerTask"
+      ],
+      "properties": {
+        "maxInferenceCallsPerSession": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxInferenceCostUsdPerSession": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxAdditionalTokensPerTask": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "currentItemRootHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "updatedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "createdBy": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "user"
+        },
+        {
+          "type": "string",
+          "const": "migration"
+        }
+      ]
+    },
+    "lastTransactionId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

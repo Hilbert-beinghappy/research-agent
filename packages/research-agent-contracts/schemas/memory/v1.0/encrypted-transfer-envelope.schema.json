@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Encrypted Transfer Envelope v1",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "cipher",
+    "kdf",
+    "wrappedDek",
+    "encryptedManifest",
+    "ciphertextRootHash"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-memory-transfer"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "cipher": {
+      "type": "string",
+      "const": "AES-256-GCM"
+    },
+    "kdf": {
+      "type": "object",
+      "required": [
+        "name",
+        "N",
+        "r",
+        "p",
+        "saltBase64"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "scrypt"
+        },
+        "N": {
+          "type": "number",
+          "const": 131072
+        },
+        "r": {
+          "type": "number",
+          "const": 8
+        },
+        "p": {
+          "type": "number",
+          "const": 1
+        },
+        "saltBase64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{22}==$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wrappedDek": {
+      "type": "object",
+      "required": [
+        "nonceBase64",
+        "ciphertextBase64",
+        "tagBase64"
+      ],
+      "properties": {
+        "nonceBase64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{16}$"
+        },
+        "ciphertextBase64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{43}=$"
+        },
+        "tagBase64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{22}==$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "encryptedManifest": {
+      "type": "object",
+      "required": [
+        "nonceBase64",
+        "path",
+        "ciphertextHash"
+      ],
+      "properties": {
+        "nonceBase64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{16}$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
+        },
+        "ciphertextHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ciphertextRootHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

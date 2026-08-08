@@ -139,7 +139,7 @@
 		"node": ">=22.19.0"
 	},
 	"dependencies": {
-		"@research-agent/contracts": "2.0.0",
+		"@research-agent/contracts": "2.1.0",
 		"@citation-js/core": "0.8.2",
 		"@citation-js/plugin-bibtex": "0.8.2",
 		"@citation-js/plugin-ris": "0.8.2",

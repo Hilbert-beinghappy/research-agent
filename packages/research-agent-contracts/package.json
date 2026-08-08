@@ -1,6 +1,6 @@
 {
 	"name": "@research-agent/contracts",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "Stable contracts for local-first research projects and adapters",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -25,6 +25,18 @@
 		"./integrity": {
 			"types": "./dist/integrity.d.ts",
 			"import": "./dist/integrity.js"
+		},
+		"./memory": {
+			"types": "./dist/memory.d.ts",
+			"import": "./dist/memory.js"
+		},
+		"./memory-transfer": {
+			"types": "./dist/memory-transfer.d.ts",
+			"import": "./dist/memory-transfer.js"
+		},
+		"./memory-validators": {
+			"types": "./dist/memory-validators.d.ts",
+			"import": "./dist/memory-validators.js"
 		},
 		"./schemas": {
 			"types": "./dist/schemas.d.ts",

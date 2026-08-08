@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Memory Snapshot Manifest v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "snapshotId",
+    "profileId",
+    "profileRevision",
+    "createdAt",
+    "includedClasses",
+    "excluded",
+    "files",
+    "rootHash",
+    "sourceLineage"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-memory-snapshot"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "snapshotId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profileRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "includedClasses": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "profile"
+          },
+          {
+            "type": "string",
+            "const": "policy"
+          },
+          {
+            "type": "string",
+            "const": "signals"
+          },
+          {
+            "type": "string",
+            "const": "items"
+          },
+          {
+            "type": "string",
+            "const": "feedback"
+          },
+          {
+            "type": "string",
+            "const": "receipts"
+          },
+          {
+            "type": "string",
+            "const": "audit"
+          }
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "session_content"
+          },
+          {
+            "type": "string",
+            "const": "project_content"
+          },
+          {
+            "type": "string",
+            "const": "restricted_sources"
+          },
+          {
+            "type": "string",
+            "const": "credentials"
+          },
+          {
+            "type": "string",
+            "const": "keys"
+          },
+          {
+            "type": "string",
+            "const": "cache"
+          },
+          {
+            "type": "string",
+            "const": "pending_transactions"
+          }
+        ]
+      },
+      "uniqueItems": true
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "size",
+          "plaintextHash",
+          "dataClass"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/\\\\]+(?:/[^/\\\\]+)*$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "plaintextHash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "dataClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "public"
+              },
+              {
+                "type": "string",
+                "const": "internal"
+              },
+              {
+                "type": "string",
+                "const": "restricted"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "uniqueItems": true
+    },
+    "rootHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "sourceLineage": {
+      "type": "object",
+      "required": [
+        "profileId",
+        "baseRevision"
+      ],
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "baseRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Memory Candidate Draft v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "candidateId",
+    "profileId",
+    "category",
+    "key",
+    "value",
+    "proposedScope",
+    "sourceSignalRefs",
+    "proposedEffects",
+    "rationaleCodes",
+    "generatedBy",
+    "createdAt"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-memory-candidate-draft"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "candidateId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "category": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "domain"
+        },
+        {
+          "type": "string",
+          "const": "theory"
+        },
+        {
+          "type": "string",
+          "const": "method"
+        },
+        {
+          "type": "string",
+          "const": "evidence"
+        },
+        {
+          "type": "string",
+          "const": "writing"
+        },
+        {
+          "type": "string",
+          "const": "workflow"
+        },
+        {
+          "type": "string",
+          "const": "tool"
+        },
+        {
+          "type": "string",
+          "const": "output"
+        }
+      ]
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+    },
+    "value": {
+      "$defs": {
+        "JsonValue": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "JsonValue"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "$ref": "JsonValue"
+                }
+              }
+            }
+          ],
+          "$id": "JsonValue"
+        }
+      },
+      "$ref": "JsonValue"
+    },
+    "proposedScope": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "level"
+          ],
+          "properties": {
+            "level": {
+              "type": "string",
+              "const": "global"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "level",
+            "domainId"
+          ],
+          "properties": {
+            "level": {
+              "type": "string",
+              "const": "domain"
+            },
+            "domainId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "level",
+            "projectId"
+          ],
+          "properties": {
+            "level": {
+              "type": "string",
+              "const": "project"
+            },
+            "projectId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sourceSignalRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "signalId",
+          "contentHash"
+        ],
+        "properties": {
+          "signalId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "contentHash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "proposedEffects": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "routing"
+          },
+          {
+            "type": "string",
+            "const": "ranking"
+          },
+          {
+            "type": "string",
+            "const": "prompt_context"
+          },
+          {
+            "type": "string",
+            "const": "formatting"
+          },
+          {
+            "type": "string",
+            "const": "tool_order"
+          },
+          {
+            "type": "string",
+            "const": "recommendation"
+          }
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "rationaleCodes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "generatedBy": {
+      "type": "object",
+      "required": [
+        "type",
+        "version",
+        "outputSchemaHash"
+      ],
+      "properties": {
+        "type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "rule"
+            },
+            {
+              "type": "string",
+              "const": "model"
+            }
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "modelRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "promptHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "outputSchemaHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    }
+  },
+  "additionalProperties": false
+}

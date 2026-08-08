@@ -1,4 +1,4 @@
-# Public contracts v2.0
+# Public contracts v2.0 and v3 development additions
 
 `@research-agent/contracts` is the data-only contract package. It contains TypeScript types, TypeBox runtime schemas, canonical JSON helpers, SHA-256 helpers, and validators. It performs no filesystem write, network request, model call, or Adapter execution.
 
@@ -11,6 +11,9 @@
 | `@research-agent/contracts/adapters` | Source, Analysis Runtime, and Artifact Adapter v1 interfaces and request/result schemas. |
 | `@research-agent/contracts/canonical-json` | Canonical JSON normalization and serialization. |
 | `@research-agent/contracts/integrity` | SHA-256 byte and canonical-value hashing. |
+| `@research-agent/contracts/memory` | Personal Memory schema 1.0.0 data types and TypeBox schemas. |
+| `@research-agent/contracts/memory-transfer` | Personal Memory snapshot and encrypted transfer envelope schemas. |
+| `@research-agent/contracts/memory-validators` | Pure structural and cross-field Personal Memory validators. |
 | `@research-agent/contracts/schemas` | Persisted project, Adapter package, exchange, collaboration, and model-route schemas and types. |
 | `@research-agent/contracts/sdk-rpc` | SDK/RPC v1 methods, request/response envelopes, and capability schema. |
 | `@research-agent/contracts/validators` | Runtime validation of persisted records and result envelopes. |
@@ -18,6 +21,8 @@
 `pi-research-agent` and `pi-research-agent/contracts` re-export the compiled canonical project contracts for existing callers. New third-party Adapters should depend only on `@research-agent/contracts`. Neither package exports its internal `src` tree.
 
 Canonical project JSON Schemas remain under `schemas/v1.5`; the current project schema is 1.5.1. SDK/RPC protocol schemas are published under `schemas/v2.0` in both packages. Package v2.0 introduces no project schema 2.0 migration. Compiled modules and generated schemas are shipped for consumers; TypeBox source remains the repository authority.
+
+Contracts package 2.1.0 adds the data-only Personal Memory entry points above and generated schemas under `schemas/memory/v1.0`. The v1 validators apply the exported fixed low-risk key allowlist and bounded structured values; registry-backed identifiers still require deterministic Host resolution before activation. This is additive contract work toward v3 beta; it does not migrate Research Project schema 1.5.1, expose a memory writer, or claim that the Personal Memory runtime is complete.
 
 ## Frozen Adapter contract v1
 

@@ -3,7 +3,7 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "pi-research-agent-2.0.1",
-  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-2.0.1-f027250e7cd8d446cd53c95937960dc8b0313ea736dd477b7dd5bf4ba430c747",
+  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-2.0.1-afd225937c9e0e699f8a3868377ed2c2d24425263815731c3f338ff2d9e5f693",
   "creationInfo": {
     "created": "2026-08-06T00:00:00.000Z",
     "creators": [
@@ -318,9 +318,9 @@
       "packageComment": "npm integrity: sha512-SGhlQ8bDjL1Cz2KnsKMasr/5sTcwG/SZkB6WCJxLsmSm/3aS2C+3p39bA7iZ2/94+NkVDySZfbiGoaSZSFHYxA=="
     },
     {
-      "SPDXID": "SPDXRef-Package--research-agent-contracts-2.0.0-979817e9e3f8",
+      "SPDXID": "SPDXRef-Package--research-agent-contracts-2.1.0-979817e9e3f8",
       "name": "@research-agent/contracts",
-      "versionInfo": "2.0.0",
+      "versionInfo": "2.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -330,7 +330,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40research-agent%2Fcontracts@2.0.0"
+          "referenceLocator": "pkg:npm/%40research-agent%2Fcontracts@2.1.0"
         }
       ]
     },
@@ -682,7 +682,7 @@
     {
       "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package--research-agent-contracts-2.0.0-979817e9e3f8"
+      "relatedSpdxElement": "SPDXRef-Package--research-agent-contracts-2.1.0-979817e9e3f8"
     },
     {
       "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
@@ -690,7 +690,7 @@
       "relatedSpdxElement": "SPDXRef-Package-pdfjs-dist-6.2.108-6a602c539868"
     },
     {
-      "spdxElementId": "SPDXRef-Package--research-agent-contracts-2.0.0-979817e9e3f8",
+      "spdxElementId": "SPDXRef-Package--research-agent-contracts-2.1.0-979817e9e3f8",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package-typebox-1.3.7-a3a54bbe0924"
     },

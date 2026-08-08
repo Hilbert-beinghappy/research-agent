@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Memory Feedback v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "feedbackId",
+    "profileId",
+    "target",
+    "action",
+    "correction",
+    "actor",
+    "sourceRef",
+    "reasonCode",
+    "requestedAt",
+    "applicationStatus",
+    "resultingRevision",
+    "deactivatedAt",
+    "cacheInvalidatedAt",
+    "exportExclusionVerifiedAt",
+    "transactionId",
+    "errorCode"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-memory-feedback"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "feedbackId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "memoryId",
+        "revision"
+      ],
+      "properties": {
+        "memoryId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "reinforce"
+        },
+        {
+          "type": "string",
+          "const": "correct"
+        },
+        {
+          "type": "string",
+          "const": "reject"
+        },
+        {
+          "type": "string",
+          "const": "downrank"
+        },
+        {
+          "type": "string",
+          "const": "forget"
+        },
+        {
+          "type": "string",
+          "const": "delete"
+        },
+        {
+          "type": "string",
+          "const": "restore"
+        }
+      ]
+    },
+    "correction": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+            },
+            "value": {
+              "$defs": {
+                "JsonValue": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "JsonValue"
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "patternProperties": {
+                        "^.*$": {
+                          "$ref": "JsonValue"
+                        }
+                      }
+                    }
+                  ],
+                  "$id": "JsonValue"
+                }
+              },
+              "$ref": "JsonValue"
+            },
+            "scope": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "level"
+                  ],
+                  "properties": {
+                    "level": {
+                      "type": "string",
+                      "const": "global"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "level",
+                    "domainId"
+                  ],
+                  "properties": {
+                    "level": {
+                      "type": "string",
+                      "const": "domain"
+                    },
+                    "domainId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "level",
+                    "projectId"
+                  ],
+                  "properties": {
+                    "level": {
+                      "type": "string",
+                      "const": "project"
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "actor": {
+      "type": "string",
+      "const": "user"
+    },
+    "sourceRef": {
+      "type": "object",
+      "required": [
+        "kind",
+        "locator",
+        "dataClass"
+      ],
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "session"
+            },
+            {
+              "type": "string",
+              "const": "project"
+            },
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "type": "string",
+              "const": "operation"
+            },
+            {
+              "type": "string",
+              "const": "artifact"
+            },
+            {
+              "type": "string",
+              "const": "signal"
+            },
+            {
+              "type": "string",
+              "const": "memory"
+            },
+            {
+              "type": "string",
+              "const": "receipt"
+            },
+            {
+              "type": "string",
+              "const": "feedback"
+            }
+          ]
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 264,
+          "pattern": "^[a-z][a-z0-9_-]*:[A-Za-z0-9][A-Za-z0-9._~:-]{0,255}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "dataClass": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "public"
+            },
+            {
+              "type": "string",
+              "const": "internal"
+            },
+            {
+              "type": "string",
+              "const": "restricted"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "reasonCode": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "requestedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "applicationStatus": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "pending"
+        },
+        {
+          "type": "string",
+          "const": "applied"
+        },
+        {
+          "type": "string",
+          "const": "failed"
+        }
+      ]
+    },
+    "resultingRevision": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deactivatedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cacheInvalidatedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "exportExclusionVerifiedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "transactionId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "errorCode": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

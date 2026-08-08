@@ -1,0 +1,416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Preference Signal v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "signalId",
+    "profileId",
+    "signalType",
+    "actor",
+    "observedAt",
+    "category",
+    "normalizedKey",
+    "normalizedValue",
+    "scopeCandidate",
+    "baseWeight",
+    "dedupeKey",
+    "dataClass",
+    "sourceRefs",
+    "sourceContentHash",
+    "captureMethod",
+    "trustState",
+    "rejectionCode",
+    "createdAt"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-preference-signal"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "signalId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "signalType": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "explicit_statement"
+        },
+        {
+          "type": "string",
+          "const": "accept"
+        },
+        {
+          "type": "string",
+          "const": "reject"
+        },
+        {
+          "type": "string",
+          "const": "edit_diff"
+        },
+        {
+          "type": "string",
+          "const": "tool_choice"
+        },
+        {
+          "type": "string",
+          "const": "delivery_choice"
+        }
+      ]
+    },
+    "actor": {
+      "type": "string",
+      "const": "user"
+    },
+    "observedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "category": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "domain"
+        },
+        {
+          "type": "string",
+          "const": "theory"
+        },
+        {
+          "type": "string",
+          "const": "method"
+        },
+        {
+          "type": "string",
+          "const": "evidence"
+        },
+        {
+          "type": "string",
+          "const": "writing"
+        },
+        {
+          "type": "string",
+          "const": "workflow"
+        },
+        {
+          "type": "string",
+          "const": "tool"
+        },
+        {
+          "type": "string",
+          "const": "output"
+        }
+      ]
+    },
+    "normalizedKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+    },
+    "normalizedValue": {
+      "$defs": {
+        "JsonValue": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "JsonValue"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "$ref": "JsonValue"
+                }
+              }
+            }
+          ],
+          "$id": "JsonValue"
+        }
+      },
+      "$ref": "JsonValue"
+    },
+    "scopeCandidate": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "level"
+          ],
+          "properties": {
+            "level": {
+              "type": "string",
+              "const": "global"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "level",
+            "domainId"
+          ],
+          "properties": {
+            "level": {
+              "type": "string",
+              "const": "domain"
+            },
+            "domainId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "level",
+            "projectId"
+          ],
+          "properties": {
+            "level": {
+              "type": "string",
+              "const": "project"
+            },
+            "projectId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "baseWeight": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "dedupeKey": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "dataClass": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "public"
+        },
+        {
+          "type": "string",
+          "const": "internal"
+        },
+        {
+          "type": "string",
+          "const": "restricted"
+        }
+      ]
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "locator",
+          "dataClass"
+        ],
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "session"
+              },
+              {
+                "type": "string",
+                "const": "project"
+              },
+              {
+                "type": "string",
+                "const": "task"
+              },
+              {
+                "type": "string",
+                "const": "operation"
+              },
+              {
+                "type": "string",
+                "const": "artifact"
+              },
+              {
+                "type": "string",
+                "const": "signal"
+              },
+              {
+                "type": "string",
+                "const": "memory"
+              },
+              {
+                "type": "string",
+                "const": "receipt"
+              },
+              {
+                "type": "string",
+                "const": "feedback"
+              }
+            ]
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 264,
+            "pattern": "^[a-z][a-z0-9_-]*:[A-Za-z0-9][A-Za-z0-9._~:-]{0,255}$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "contentHash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "dataClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "public"
+              },
+              {
+                "type": "string",
+                "const": "internal"
+              },
+              {
+                "type": "string",
+                "const": "restricted"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "sourceContentHash": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "captureMethod": {
+      "type": "object",
+      "required": [
+        "type",
+        "ruleVersion"
+      ],
+      "properties": {
+        "type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "deterministic"
+            },
+            {
+              "type": "string",
+              "const": "model_assisted"
+            }
+          ]
+        },
+        "ruleVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "modelRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "promptHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "trustState": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "captured"
+        },
+        {
+          "type": "string",
+          "const": "accepted"
+        },
+        {
+          "type": "string",
+          "const": "quarantined"
+        },
+        {
+          "type": "string",
+          "const": "discarded"
+        }
+      ]
+    },
+    "rejectionCode": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,273 @@
+{
+	"researcherProfile": {
+		"format": "doro-researcher-profile",
+		"schemaVersion": "1.0.0",
+		"profileId": "profile-1",
+		"revision": 1,
+		"status": "active",
+		"preferenceRefs": {
+			"writing": [
+				{
+					"memoryId": "memory-writing-language",
+					"revision": 1
+				}
+			]
+		},
+		"learningPolicy": {
+			"mode": "active",
+			"explicitAutoActivation": true,
+			"inferredLowRiskThreshold": 0.85,
+			"inferredResearchThreshold": 0.9,
+			"minimumIndependentSignals": 3,
+			"maxItemsPerTask": 8,
+			"maxContextTokens": 800,
+			"criticalDecisionMode": "never_auto"
+		},
+		"sensitivityPolicy": {
+			"allowedDataClasses": ["public", "internal"],
+			"restrictedProjectLearning": "disabled",
+			"externalProviderMemoryView": "task_scoped_redacted",
+			"prohibitedAttributePolicyVersion": "memory-sensitive-v1"
+		},
+		"retentionPolicy": {
+			"signalDays": 180,
+			"candidateDays": 30,
+			"receiptDays": 365,
+			"auditDays": 365,
+			"tombstoneDays": "indefinite"
+		},
+		"budgetPolicy": {
+			"maxInferenceCallsPerSession": 1,
+			"maxInferenceCostUsdPerSession": 0.05,
+			"maxAdditionalTokensPerTask": 800
+		},
+		"currentItemRootHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"createdAt": "2026-08-08T00:00:00.000Z",
+		"updatedAt": "2026-08-08T00:01:00.000Z",
+		"createdBy": "user",
+		"lastTransactionId": "transaction-1"
+	},
+	"preferenceSignal": {
+		"format": "doro-preference-signal",
+		"schemaVersion": "1.0.0",
+		"signalId": "signal-1",
+		"profileId": "profile-1",
+		"signalType": "explicit_statement",
+		"actor": "user",
+		"observedAt": "2026-08-08T00:00:00.000Z",
+		"category": "writing",
+		"normalizedKey": "language",
+		"normalizedValue": "zh-CN",
+		"scopeCandidate": {
+			"level": "global"
+		},
+		"baseWeight": 1,
+		"dedupeKey": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		"dataClass": "public",
+		"sourceRefs": [
+			{
+				"kind": "session",
+				"locator": "session:session-1",
+				"dataClass": "public"
+			}
+		],
+		"sourceContentHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		"captureMethod": {
+			"type": "deterministic",
+			"ruleVersion": "host-event-v1"
+		},
+		"trustState": "accepted",
+		"rejectionCode": null,
+		"createdAt": "2026-08-08T00:00:01.000Z"
+	},
+	"memoryCandidateDraft": {
+		"format": "doro-memory-candidate-draft",
+		"schemaVersion": "1.0.0",
+		"candidateId": "candidate-1",
+		"profileId": "profile-1",
+		"category": "writing",
+		"key": "language",
+		"value": "zh-CN",
+		"proposedScope": {
+			"level": "global"
+		},
+		"sourceSignalRefs": [
+			{
+				"signalId": "signal-1",
+				"contentHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+			}
+		],
+		"proposedEffects": ["formatting", "prompt_context"],
+		"rationaleCodes": ["explicit-user-preference"],
+		"generatedBy": {
+			"type": "rule",
+			"version": "candidate-rule-v1",
+			"outputSchemaHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+		},
+		"createdAt": "2026-08-08T00:00:02.000Z"
+	},
+	"memoryItem": {
+		"format": "doro-memory-item",
+		"schemaVersion": "1.0.0",
+		"profileId": "profile-1",
+		"memoryId": "memory-writing-language",
+		"revision": 1,
+		"previousRevision": null,
+		"status": "active",
+		"category": "writing",
+		"key": "language",
+		"value": "zh-CN",
+		"origin": "explicit",
+		"scope": {
+			"level": "global"
+		},
+		"confidence": 1,
+		"supportCount": 1,
+		"independentSupportCount": 1,
+		"contradictionCount": 0,
+		"dataClass": "public",
+		"allowedEffects": ["formatting", "prompt_context"],
+		"criticalDecisionPolicy": "format_only",
+		"sourceSignalRefs": [
+			{
+				"signalId": "signal-1",
+				"contentHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+			}
+		],
+		"supersedes": [],
+		"generator": {
+			"type": "rule",
+			"version": "activation-rule-v1",
+			"schemaHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+		},
+		"provenanceHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"validFrom": "2026-08-08T00:00:03.000Z",
+		"validUntil": null,
+		"lastSupportedAt": "2026-08-08T00:00:03.000Z",
+		"lastUsedAt": null,
+		"decay": {
+			"halfLifeDays": 180
+		},
+		"createdAt": "2026-08-08T00:00:03.000Z",
+		"transactionId": "transaction-1"
+	},
+	"memoryUseReceipt": {
+		"format": "doro-memory-use-receipt",
+		"schemaVersion": "1.0.0",
+		"receiptId": "receipt-1",
+		"profileId": "profile-1",
+		"sessionRef": {
+			"kind": "session",
+			"locator": "session:session-1",
+			"dataClass": "public"
+		},
+		"taskRef": {
+			"kind": "task",
+			"locator": "task:task-1",
+			"dataClass": "public"
+		},
+		"operationRef": null,
+		"artifactRef": null,
+		"itemRefs": [
+			{
+				"memoryId": "memory-writing-language",
+				"revision": 1,
+				"provenanceHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+			}
+		],
+		"effect": "formatting",
+		"decisionCodeBefore": "default-language",
+		"decisionCodeAfter": "preferred-language",
+		"explanationCodes": ["explicit-preference"],
+		"criticalResearchDecisionTouched": false,
+		"approvalRequired": false,
+		"appliedAt": "2026-08-08T00:00:04.000Z",
+		"retrievalLatencyMs": 2,
+		"addedContextTokens": 8,
+		"estimatedCostUsd": 0,
+		"outcome": "applied",
+		"feedbackRefs": [],
+		"contextDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	},
+	"memoryFeedback": {
+		"format": "doro-memory-feedback",
+		"schemaVersion": "1.0.0",
+		"feedbackId": "feedback-1",
+		"profileId": "profile-1",
+		"target": {
+			"memoryId": "memory-writing-language",
+			"revision": 1
+		},
+		"action": "reinforce",
+		"correction": null,
+		"actor": "user",
+		"sourceRef": {
+			"kind": "receipt",
+			"locator": "receipt:receipt-1",
+			"dataClass": "public"
+		},
+		"reasonCode": "user-confirmed",
+		"requestedAt": "2026-08-08T00:00:05.000Z",
+		"applicationStatus": "applied",
+		"resultingRevision": 2,
+		"deactivatedAt": null,
+		"cacheInvalidatedAt": null,
+		"exportExclusionVerifiedAt": null,
+		"transactionId": "transaction-2",
+		"errorCode": null
+	},
+	"memorySnapshotManifest": {
+		"format": "doro-memory-snapshot",
+		"schemaVersion": "1.0.0",
+		"snapshotId": "snapshot-1",
+		"profileId": "profile-1",
+		"profileRevision": 1,
+		"createdAt": "2026-08-08T00:00:06.000Z",
+		"includedClasses": ["profile", "policy", "signals", "items", "feedback", "receipts", "audit"],
+		"excluded": [
+			"session_content",
+			"project_content",
+			"restricted_sources",
+			"credentials",
+			"keys",
+			"cache",
+			"pending_transactions"
+		],
+		"files": [
+			{
+				"path": "profile.json",
+				"size": 2048,
+				"plaintextHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+				"dataClass": "public"
+			}
+		],
+		"rootHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+		"sourceLineage": {
+			"profileId": "profile-1",
+			"baseRevision": 1
+		}
+	},
+	"encryptedTransferEnvelope": {
+		"format": "doro-memory-transfer",
+		"version": 1,
+		"cipher": "AES-256-GCM",
+		"kdf": {
+			"name": "scrypt",
+			"N": 131072,
+			"r": 8,
+			"p": 1,
+			"saltBase64": "AAAAAAAAAAAAAAAAAAAAAA=="
+		},
+		"wrappedDek": {
+			"nonceBase64": "AAAAAAAAAAAAAAAA",
+			"ciphertextBase64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+			"tagBase64": "AAAAAAAAAAAAAAAAAAAAAA=="
+		},
+		"encryptedManifest": {
+			"nonceBase64": "AQEBAQEBAQEBAQEB",
+			"path": "manifest.enc",
+			"ciphertextHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+		},
+		"ciphertextRootHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+	}
+}

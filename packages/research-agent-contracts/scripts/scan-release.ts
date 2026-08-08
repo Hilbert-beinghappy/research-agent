@@ -48,6 +48,12 @@ for (const path of [
 	"dist/adapter-protocol.js",
 	"dist/adapters.d.ts",
 	"dist/adapters.js",
+	"dist/memory.d.ts",
+	"dist/memory.js",
+	"dist/memory-transfer.d.ts",
+	"dist/memory-transfer.js",
+	"dist/memory-validators.d.ts",
+	"dist/memory-validators.js",
 	"dist/sdk-rpc.d.ts",
 	"dist/sdk-rpc.js",
 	"dist/schemas.d.ts",
@@ -59,6 +65,14 @@ for (const path of [
 	"schemas/v1.5/exchange-bundle.schema.json",
 	"schemas/v1.5/collaboration-change-set.schema.json",
 	"schemas/v1.5/model-route-decision.schema.json",
+	"schemas/memory/v1.0/encrypted-transfer-envelope.schema.json",
+	"schemas/memory/v1.0/memory-candidate-draft.schema.json",
+	"schemas/memory/v1.0/memory-feedback.schema.json",
+	"schemas/memory/v1.0/memory-item.schema.json",
+	"schemas/memory/v1.0/memory-snapshot-manifest.schema.json",
+	"schemas/memory/v1.0/memory-use-receipt.schema.json",
+	"schemas/memory/v1.0/preference-signal.schema.json",
+	"schemas/memory/v1.0/researcher-profile.schema.json",
 	"schemas/v2.0/research-rpc-request.schema.json",
 	"schemas/v2.0/research-rpc-response.schema.json",
 	"schemas/v2.0/research-sdk-capabilities.schema.json",
@@ -95,5 +109,5 @@ for (const file of result.files) {
 	}
 }
 process.stdout.write(
-	`${JSON.stringify({ status: "passed", entryCount: result.entryCount, scannedBytes, schemas: 17 }, null, 2)}\n`,
+	`${JSON.stringify({ status: "passed", entryCount: result.entryCount, scannedBytes, schemas: 25 }, null, 2)}\n`,
 );
