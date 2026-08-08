@@ -42,10 +42,20 @@ function nextManifest(manifest: ResearchProjectManifest): ResearchProjectManifes
 	return { ...structuredClone(manifest), revision: manifest.revision + 1, updatedAt: new Date().toISOString() };
 }
 
-async function runWriter(root: string, label: string): Promise<void> {
-	const child = spawn(process.execPath, ["--experimental-strip-types", writerWorker, "batch", root, label, "500"], {
-		stdio: ["ignore", "pipe", "pipe"],
-	});
+interface WriterResult {
+	conflicts: number;
+	stderr: string;
+}
+
+async function runWriter(root: string, label: string, count = 500, trace = false): Promise<WriterResult> {
+	const child = spawn(
+		process.execPath,
+		["--experimental-strip-types", writerWorker, "batch", root, label, String(count)],
+		{
+			stdio: ["ignore", "pipe", "pipe"],
+			env: { ...process.env, RESEARCH_TX_TRACE: trace ? "1" : "0" },
+		},
+	);
 	let stdout = "";
 	let stderr = "";
 	child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
@@ -56,7 +66,9 @@ async function runWriter(root: string, label: string): Promise<void> {
 	});
 	const [code] = (await once(child, "exit")) as [number | null];
 	if (code !== 0) throw new Error(`writer ${label} failed (${code}): ${stderr}`);
-	expect(JSON.parse(stdout)).toEqual({ count: 500 });
+	const result = JSON.parse(stdout) as { count: number; conflicts: number };
+	expect(result.count).toBe(count);
+	return { conflicts: result.conflicts, stderr };
 }
 
 describe("project transactions", () => {
@@ -212,6 +224,31 @@ describe("project transactions", () => {
 		expect(await validateProject(root)).toMatchObject({ valid: true, issues: [] });
 		expect(await listPendingProjectTransactions(root)).toEqual([]);
 	}, 300_000);
+
+	it("emits opt-in structured transaction diagnostics without raw identifiers or paths", async () => {
+		const { root } = await createProject("transaction-trace");
+		const label = "private-worker-label";
+		const result = await runWriter(root, label, 1, true);
+		const records = result.stderr
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line) as Record<string, unknown>);
+
+		expect(records.length).toBeGreaterThan(10);
+		expect(records.some(({ phase, state }) => phase === "record_index_hash" && state === "completed")).toBe(true);
+		expect(records.some(({ phase, state }) => phase === "writer_lease_wait" && state === "completed")).toBe(true);
+		expect(records.some(({ phase, state }) => phase === "worker_batch" && state === "completed")).toBe(true);
+		expect(result.stderr).not.toContain(root);
+		expect(result.stderr).not.toContain(label);
+		for (const record of records) {
+			expect(record).toMatchObject({ format: "doro-project-transaction-trace", version: 1 });
+			expect(record).not.toHaveProperty("operationId");
+			expect(record).not.toHaveProperty("transactionId");
+			expect(record).not.toHaveProperty("workerId");
+			expect(record).not.toHaveProperty("path");
+			expect(record).not.toHaveProperty("projectRoot");
+		}
+	});
 
 	it("recovers a prepared transaction after killing its lease-holding process", async () => {
 		const { root } = await createProject("killed-writer");

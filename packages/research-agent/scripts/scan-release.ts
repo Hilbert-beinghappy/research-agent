@@ -223,6 +223,7 @@ const requiredPaths = [
 	"scripts/benchmark-v1.5.ts",
 	"scripts/benchmark-v2.0.ts",
 	"scripts/conform-adapter.ts",
+	"scripts/diagnose-project-transactions.ts",
 	"scripts/evaluate-v0.2.ts",
 	"scripts/evaluate-v0.3.ts",
 	"scripts/evaluate-v0.4.ts",

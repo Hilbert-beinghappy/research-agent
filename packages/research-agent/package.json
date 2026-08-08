@@ -70,6 +70,7 @@
 		"check": "biome check extensions src scripts test vitest.config.ts tsconfig.build.json && tsgo --noEmit -p tsconfig.json",
 		"clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
 		"conform:adapter": "node scripts/conform-adapter.ts",
+		"diagnose:transactions": "node scripts/diagnose-project-transactions.ts",
 		"generate:release-metadata": "node scripts/generate-release-metadata.ts",
 		"generate:schemas": "node scripts/generate-schemas.ts",
 		"eval": "node scripts/evaluate-v0.1.ts",

@@ -11,6 +11,7 @@ import { resolveProjectPath, validatePortablePathSet, validateProjectRelativePat
 import { atomicWriteFile, syncParentDirectory } from "./atomic-write.ts";
 import { PROJECT_MANIFEST_PATH } from "./layout.ts";
 import { openProject } from "./open.ts";
+import { type ProjectTransactionTraceContext, traceProjectTransactionPhase } from "./transaction-trace.ts";
 import { withProjectWriterLease } from "./writer-lock.ts";
 
 export interface TransactionWrite {
@@ -45,6 +46,17 @@ const PENDING_DIRECTORY = ".research/transactions/pending";
 const COMMITTED_DIRECTORY = ".research/transactions/committed";
 const FAILED_DIRECTORY = ".research/transactions/failed";
 const TRANSACTION_IO_BATCH_SIZE = 512;
+
+function traceContextFromInput(input: ProjectTransactionInput): ProjectTransactionTraceContext {
+	return {
+		...(input.manifest.lastCommittedOperationId === null
+			? {}
+			: { operationId: input.manifest.lastCommittedOperationId }),
+		manifestRevision: input.expectedRevision,
+		recordCount: input.manifest.recordSets.reduce((total, recordSet) => total + recordSet.count, 0),
+		writeCount: input.writes.length,
+	};
+}
 
 async function settleBatch<Value>(promises: readonly Promise<Value>[]): Promise<Value[]> {
 	const values: Value[] = [];
@@ -184,11 +196,20 @@ async function moveTransaction(projectRoot: string, transactionId: string, desti
 	await Promise.all([syncParentDirectory(source), syncParentDirectory(target)]);
 }
 
-async function prepareProjectTransactionUnlocked(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
-	if ((await listPendingProjectTransactions(projectRoot)).length > 0) {
+async function prepareProjectTransactionUnlocked(
+	projectRoot: string,
+	input: ProjectTransactionInput,
+	traceContext = traceContextFromInput(input),
+): Promise<string> {
+	const pending = await traceProjectTransactionPhase("pending_transaction_scan", traceContext, () =>
+		listPendingProjectTransactions(projectRoot),
+	);
+	if (pending.length > 0) {
 		throw new Error("PROJECT_RECOVERY_REQUIRED: recover the pending project transaction before writing");
 	}
-	const opened = await openProject(projectRoot, input.expectedRevision);
+	const opened = await traceProjectTransactionPhase("project_open", traceContext, () =>
+		openProject(projectRoot, input.expectedRevision),
+	);
 	if (opened.compatibility !== "current") throw new Error("Project schema is read-only");
 	const validation = validatePersistedRecord(input.manifest);
 	if (!validation.ok || validation.value.kind !== "research_project_manifest") {
@@ -214,78 +235,82 @@ async function prepareProjectTransactionUnlocked(projectRoot: string, input: Pro
 	validatePortablePathSet([...paths, PROJECT_MANIFEST_PATH]);
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
 	const preflightHashes = new Map<string, HashValue | null>();
-	for (let offset = 0; offset < input.writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
-		await Promise.all(
-			input.writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE).map(async (write) => {
-				if (write.expectedHash === undefined) return;
-				const oldHash = await existingHash(await resolveTransactionPath(write.path));
-				preflightHashes.set(write.path, oldHash);
-				if (write.expectedHash?.value !== oldHash?.value) {
-					throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
-				}
-			}),
-		);
-	}
+	await traceProjectTransactionPhase("transaction_preflight", traceContext, async () => {
+		for (let offset = 0; offset < input.writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
+			await Promise.all(
+				input.writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE).map(async (write) => {
+					if (write.expectedHash === undefined) return;
+					const oldHash = await existingHash(await resolveTransactionPath(write.path));
+					preflightHashes.set(write.path, oldHash);
+					if (write.expectedHash?.value !== oldHash?.value) {
+						throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
+					}
+				}),
+			);
+		}
+	});
 
 	const transactionId = `tx_${randomUUID()}`;
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
-	await mkdir(await resolveProjectPath(projectRoot, `${directory}/staged`), { recursive: true });
-	await mkdir(await resolveProjectPath(projectRoot, `${directory}/backups`), { recursive: true });
-	const writes: readonly TransactionWrite[] = [
-		...input.writes,
-		{ path: PROJECT_MANIFEST_PATH, content: `${canonicalStringify(input.manifest)}\n` },
-	];
-	const entries: TransactionEntry[] = [];
-	for (let offset = 0; offset < writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
-		const batch = writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
-		entries.push(
-			...(await settleBatch(
-				batch.map(async (write, batchIndex): Promise<TransactionEntry> => {
-					const index = offset + batchIndex;
-					const target = await resolveTransactionPath(write.path);
-					const oldHash =
-						write.expectedHash === null && preflightHashes.has(write.path)
-							? (preflightHashes.get(write.path) ?? null)
-							: await existingHash(target);
-					if (write.expectedHash !== undefined && write.expectedHash?.value !== oldHash?.value) {
-						throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
-					}
-					if (oldHash !== null) {
-						const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
-						await copyFile(target, backup);
-						const backupFile = await open(backup, "r+");
-						try {
-							await backupFile.sync();
-						} finally {
-							await backupFile.close();
+	await traceProjectTransactionPhase("journal_prepare", { ...traceContext, transactionId }, async () => {
+		await mkdir(await resolveProjectPath(projectRoot, `${directory}/staged`), { recursive: true });
+		await mkdir(await resolveProjectPath(projectRoot, `${directory}/backups`), { recursive: true });
+		const writes: readonly TransactionWrite[] = [
+			...input.writes,
+			{ path: PROJECT_MANIFEST_PATH, content: `${canonicalStringify(input.manifest)}\n` },
+		];
+		const entries: TransactionEntry[] = [];
+		for (let offset = 0; offset < writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
+			const batch = writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
+			entries.push(
+				...(await settleBatch(
+					batch.map(async (write, batchIndex): Promise<TransactionEntry> => {
+						const index = offset + batchIndex;
+						const target = await resolveTransactionPath(write.path);
+						const oldHash =
+							write.expectedHash === null && preflightHashes.has(write.path)
+								? (preflightHashes.get(write.path) ?? null)
+								: await existingHash(target);
+						if (write.expectedHash !== undefined && write.expectedHash?.value !== oldHash?.value) {
+							throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
 						}
-						if ((await hashFile(backup)).value !== oldHash.value) {
-							throw new Error(`Backup hash mismatch: ${write.path}`);
+						if (oldHash !== null) {
+							const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
+							await copyFile(target, backup);
+							const backupFile = await open(backup, "r+");
+							try {
+								await backupFile.sync();
+							} finally {
+								await backupFile.close();
+							}
+							if ((await hashFile(backup)).value !== oldHash.value) {
+								throw new Error(`Backup hash mismatch: ${write.path}`);
+							}
 						}
-					}
-					let newHash: HashValue | null = null;
-					if (write.content !== null) {
-						const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
-						await atomicWriteFile(staged, write.content);
-						newHash = hashBytes(write.content);
-					}
-					return { path: write.path, oldHash, newHash };
-				}),
-			)),
-		);
-	}
+						let newHash: HashValue | null = null;
+						if (write.content !== null) {
+							const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+							await atomicWriteFile(staged, write.content);
+							newHash = hashBytes(write.content);
+						}
+						return { path: write.path, oldHash, newHash };
+					}),
+				)),
+			);
+		}
 
-	const journal: TransactionJournal = {
-		version: 1,
-		transactionId,
-		expectedRevision: input.expectedRevision,
-		createdAt: new Date().toISOString(),
-		entries,
-	};
-	await atomicWriteFile(
-		await resolveProjectPath(projectRoot, `${directory}/transaction.json`),
-		`${canonicalStringify(journal)}\n`,
-	);
+		const journal: TransactionJournal = {
+			version: 1,
+			transactionId,
+			expectedRevision: input.expectedRevision,
+			createdAt: new Date().toISOString(),
+			entries,
+		};
+		await atomicWriteFile(
+			await resolveProjectPath(projectRoot, `${directory}/transaction.json`),
+			`${canonicalStringify(journal)}\n`,
+		);
+	});
 	return transactionId;
 }
 
@@ -293,59 +318,82 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
-	const states = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
+	const traceContext: ProjectTransactionTraceContext = {
+		transactionId,
+		manifestRevision: journal.expectedRevision,
+		writeCount: journal.entries.length - 1,
+	};
+	const states = await traceProjectTransactionPhase("transaction_preflight", traceContext, () =>
+		Promise.all(journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry))),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
 	if (states.at(-1) === "new") {
-		if (states.some((state) => state !== "new"))
-			throw new Error(`Committed transaction has mixed state: ${transactionId}`);
-		await moveTransaction(projectRoot, transactionId, COMMITTED_DIRECTORY);
+		await traceProjectTransactionPhase("post_commit_verify", traceContext, async () => {
+			if (states.some((state) => state !== "new")) {
+				throw new Error(`Committed transaction has mixed state: ${transactionId}`);
+			}
+		});
+		await traceProjectTransactionPhase("journal_archive", traceContext, () =>
+			moveTransaction(projectRoot, transactionId, COMMITTED_DIRECTORY),
+		);
 		return;
 	}
-	await openProject(projectRoot, journal.expectedRevision);
+	await traceProjectTransactionPhase("project_open", traceContext, () =>
+		openProject(projectRoot, journal.expectedRevision),
+	);
 
 	const manifestIndex = journal.entries.length - 1;
-	for (let offset = 0; offset < manifestIndex; offset += TRANSACTION_IO_BATCH_SIZE) {
-		const batch = journal.entries.slice(offset, Math.min(offset + TRANSACTION_IO_BATCH_SIZE, manifestIndex));
-		await settleBatch(
-			batch.map(async (entry, batchIndex) => {
-				const index = offset + batchIndex;
-				if (states[index] === "new") return;
-				const target = await resolveTransactionPath(entry.path);
-				if (entry.newHash === null) {
-					await rm(target, { force: true });
-					await syncParentDirectory(target);
-					return;
-				}
-				const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
-				if ((await hashFile(staged)).value !== entry.newHash.value) {
-					throw new Error(`Staged hash mismatch: ${entry.path}`);
-				}
-				if (entry.oldHash === null) {
-					await rename(staged, target);
-					await syncParentDirectory(target);
-				} else await atomicWriteFile(target, await readFile(staged));
-			}),
-		);
-	}
+	await traceProjectTransactionPhase("data_commit", traceContext, async () => {
+		for (let offset = 0; offset < manifestIndex; offset += TRANSACTION_IO_BATCH_SIZE) {
+			const batch = journal.entries.slice(offset, Math.min(offset + TRANSACTION_IO_BATCH_SIZE, manifestIndex));
+			await settleBatch(
+				batch.map(async (entry, batchIndex) => {
+					const index = offset + batchIndex;
+					if (states[index] === "new") return;
+					const target = await resolveTransactionPath(entry.path);
+					if (entry.newHash === null) {
+						await rm(target, { force: true });
+						await syncParentDirectory(target);
+						return;
+					}
+					const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+					if ((await hashFile(staged)).value !== entry.newHash.value) {
+						throw new Error(`Staged hash mismatch: ${entry.path}`);
+					}
+					if (entry.oldHash === null) {
+						await rename(staged, target);
+						await syncParentDirectory(target);
+					} else await atomicWriteFile(target, await readFile(staged));
+				}),
+			);
+		}
+	});
 	const manifestEntry = journal.entries[manifestIndex];
 	if (manifestEntry === undefined) throw new Error(`Transaction manifest is missing: ${transactionId}`);
-	if (states[manifestIndex] !== "new") {
-		if (manifestEntry.newHash === null) throw new Error(`Transaction manifest cannot be deleted: ${transactionId}`);
-		const target = await resolveTransactionPath(manifestEntry.path);
-		const staged = await resolveTransactionPath(`${directory}/staged/${manifestIndex}.bin`);
-		if ((await hashFile(staged)).value !== manifestEntry.newHash.value) {
-			throw new Error(`Staged hash mismatch: ${manifestEntry.path}`);
+	await traceProjectTransactionPhase("manifest_commit", traceContext, async () => {
+		if (states[manifestIndex] !== "new") {
+			if (manifestEntry.newHash === null) {
+				throw new Error(`Transaction manifest cannot be deleted: ${transactionId}`);
+			}
+			const target = await resolveTransactionPath(manifestEntry.path);
+			const staged = await resolveTransactionPath(`${directory}/staged/${manifestIndex}.bin`);
+			if ((await hashFile(staged)).value !== manifestEntry.newHash.value) {
+				throw new Error(`Staged hash mismatch: ${manifestEntry.path}`);
+			}
+			await atomicWriteFile(target, await readFile(staged));
 		}
-		await atomicWriteFile(target, await readFile(staged));
-	}
-	const finalStates = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry, true)),
+	});
+	await traceProjectTransactionPhase("post_commit_verify", traceContext, async () => {
+		const finalStates = await Promise.all(
+			journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry, true)),
+		);
+		if (finalStates.some((state) => state !== "new")) {
+			throw new Error(`Transaction commit verification failed: ${transactionId}`);
+		}
+	});
+	await traceProjectTransactionPhase("journal_archive", traceContext, () =>
+		moveTransaction(projectRoot, transactionId, COMMITTED_DIRECTORY),
 	);
-	if (finalStates.some((state) => state !== "new"))
-		throw new Error(`Transaction commit verification failed: ${transactionId}`);
-	await moveTransaction(projectRoot, transactionId, COMMITTED_DIRECTORY);
 }
 
 async function rollbackPreparedTransactionUnlocked(projectRoot: string, transactionId: string): Promise<void> {
@@ -383,21 +431,35 @@ async function rollbackPreparedTransactionUnlocked(projectRoot: string, transact
 }
 
 export async function commitProjectTransaction(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
-	return withProjectWriterLease(projectRoot, async () => {
-		const transactionId = await prepareProjectTransactionUnlocked(projectRoot, input);
-		await commitPreparedTransactionUnlocked(projectRoot, transactionId);
-		return transactionId;
-	});
+	const traceContext = traceContextFromInput(input);
+	return withProjectWriterLease(
+		projectRoot,
+		async () => {
+			const transactionId = await prepareProjectTransactionUnlocked(projectRoot, input, traceContext);
+			await commitPreparedTransactionUnlocked(projectRoot, transactionId);
+			return transactionId;
+		},
+		traceContext,
+	);
 }
 
 export async function prepareProjectTransaction(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
-	return withProjectWriterLease(projectRoot, () => prepareProjectTransactionUnlocked(projectRoot, input));
+	const traceContext = traceContextFromInput(input);
+	return withProjectWriterLease(
+		projectRoot,
+		() => prepareProjectTransactionUnlocked(projectRoot, input, traceContext),
+		traceContext,
+	);
 }
 
 export async function commitPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
-	return withProjectWriterLease(projectRoot, () => commitPreparedTransactionUnlocked(projectRoot, transactionId));
+	return withProjectWriterLease(projectRoot, () => commitPreparedTransactionUnlocked(projectRoot, transactionId), {
+		transactionId,
+	});
 }
 
 export async function rollbackPreparedTransaction(projectRoot: string, transactionId: string): Promise<void> {
-	return withProjectWriterLease(projectRoot, () => rollbackPreparedTransactionUnlocked(projectRoot, transactionId));
+	return withProjectWriterLease(projectRoot, () => rollbackPreparedTransactionUnlocked(projectRoot, transactionId), {
+		transactionId,
+	});
 }

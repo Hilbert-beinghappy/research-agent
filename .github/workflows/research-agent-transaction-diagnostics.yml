@@ -1,0 +1,77 @@
+name: Research Agent Transaction Diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      counts:
+        description: Comma-separated writes per process
+        required: true
+        default: "100,250"
+        type: string
+      processes:
+        description: Comma-separated process counts (1 and/or 2)
+        required: true
+        default: "1,2"
+        type: string
+      repetitions:
+        description: Repetitions per matrix cell
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-agent-transaction-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  transaction-diagnostics:
+    name: Transaction diagnostics (${{ matrix.os }})
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Build research-agent contracts
+        run: npm run build -w packages/research-agent-contracts
+
+      - name: Run bounded transaction diagnostics
+        env:
+          DIAGNOSTIC_COUNTS: ${{ inputs.counts }}
+          DIAGNOSTIC_PROCESSES: ${{ inputs.processes }}
+          DIAGNOSTIC_REPETITIONS: ${{ inputs.repetitions }}
+        run: >-
+          node packages/research-agent/scripts/diagnose-project-transactions.ts
+          --counts "$DIAGNOSTIC_COUNTS"
+          --processes "$DIAGNOSTIC_PROCESSES"
+          --repetitions "$DIAGNOSTIC_REPETITIONS"
+          --watchdog-ms 240000
+          --timeout-ms 480000
+          --output transaction-diagnostic-${{ matrix.os }}.json
+          --trace-output transaction-trace-${{ matrix.os }}.jsonl
+
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: research-agent-transaction-diagnostics-${{ matrix.os }}
+          path: |
+            transaction-diagnostic-${{ matrix.os }}.json
+            transaction-trace-${{ matrix.os }}.jsonl
+          if-no-files-found: warn

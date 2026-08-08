@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readdir } from "node:fs/promises";
+import { performance } from "node:perf_hooks";
 import type {
 	HashValue,
 	PersistedRecord,
@@ -11,6 +12,7 @@ import type {
 import { isOpaqueId } from "../kernel/identity.ts";
 import { hashCanonicalJson, hashFile } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
+import { emitProjectTransactionTrace } from "./transaction-trace.ts";
 
 export type ProjectRecord = Exclude<PersistedRecord, { kind: "research_project_manifest" }>;
 
@@ -219,11 +221,27 @@ export async function calculateRecordSetIndex(
 	const recordSet = projectRecordSet(manifest, kind);
 	const directory = await resolveProjectPath(projectRoot, recordSet.path);
 	const hashes = new Map<string, HashValue>();
-	// ponytail: O(n) hash scan; add a derived index only when project-size benchmarks require it.
-	for (const fileName of await readdir(directory)) {
-		if (!fileName.endsWith(".json")) continue;
-		const id = fileName.slice(0, -5);
-		hashes.set(id, await hashFile(await resolveProjectPath(projectRoot, `${recordSet.path}/${fileName}`)));
+	const traceContext = { manifestRevision: manifest.revision, recordKind: kind, recordCount: recordSet.count };
+	const started = performance.now();
+	emitProjectTransactionTrace("record_index_hash", "started", traceContext);
+	let fileHashCount = 0;
+	try {
+		// ponytail: O(n) hash scan; add a derived index only when project-size benchmarks require it.
+		for (const fileName of await readdir(directory)) {
+			if (!fileName.endsWith(".json")) continue;
+			const id = fileName.slice(0, -5);
+			hashes.set(id, await hashFile(await resolveProjectPath(projectRoot, `${recordSet.path}/${fileName}`)));
+			fileHashCount += 1;
+		}
+	} catch (error) {
+		emitProjectTransactionTrace(
+			"record_index_hash",
+			"failed",
+			{ ...traceContext, fileHashCount },
+			performance.now() - started,
+			error,
+		);
+		throw error;
 	}
 	const pendingChanges = Array.isArray(changes) ? changes : [changes as { id: string; hash: HashValue | null }];
 	for (const change of pendingChanges) {
@@ -231,6 +249,12 @@ export async function calculateRecordSetIndex(
 		else hashes.set(change.id, change.hash);
 	}
 	const entries = [...hashes].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+	emitProjectTransactionTrace(
+		"record_index_hash",
+		"completed",
+		{ ...traceContext, recordCount: entries.length, fileHashCount },
+		performance.now() - started,
+	);
 	return {
 		count: entries.length,
 		contentHash: entries.length === 0 ? null : hashCanonicalJson(entries.map(([id, hash]) => ({ id, hash }))),

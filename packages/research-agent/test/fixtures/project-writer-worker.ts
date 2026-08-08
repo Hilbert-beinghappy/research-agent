@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 import type { OperationRecord, ResearchProjectManifest } from "../../src/contracts/schemas.ts";
 import { RESEARCH_SCHEMA_VERSION } from "../../src/contracts/schemas.ts";
 import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { atomicWriteFile } from "../../src/project/atomic-write.ts";
 import { openProject } from "../../src/project/open.ts";
 import { createRecord } from "../../src/project/records.ts";
+import { emitProjectTransactionTrace } from "../../src/project/transaction-trace.ts";
 import { prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { withProjectWriterLease } from "../../src/project/writer-lock.ts";
 
@@ -63,21 +65,52 @@ if (projectRoot === undefined) throw new TypeError("project root is required");
 if (mode === "batch") {
 	const count = Number(rawCount);
 	if (!Number.isInteger(count) || count < 1) throw new TypeError("record count must be a positive integer");
-	for (let index = 0; index < count; index += 1) {
-		const operationId = createOpaqueId("operation");
-		const record = operationRecord(operationId, operationId, `${label}-${index}`);
-		for (;;) {
-			const opened = await openProject(projectRoot);
-			if (opened.compatibility !== "current") throw new Error("expected current project");
-			const result = await createRecord(projectRoot, record, {
-				expectedManifestRevision: opened.manifest.revision,
-				operationId,
-			});
-			if (result.ok) break;
-			if (result.status !== "DATA_CONFLICT") throw new Error(result.errors[0].message);
+	const traceContext = { workerId: label, requestedWrites: count };
+	const started = performance.now();
+	let conflicts = 0;
+	emitProjectTransactionTrace("worker_batch", "started", traceContext);
+	try {
+		for (let index = 0; index < count; index += 1) {
+			const operationId = createOpaqueId("operation");
+			const record = operationRecord(operationId, operationId, `${label}-${index}`);
+			for (;;) {
+				const opened = await openProject(projectRoot);
+				if (opened.compatibility !== "current") throw new Error("expected current project");
+				const result = await createRecord(projectRoot, record, {
+					expectedManifestRevision: opened.manifest.revision,
+					operationId,
+				});
+				if (result.ok) break;
+				if (result.status !== "DATA_CONFLICT") throw new Error(result.errors[0].message);
+				conflicts += 1;
+			}
+			const completedWrites = index + 1;
+			if (completedWrites % 25 === 0 || completedWrites === count) {
+				emitProjectTransactionTrace("worker_batch", "progress", {
+					...traceContext,
+					operationId,
+					completedWrites,
+					conflictCount: conflicts,
+				});
+			}
 		}
+		emitProjectTransactionTrace(
+			"worker_batch",
+			"completed",
+			{ ...traceContext, completedWrites: count, conflictCount: conflicts },
+			performance.now() - started,
+		);
+	} catch (error) {
+		emitProjectTransactionTrace(
+			"worker_batch",
+			"failed",
+			{ ...traceContext, conflictCount: conflicts },
+			performance.now() - started,
+			error,
+		);
+		throw error;
 	}
-	process.stdout.write(`${JSON.stringify({ count })}\n`);
+	process.stdout.write(`${JSON.stringify({ count, conflicts })}\n`);
 } else if (mode === "prepare-crash") {
 	const opened = await openProject(projectRoot);
 	if (opened.compatibility !== "current") throw new Error("expected current project");

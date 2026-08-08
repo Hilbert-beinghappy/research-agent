@@ -3,10 +3,16 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, stat, unlink } from "node:fs/promises";
 import { hostname } from "node:os";
+import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { syncParentDirectory } from "./atomic-write.ts";
+import {
+	emitProjectTransactionTrace,
+	type ProjectTransactionTraceContext,
+	traceProjectTransactionPhase,
+} from "./transaction-trace.ts";
 
 const WRITER_LOCK = ".research/locks/writer.lock";
 const LEASE_DURATION_MS = 30_000;
@@ -77,44 +83,55 @@ async function reclaimLease(path: string): Promise<boolean> {
 	return true;
 }
 
-export async function withProjectWriterLease<Value>(projectRoot: string, action: () => Promise<Value>): Promise<Value> {
+export async function withProjectWriterLease<Value>(
+	projectRoot: string,
+	action: () => Promise<Value>,
+	traceContext: ProjectTransactionTraceContext = {},
+): Promise<Value> {
 	await mkdir(await resolveProjectPath(projectRoot, ".research/locks"), { recursive: true });
 	const path = await resolveProjectPath(projectRoot, WRITER_LOCK);
 	const host = hostname();
 	const deadline = Date.now() + ACQUIRE_TIMEOUT_MS;
+	const waitStarted = performance.now();
+	emitProjectTransactionTrace("writer_lease_wait", "started", traceContext);
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
-	while (handle === null) {
-		try {
-			handle = await open(path, "wx+");
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-			const lease = await readLease(path);
-			if (lease?.hostname === host && lease.pid === process.pid) {
-				throw new Error(
-					"PROJECT_WRITER_LOCK_REENTRANT: the current process already holds the project writer lease",
-				);
-			}
-			const sameHostProcessEnded = lease !== null && lease.hostname === host && !processIsAlive(lease.pid);
-			const expiredRemoteLease =
-				lease !== null && lease.hostname !== host && Date.parse(lease.expiresAt) <= Date.now();
-			let invalidLeaseExpired = false;
-			if (lease === null) {
-				try {
-					invalidLeaseExpired = Date.now() - (await stat(path)).mtimeMs >= LEASE_DURATION_MS;
-				} catch (statError) {
-					if ((statError as NodeJS.ErrnoException).code === "ENOENT") continue;
-					throw statError;
+	try {
+		while (handle === null) {
+			try {
+				handle = await open(path, "wx+");
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+				const lease = await readLease(path);
+				if (lease?.hostname === host && lease.pid === process.pid) {
+					throw new Error(
+						"PROJECT_WRITER_LOCK_REENTRANT: the current process already holds the project writer lease",
+					);
 				}
+				const sameHostProcessEnded = lease !== null && lease.hostname === host && !processIsAlive(lease.pid);
+				const expiredRemoteLease =
+					lease !== null && lease.hostname !== host && Date.parse(lease.expiresAt) <= Date.now();
+				let invalidLeaseExpired = false;
+				if (lease === null) {
+					try {
+						invalidLeaseExpired = Date.now() - (await stat(path)).mtimeMs >= LEASE_DURATION_MS;
+					} catch (statError) {
+						if ((statError as NodeJS.ErrnoException).code === "ENOENT") continue;
+						throw statError;
+					}
+				}
+				if (sameHostProcessEnded || expiredRemoteLease || invalidLeaseExpired) {
+					await reclaimLease(path);
+					continue;
+				}
+				if (Date.now() >= deadline) {
+					throw new Error("PROJECT_WRITER_LOCKED: another process holds the project writer lease");
+				}
+				await delay(25);
 			}
-			if (sameHostProcessEnded || expiredRemoteLease || invalidLeaseExpired) {
-				await reclaimLease(path);
-				continue;
-			}
-			if (Date.now() >= deadline) {
-				throw new Error("PROJECT_WRITER_LOCKED: another process holds the project writer lease");
-			}
-			await delay(25);
 		}
+	} catch (error) {
+		emitProjectTransactionTrace("writer_lease_wait", "failed", traceContext, performance.now() - waitStarted, error);
+		throw error;
 	}
 
 	const nonce = randomUUID();
@@ -144,14 +161,20 @@ export async function withProjectWriterLease<Value>(projectRoot: string, action:
 	} catch (error) {
 		await handle.close();
 		await unlink(path);
+		emitProjectTransactionTrace("writer_lease_wait", "failed", traceContext, performance.now() - waitStarted, error);
 		throw error;
 	}
+	emitProjectTransactionTrace("writer_lease_wait", "completed", traceContext, performance.now() - waitStarted);
 	let renewal = Promise.resolve();
 	let renewalError: unknown = null;
+	let renewalCount = 0;
 	const timer = setInterval(() => {
-		renewal = renewal.then(writeLease).catch((error: unknown) => {
-			renewalError ??= error;
-		});
+		renewalCount += 1;
+		renewal = renewal
+			.then(() => traceProjectTransactionPhase("writer_lease_renew", { ...traceContext, renewalCount }, writeLease))
+			.catch((error: unknown) => {
+				renewalError ??= error;
+			});
 	}, RENEW_INTERVAL_MS);
 	timer.unref();
 	const outcome = await action().then(
@@ -159,16 +182,18 @@ export async function withProjectWriterLease<Value>(projectRoot: string, action:
 		(error: unknown) => ({ ok: false as const, error }),
 	);
 	clearInterval(timer);
-	await renewal;
-	const current = await readLease(path);
-	await handle.close();
-	if (renewalError !== null || current?.nonce !== nonce) {
-		throw new Error("PROJECT_WRITER_LEASE_LOST: project writer ownership changed during the transaction", {
-			cause: renewalError,
-		});
-	}
-	await unlink(path);
-	await syncParentDirectory(path);
+	await traceProjectTransactionPhase("writer_lease_release", { ...traceContext, renewalCount }, async () => {
+		await renewal;
+		const current = await readLease(path);
+		await handle.close();
+		if (renewalError !== null || current?.nonce !== nonce) {
+			throw new Error("PROJECT_WRITER_LEASE_LOST: project writer ownership changed during the transaction", {
+				cause: renewalError,
+			});
+		}
+		await unlink(path);
+		await syncParentDirectory(path);
+	});
 	if (!outcome.ok) throw outcome.error;
 	return outcome.value;
 }

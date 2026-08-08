@@ -6,6 +6,7 @@
 
 - macOS Seatbelt and Linux bubblewrap strong process isolation for third-party Adapters and confirmed analysis scripts, with explicit host-user fallback approval only where requested.
 - Single-writer project lease, parent-directory durability, multi-process/SIGKILL regressions, hash-pinned NIST public-corpus qualification, security-waiver validation, upstream replay policy, and a fixed-SHA release checklist.
+- Opt-in, identifier-redacted transaction phase tracing plus a bounded manual scaling diagnostic for single- and dual-process writers.
 
 ### Changed
 
