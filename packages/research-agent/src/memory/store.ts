@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomUUID } from "node:crypto";
-import { mkdir, open as openFile, readdir, readFile, realpath } from "node:fs/promises";
+import { lstat, mkdir, open as openFile, readdir, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { MemoryDeletionTombstoneV1 } from "@research-agent/contracts";
 import { validateMemoryDeletionTombstoneV1 } from "@research-agent/contracts";
@@ -33,6 +33,7 @@ import {
 	MEMORY_ACTIVE_ITEMS_CACHE_PATH,
 	MEMORY_LAYOUT_DIRECTORIES,
 	MEMORY_PROFILE_PATH,
+	MEMORY_TRANSFER_LOCK_PATH,
 	memoryMonthPath,
 	resolveMemoryPath,
 	validateMemoryIdentifier,
@@ -494,6 +495,31 @@ export async function openMemoryProfile(
 	let pendingTransactions: string[] = [];
 	try {
 		await validateMemoryLayout(root);
+		const transferInProgress = async (): Promise<boolean> => {
+			try {
+				await lstat(await resolveMemoryPath(root, MEMORY_TRANSFER_LOCK_PATH, { allowMissing: true }));
+				return true;
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+				throw error;
+			}
+		};
+		if (await transferInProgress()) {
+			return {
+				mode: "read-only",
+				root,
+				profile: null,
+				activeItems: [],
+				pendingTransactions: [],
+				issues: [
+					issue(
+						"memory.transfer_in_progress",
+						MEMORY_TRANSFER_LOCK_PATH,
+						"Personal Memory import is in progress; personalization is temporarily disabled",
+					),
+				],
+			};
+		}
 		pendingTransactions = await listPendingMemoryTransactions(root);
 		profile = await readMemoryProfileFile(root);
 		if (pendingTransactions.length > 0) {
@@ -532,6 +558,22 @@ export async function openMemoryProfile(
 			}
 		} catch {
 			cacheStatus = "unavailable";
+		}
+		if (await transferInProgress()) {
+			return {
+				mode: "read-only",
+				root,
+				profile,
+				activeItems: [],
+				pendingTransactions: [],
+				issues: [
+					issue(
+						"memory.transfer_in_progress",
+						MEMORY_TRANSFER_LOCK_PATH,
+						"Personal Memory import is in progress; personalization is temporarily disabled",
+					),
+				],
+			};
 		}
 		return {
 			mode: "read-write",

@@ -160,7 +160,7 @@
         {
           "id": "transfer-atomic-rejection",
           "path": "test/integration/memory/security/transfer-atomic-rejection.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
@@ -178,7 +178,7 @@
         {
           "id": "transfer-secret-and-authentication-boundary",
           "path": "test/unit/memory/security/transfer-secret-and-authentication-boundary.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"

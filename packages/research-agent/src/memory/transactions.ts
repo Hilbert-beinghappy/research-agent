@@ -16,6 +16,7 @@ import {
 	MEMORY_PROFILE_PATH,
 	MEMORY_RETRIEVAL_INDEX_HASH_PATH,
 	MEMORY_RETRIEVAL_INDEX_PATH,
+	MEMORY_TRANSFER_LOCK_PATH,
 	MEMORY_WRITER_LOCK_PATH,
 	resolveMemoryPath,
 	validateMemoryIdentifier,
@@ -552,8 +553,20 @@ export async function withMemoryWriterLease<Value>(
 	action: (canonicalRoot: string) => Promise<Value>,
 ): Promise<Value> {
 	const root = await validateMemoryLayout(profileRoot);
+	const assertTransferIdle = async (): Promise<void> => {
+		try {
+			await lstat(await resolveMemoryPath(root, MEMORY_TRANSFER_LOCK_PATH, { allowMissing: true }));
+			throw new Error("MEMORY_TRANSFER_IN_PROGRESS: the profile is being atomically imported");
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+		}
+	};
+	await assertTransferIdle();
 	await resolveMemoryPath(root, MEMORY_WRITER_LOCK_PATH, { allowMissing: true });
-	return withWriterLease(root, MEMORY_WRITER_LOCK_PATH, "MEMORY", () => action(root));
+	return withWriterLease(root, MEMORY_WRITER_LOCK_PATH, "MEMORY", async () => {
+		await assertTransferIdle();
+		return action(root);
+	});
 }
 
 export async function prepareMemoryTransaction<Result>(

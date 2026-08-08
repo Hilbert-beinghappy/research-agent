@@ -20,6 +20,10 @@ The only v3 transfer is a user-created offline file with format `doro-memory-tra
 - AAD: envelope version, canonical ciphertext path, and expected plaintext hash are authenticated for each encrypted entry.
 - Secrets: passphrases and raw KEK/DEK values are never written to Session, Project, profile, receipt, logs, bundle, crash report, or command history. Buffers are cleared on a best-effort basis after use.
 
+The version 1 file is canonical JSON. Its top level is the fixed envelope plus a sorted `entries` array containing only opaque ciphertext paths and base64 ciphertext. Each entry stores the 16-byte GCM tag before its ciphertext. Content paths are fixed `content/NNNNNNNN.bin`; the encrypted inner manifest is `manifest.bin`. The ciphertext root authenticates the sorted path/hash pairs. Unknown fields, unknown versions, non-canonical JSON, duplicate or case-colliding paths, and compression metadata are rejected.
+
+Version 1 deliberately has no compression. This removes the decompression-bomb surface instead of attempting to estimate a compression ratio. Pre-decryption limits are 64 MiB per bundle, 20,000 plaintext files, 4 MiB per content entry, 8 MiB for the encrypted manifest, and 32 MiB total plaintext.
+
 The export snapshot includes profile and policy plus allowed signals, items, feedback, receipts, and audit records. It excludes Session content, Project content, restricted source references by default, credentials, keys, caches, locks, and pending transactions.
 
 ## Import order and rollback
@@ -32,6 +36,8 @@ The export snapshot includes profile and policy plus allowed signals, items, fee
 6. On any failure, leave the local profile root unchanged and mark staging rejected or rolled back without sensitive error detail.
 
 Wrong passphrases and tampering return the same authentication-failure class. Same-lineage imports are fast-forward only; a fork remains in staging with a deterministic conflict report. A different profile ID creates a separate profile and is never auto-merged. Reimport of an identical snapshot is idempotent.
+
+Normal profile writers check a transfer barrier before and after taking the writer lease; readers disable personalization while that barrier exists. Import validates a same-filesystem staging profile first, records the snapshot manifest there, then performs the directory exchange under an external per-profile lease. A canonical external journal recovers interruption before exchange, between the two renames, during rollback, or after the commit point. Same-lineage fast-forward requires a greater profile revision and every local portable record to be byte-identical in the incoming snapshot or covered by an authenticated deletion tombstone; local non-portable canonical records are preserved. The old root remains available until the validated replacement commits.
 
 ## Dependency and compatibility boundary
 
