@@ -1,0 +1,37 @@
+{
+  "qualification": "pi-research-agent-v3-memory-store",
+  "generatedAt": "2026-08-08T10:35:59.634Z",
+  "platform": "darwin-arm64",
+  "node": "v24.14.0",
+  "configuration": {
+    "transactions": 10000,
+    "seed": 1592598566
+  },
+  "counts": {
+    "signals": 7971,
+    "candidates": 2029,
+    "committed": 10000
+  },
+  "recordRootHash": "sha256:6c768df9c6badc408a5b6912f205f18617679e5cee70afa583d06a80946d8bd7",
+  "input": {
+    "storeSha256": "f4d193e73ac238271fcca954eebb43ea70ed9844a3fb7144e242e770902426d1",
+    "transactionsSha256": "b3774ed9d6dd2b5c72056a63363de90d0879e868716aae552ec2ede20ff60d09",
+    "qualificationScriptSha256": "cf0a6aa6ae3af3dfb469edfe74405f136e9acbea0b2c033d3728fb07aacc4401"
+  },
+  "checks": {
+    "profileOpenedReadWrite": true,
+    "profileRevisionExact": true,
+    "recordCountsExact": true,
+    "committedJournalsExact": true,
+    "noPendingTransactions": true,
+    "recordRootExact": true
+  },
+  "elapsedMs": 714072,
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}
