@@ -5,8 +5,8 @@ import type { MemoryCandidateDraftV1, PreferenceSignalV1 } from "@research-agent
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
 import { hashCanonicalJson } from "../../src/contracts/integrity.ts";
 import { MEMORY_WRITER_LOCK_PATH } from "../../src/memory/layout.ts";
-import { appendMemoryRecord, openMemoryProfile } from "../../src/memory/store.ts";
-import { prepareMemoryTransaction } from "../../src/memory/transactions.ts";
+import { appendMemoryRecord } from "../../src/memory/store.ts";
+import { prepareMemoryTransaction, readMemoryProfileFile } from "../../src/memory/transactions.ts";
 import { atomicWriteFile } from "../../src/project/atomic-write.ts";
 import { withWriterLease } from "../../src/project/writer-lock.ts";
 
@@ -17,8 +17,7 @@ function hash(value: unknown): `sha256:${string}` {
 	return `sha256:${hashCanonicalJson(value).value}`;
 }
 
-const opened = await openMemoryProfile(profileRoot);
-if (opened.mode !== "read-write") throw new Error("expected writable memory profile");
+const initialProfile = await readMemoryProfileFile(profileRoot);
 
 if (mode === "batch") {
 	const count = Number(countText);
@@ -28,7 +27,7 @@ if (mode === "batch") {
 			format: "doro-preference-signal",
 			schemaVersion: "1.0.0",
 			signalId: `${label}-${index}`,
-			profileId: opened.profile.profileId,
+			profileId: initialProfile.profileId,
 			signalType: "explicit_statement",
 			actor: "user",
 			observedAt: now,
@@ -55,7 +54,7 @@ if (mode === "batch") {
 		format: "doro-memory-candidate-draft",
 		schemaVersion: "1.0.0",
 		candidateId: "candidate-crash",
-		profileId: opened.profile.profileId,
+		profileId: initialProfile.profileId,
 		category: "writing",
 		key: "language",
 		value: "zh-CN",
@@ -67,7 +66,7 @@ if (mode === "batch") {
 		createdAt: now,
 	};
 	const content = `${canonicalStringify(candidate)}\n`;
-	const prepared = await prepareMemoryTransaction(profileRoot, opened.profile.revision, (profile, transactionId) => ({
+	const prepared = await prepareMemoryTransaction(profileRoot, initialProfile.revision, (profile, transactionId) => ({
 		profile: {
 			...profile,
 			revision: profile.revision + 1,

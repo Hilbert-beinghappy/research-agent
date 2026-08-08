@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,10 @@ import { BUILT_IN_DOMAIN_PACKAGE_VERSION } from "../../src/domain/packages.ts";
 import { RESEARCH_SESSION_ENTRY_TYPE } from "../../src/extension/commands.ts";
 import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { hashBytes } from "../../src/kernel/integrity.ts";
+import { memoryProfileRoot } from "../../src/memory/layout.ts";
+import { retrievePersonalMemoryForUse } from "../../src/memory/receipts.ts";
+import { appendMemoryItem, createMemoryProfile, openMemoryProfile } from "../../src/memory/store.ts";
+import { runMemoryTransaction } from "../../src/memory/transactions.ts";
 import { initializeProject } from "../../src/project/init.ts";
 import { PROJECT_MANIFEST_PATH } from "../../src/project/layout.ts";
 import { openProject } from "../../src/project/open.ts";
@@ -22,6 +26,7 @@ import { calculateRecordSetIndex, listProjectRecordIds, projectRecordPath } from
 import { readRecord } from "../../src/project/records.ts";
 import { prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { validateProject } from "../../src/project/validate.ts";
+import { itemDraft, retrievalQuery } from "./memory/security/retrieval-fixtures.ts";
 
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 type EventHandler = (event: Record<string, unknown>, ctx: ExtensionContext) => unknown | Promise<unknown>;
@@ -41,6 +46,7 @@ function createHarness(initialEntries: SessionEntryData[] = []) {
 	const sessionEntries = [...initialEntries];
 	const notify = vi.fn();
 	const confirm = vi.fn(async () => true);
+	const input = vi.fn(async () => "correct horse transfer secret");
 	const select = vi.fn(async (_title: string, options: string[]) => options[0]);
 	const setStatus = vi.fn();
 	const setHeader = vi.fn();
@@ -82,7 +88,7 @@ function createHarness(initialEntries: SessionEntryData[] = []) {
 			cwd,
 			hasUI,
 			mode: hasUI ? "tui" : "print",
-			ui: { notify, confirm, select, setStatus, setHeader },
+			ui: { notify, confirm, input, select, setStatus, setHeader },
 			sessionManager: {
 				getSessionId: () => "test-session",
 				getSessionFile: () => join(cwd, "session.jsonl"),
@@ -95,6 +101,7 @@ function createHarness(initialEntries: SessionEntryData[] = []) {
 		sessionEntries,
 		notify,
 		confirm,
+		input,
 		select,
 		setHeader,
 		setActiveTools,
@@ -147,6 +154,7 @@ function syntheticTask(taskId: string, operationId: string): ResearchTask {
 let temporaryDirectory: string | undefined;
 
 afterEach(async () => {
+	vi.unstubAllEnvs();
 	if (temporaryDirectory !== undefined) await rm(temporaryDirectory, { recursive: true, force: true });
 });
 
@@ -159,6 +167,7 @@ describe("research extension commands", () => {
 		const ctx = harness.context(projectRoot);
 
 		expect([...harness.commands.keys()].sort()).toEqual([
+			"memory",
 			"research-adapter",
 			"research-backup",
 			"research-doctor",
@@ -375,6 +384,214 @@ describe("research extension commands", () => {
 				-1,
 			),
 		).toMatchObject({ block: true });
+	});
+
+	it("manages one Personal Memory profile through the bounded /memory command family", async () => {
+		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-memory-commands-"));
+		const doroHome = join(temporaryDirectory, "source-home");
+		const profileId = "profile-command";
+		const profileRoot = memoryProfileRoot(doroHome, profileId);
+		const created = await createMemoryProfile(profileRoot, { profileId });
+		if (created.mode !== "read-write") throw new Error("expected writable memory profile");
+		await runMemoryTransaction(profileRoot, 0, (profile, transactionId) => ({
+			profile: {
+				...profile,
+				revision: 1,
+				sensitivityPolicy: {
+					...profile.sensitivityPolicy,
+					allowedDataClasses: ["public", "internal", "restricted"],
+				},
+				updatedAt: new Date().toISOString(),
+				lastTransactionId: transactionId,
+			},
+			writes: [],
+			result: null,
+		}));
+		await appendMemoryItem(
+			profileRoot,
+			itemDraft(profileId, "memory-language", {
+				category: "writing",
+				key: "language",
+				value: "zh-CN",
+				allowedEffects: ["formatting"],
+			}),
+			{ expectedProfileRevision: 1 },
+		);
+		await appendMemoryItem(
+			profileRoot,
+			{
+				...itemDraft(profileId, "memory-secret", {
+					category: "writing",
+					key: "tone",
+					value: "conservative",
+					dataClass: "restricted",
+					allowedEffects: ["formatting"],
+				}),
+				status: "quarantined",
+				scope: { level: "project", projectId: "restricted-project" },
+				allowedEffects: [],
+			},
+			{ expectedProfileRevision: 2 },
+		);
+		await retrievePersonalMemoryForUse(profileRoot, retrievalQuery(), {
+			sessionRef: { kind: "session", locator: "session:memory-command", dataClass: "internal" },
+			taskRef: { kind: "task", locator: "task:memory-command", dataClass: "internal" },
+			decisionCodeBefore: "format.default",
+			decisionCodeAfter: "format.personalized",
+			explanationCodes: ["memory.preference_applied"],
+			criticalResearchDecisionTouched: false,
+			approvalRequired: false,
+			appliedAt: "2026-08-08T12:00:00.000Z",
+		});
+		vi.stubEnv("DORO_HOME", doroHome);
+		const harness = createHarness();
+		const ctx = harness.context(temporaryDirectory);
+
+		await harness.commands.get("memory")?.("status", ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { availability: "available", profileRevision: 4, profileStatus: "active", activeItemCount: 1 },
+		});
+		await harness.commands.get("memory")?.("list writing", ctx);
+		expect(commandResult(harness)).toMatchObject({ ok: true, value: { items: [{}, {}] } });
+		expect(harness.notify.mock.calls.at(-1)?.[0]).not.toContain("conservative");
+		await harness.commands.get("memory")?.("show memory-secret", ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { item: { memoryId: "memory-secret", value: "[redacted:restricted]" } },
+		});
+		expect(harness.notify.mock.calls.at(-1)?.[0]).not.toContain("conservative");
+		await harness.commands.get("memory")?.("explain last", ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { receipt: { effect: "formatting", decisionCodeAfter: "format.personalized" } },
+		});
+		expect(harness.notify.mock.calls.at(-1)?.[0]).not.toContain("session:memory-command");
+
+		const bundlePath = join(temporaryDirectory, "profile.doro-memory");
+		await harness.commands.get("memory")?.(`export "${bundlePath}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { destinationName: "profile.doro-memory", profileId, profileRevision: 4 },
+		});
+		expect(harness.notify.mock.calls.at(-1)?.[0]).not.toContain(temporaryDirectory);
+		await expect(access(bundlePath)).resolves.toBeUndefined();
+		const conflictHome = join(temporaryDirectory, "conflict-home");
+		await createMemoryProfile(memoryProfileRoot(conflictHome, "profile-other"), { profileId: "profile-other" });
+		vi.stubEnv("DORO_HOME", conflictHome);
+		await harness.commands.get("memory")?.(`import "${bundlePath}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: false,
+			status: "DATA_CONFLICT",
+			errors: [{ code: "MEMORY_IMPORT_PROFILE_CONFLICT" }],
+		});
+		await expect(access(memoryProfileRoot(conflictHome, profileId))).rejects.toThrow();
+		const targetHome = join(temporaryDirectory, "target-home");
+		vi.stubEnv("DORO_HOME", targetHome);
+		await harness.commands.get("memory")?.(`import "${bundlePath}"`, ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { outcome: "imported", profileId, manifestRecorded: true },
+		});
+		await expect(openMemoryProfile(memoryProfileRoot(targetHome, profileId))).resolves.toMatchObject({
+			mode: "read-write",
+			activeItems: expect.arrayContaining([
+				expect.objectContaining({ memoryId: "memory-language", value: "zh-CN" }),
+			]),
+		});
+		vi.stubEnv("DORO_HOME", doroHome);
+
+		await harness.commands.get("memory")?.("pause", ctx);
+		expect(commandResult(harness)).toMatchObject({ ok: true, value: { changed: true, profileStatus: "paused" } });
+		await harness.emit(
+			"input",
+			{ type: "input", text: "请记住我的长期偏好：默认用中文", source: "interactive" },
+			ctx,
+		);
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 6, status: "paused" },
+			activeItems: [],
+			counts: { signals: 0 },
+		});
+		await harness.commands.get("memory")?.("resume", ctx);
+		expect(commandResult(harness)).toMatchObject({ ok: true, value: { changed: true, profileStatus: "active" } });
+		await harness.emit(
+			"input",
+			{ type: "input", text: "请记住我的长期偏好：默认用中文", source: "interactive" },
+			ctx,
+		);
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 8, status: "active" },
+			counts: { signals: 1 },
+		});
+
+		await harness.commands.get("memory")?.('correct memory-language --value "en-US"', ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { item: { memoryId: "memory-language", revision: 2, value: "en-US" } },
+		});
+		await harness.commands.get("memory")?.("forget memory-language", ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { item: { memoryId: "memory-language", revision: 3, status: "forgotten", value: null } },
+		});
+		await harness.commands.get("memory")?.("delete memory-secret", ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: { memoryId: "memory-secret", verification: { status: "verified" } },
+		});
+		await harness.commands.get("memory")?.("verify-delete memory-secret", ctx);
+		expect(commandResult(harness)).toMatchObject({ ok: true, value: { status: "verified", residueCodes: [] } });
+
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		await harness.commands.get("memory")?.("status", harness.context(temporaryDirectory, false));
+		expect(JSON.parse(String(stdout.mock.calls.at(-1)?.[0]))).toMatchObject({ ok: true });
+		await harness.commands.get("memory")?.("pause", harness.context(temporaryDirectory, false));
+		expect(JSON.parse(String(stdout.mock.calls.at(-1)?.[0]))).toMatchObject({
+			ok: false,
+			status: "PERMISSION_BLOCKED",
+			errors: [{ code: "MEMORY_CONFIRMATION_REQUIRED" }],
+		});
+		stdout.mockRestore();
+		expect(JSON.stringify(harness.notify.mock.calls)).not.toContain("correct horse transfer secret");
+	});
+
+	it("creates the first Personal Memory profile only after interactive confirmation", async () => {
+		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-memory-first-use-"));
+		const agentDir = join(temporaryDirectory, "pi-agent");
+		const doroHome = join(agentDir, "doro");
+		vi.stubEnv("DORO_HOME", "");
+		vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
+		const harness = createHarness();
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		await harness.commands.get("memory")?.("status", harness.context(temporaryDirectory, false));
+		expect(JSON.parse(String(stdout.mock.calls.at(-1)?.[0]))).toMatchObject({
+			ok: true,
+			value: { availability: "unavailable", reasonCode: "memory.profile_unavailable" },
+		});
+		stdout.mockRestore();
+		await expect(access(join(doroHome, "profiles"))).rejects.toThrow();
+
+		await harness.commands.get("memory")?.("status", harness.context(temporaryDirectory));
+		const initialized = commandResult(harness);
+		expect(initialized).toMatchObject({
+			ok: true,
+			value: { availability: "available", profileRevision: 0, profileStatus: "active" },
+		});
+		expect(harness.confirm).toHaveBeenCalledWith(
+			"Initialize Personal Memory",
+			expect.stringContaining("empty, local Doro memory profile"),
+		);
+		const profileId = (initialized.value as { profileId: string }).profileId;
+		await expect(openMemoryProfile(memoryProfileRoot(doroHome, profileId))).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { profileId, revision: 0, status: "active" },
+		});
+		if (process.platform !== "win32") {
+			expect((await stat(memoryProfileRoot(doroHome, profileId))).mode & 0o777).toBe(0o700);
+		}
 	});
 
 	it("persists a deterministic model-route decision without calling a model", async () => {

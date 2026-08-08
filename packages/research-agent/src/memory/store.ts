@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomUUID } from "node:crypto";
-import { lstat, mkdir, open as openFile, readdir, readFile, realpath } from "node:fs/promises";
+import { chmod, lstat, mkdir, open as openFile, readdir, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { MemoryDeletionTombstoneV1 } from "@research-agent/contracts";
 import { validateMemoryDeletionTombstoneV1 } from "@research-agent/contracts";
@@ -391,7 +391,7 @@ async function writeActiveItemsCache(profileRoot: string, document: ActiveItemsC
 }
 
 async function writeNewFile(path: string, content: string): Promise<void> {
-	const handle = await openFile(path, "wx");
+	const handle = await openFile(path, "wx", 0o600);
 	try {
 		await handle.writeFile(content);
 		await handle.sync();
@@ -405,9 +405,14 @@ export async function createMemoryProfile(
 	profileRoot: string,
 	input: CreateMemoryProfileInput = {},
 ): Promise<OpenedMemoryProfile> {
-	await mkdir(profileRoot, { recursive: true });
+	await mkdir(profileRoot, { recursive: true, mode: 0o700 });
 	const entries = (await readdir(profileRoot)).filter((entry) => !entry.startsWith("._") && entry !== ".DS_Store");
-	if (entries.includes(MEMORY_PROFILE_PATH)) {
+	const profileExists = entries.includes(MEMORY_PROFILE_PATH);
+	if (!profileExists && entries.length > 0) {
+		throw new Error("Cannot initialize a memory profile in a non-empty directory");
+	}
+	if (process.platform !== "win32") await chmod(profileRoot, 0o700);
+	if (profileExists) {
 		const opened = await openMemoryProfile(profileRoot);
 		if (
 			opened.mode !== "read-write" ||
@@ -417,9 +422,8 @@ export async function createMemoryProfile(
 		}
 		return opened;
 	}
-	if (entries.length > 0) throw new Error("Cannot initialize a memory profile in a non-empty directory");
 	for (const directory of MEMORY_LAYOUT_DIRECTORIES) {
-		await mkdir(await resolveProjectPath(profileRoot, directory), { recursive: true });
+		await mkdir(await resolveProjectPath(profileRoot, directory), { recursive: true, mode: 0o700 });
 	}
 	const now = new Date().toISOString();
 	const profile: ResearcherProfileV1 = {
@@ -595,6 +599,34 @@ export async function openMemoryProfile(
 			issues: [issue("memory.canonical_invalid", MEMORY_PROFILE_PATH, errorMessage(error, profileRoot, root))],
 		};
 	}
+}
+
+export async function setMemoryProfileStatus(
+	profileRoot: string,
+	status: "active" | "paused",
+): Promise<{ changed: boolean; transactionId: string | null; profile: ResearcherProfileV1 }> {
+	const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
+	if (opened.mode !== "read-write") {
+		throw new Error(
+			`MEMORY_PROFILE_READ_ONLY: ${opened.issues.map(({ code }) => code).join(",") || "memory.unavailable"}`,
+		);
+	}
+	if (opened.profile.status === status && opened.profile.learningPolicy.mode === status) {
+		return { changed: false, transactionId: null, profile: opened.profile };
+	}
+	const prepared = await runMemoryTransaction(profileRoot, opened.profile.revision, (profile, transactionId) => ({
+		profile: {
+			...profile,
+			status,
+			learningPolicy: { ...profile.learningPolicy, mode: status },
+			updatedAt: new Date().toISOString(),
+			revision: profile.revision + 1,
+			lastTransactionId: transactionId,
+		},
+		writes: [],
+		result: null,
+	}));
+	return { changed: true, transactionId: prepared.transactionId, profile: prepared.profile };
 }
 
 function validateImmutableRecord(record: ImmutableMemoryRecord): ImmutableMemoryRecord {

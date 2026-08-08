@@ -57,6 +57,7 @@ import {
 import { createActionRequest } from "../security/policy.ts";
 import { isDesignRecord } from "../tools/design.ts";
 import { finishOperation, startOperation } from "../tools/operations.ts";
+import { runMemoryCommand } from "./memory-command.ts";
 import { modelUsesLocalEndpoint } from "./tool-operations.ts";
 import {
 	approveAction,
@@ -783,6 +784,8 @@ export function registerResearchCommands(
 			},
 		});
 	};
+
+	register("memory", "Inspect and manage the current Personal Memory profile", runMemoryCommand);
 
 	register(
 		"research-migrate",

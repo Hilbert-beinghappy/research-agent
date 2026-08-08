@@ -408,13 +408,13 @@ describe("Personal Memory store", () => {
 		const root = join(temporaryDirectory, "profile");
 		const created = await createMemoryProfile(root, { profileId: "profile-1" });
 		if (created.mode !== "read-write") throw new Error("expected writable profile");
-		await chmod(root, 0o555);
+		await chmod(root, 0o500);
 		try {
 			await expect(
 				appendMemoryRecord(root, candidate(created.profile.profileId, "candidate-permission")),
 			).rejects.toThrow();
 		} finally {
-			await chmod(root, 0o755);
+			await chmod(root, 0o700);
 		}
 		const pending = await listPendingMemoryTransactions(root);
 		expect(pending).toHaveLength(1);

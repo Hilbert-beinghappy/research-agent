@@ -2,7 +2,7 @@
 
 import { access, readdir } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { DataClass, SafeRef } from "@research-agent/contracts/memory";
 import { hashBytes } from "../contracts/integrity.ts";
 import { memoryProfileRoot, validateMemoryIdentifier } from "../memory/layout.ts";
@@ -16,10 +16,21 @@ interface CaptureContext {
 	projectRevision?: number;
 }
 
-async function configuredProfileRoot(): Promise<string | null> {
+export function configuredMemoryHome(): string | null {
 	const doroHome = process.env.DORO_HOME?.trim();
-	if (doroHome === undefined || doroHome.length === 0 || !isAbsolute(doroHome)) return null;
-	const entries = await readdir(join(doroHome, "profiles"), { withFileTypes: true, encoding: "utf8" });
+	if (doroHome !== undefined && doroHome.length > 0) return isAbsolute(doroHome) ? doroHome : null;
+	return join(getAgentDir(), "doro");
+}
+
+export async function configuredProfileRoots(): Promise<string[]> {
+	const doroHome = configuredMemoryHome();
+	if (doroHome === null) return [];
+	const entries = await readdir(join(doroHome, "profiles"), { withFileTypes: true, encoding: "utf8" }).catch(
+		(error: unknown) => {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+			throw error;
+		},
+	);
 	const profileIds = entries.flatMap((entry) => {
 		if (!entry.isDirectory() || entry.name.startsWith("._") || entry.name === ".DS_Store") return [];
 		try {
@@ -28,8 +39,12 @@ async function configuredProfileRoot(): Promise<string | null> {
 			return [];
 		}
 	});
-	const profileId = profileIds[0];
-	return profileIds.length === 1 && profileId !== undefined ? memoryProfileRoot(doroHome, profileId) : null;
+	return profileIds.sort().map((profileId) => memoryProfileRoot(doroHome, profileId));
+}
+
+export async function configuredProfileRoot(): Promise<string | null> {
+	const roots = await configuredProfileRoots();
+	return roots.length === 1 ? (roots[0] ?? null) : null;
 }
 
 async function captureContext(cwd: string): Promise<CaptureContext | null> {

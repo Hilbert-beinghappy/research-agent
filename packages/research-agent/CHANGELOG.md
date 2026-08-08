@@ -8,6 +8,7 @@
 - Single-writer project lease, parent-directory durability, multi-process/SIGKILL regressions, hash-pinned NIST public-corpus qualification, security-waiver validation, upstream replay policy, and a fixed-SHA release checklist.
 - Opt-in, identifier-redacted transaction phase tracing plus a bounded manual scaling diagnostic for single- and dual-process writers.
 - Offline Personal Memory export/import with scrypt-wrapped AES-256-GCM keys, encrypted manifests, bounded canonical containers, fast-forward lineage checks, and crash-recoverable atomic profile exchange.
+- One `/memory` command family for confirmed first-use profile creation, status, inspection, explanation, correction/deletion, pause/resume, encrypted transfer, and deletion verification, with private profile roots, logical-path output, and restricted-value redaction.
 
 ### Changed
 

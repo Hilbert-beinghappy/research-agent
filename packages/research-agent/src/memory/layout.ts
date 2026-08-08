@@ -44,6 +44,10 @@ export function memoryMonthPath(timestamp: string): string {
 
 export async function validateMemoryLayout(profileRoot: string): Promise<string> {
 	const root = await realpath(profileRoot);
+	const rootStats = await lstat(root);
+	if (!rootStats.isDirectory() || (process.platform !== "win32" && (rootStats.mode & 0o077) !== 0)) {
+		throw new TypeError("Memory profile root must be a private user directory");
+	}
 	for (const directory of MEMORY_LAYOUT_DIRECTORIES) {
 		const path = join(root, ...directory.split("/"));
 		const stats = await lstat(path);
