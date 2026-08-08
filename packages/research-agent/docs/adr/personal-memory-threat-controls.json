@@ -35,6 +35,11 @@
           "id": "external-content-poisoning",
           "path": "test/unit/memory/security/external-content-poisoning.test.ts",
           "implementation": "implemented"
+        },
+        {
+          "id": "poisoning-corpus-5000",
+          "path": "test/unit/memory/security/poisoning-corpus.test.ts",
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
@@ -142,6 +147,11 @@
         {
           "id": "memory-failure-project-isolation",
           "path": "test/integration/memory/security/memory-failure-project-isolation.test.ts",
+          "implementation": "implemented"
+        },
+        {
+          "id": "no-memory-regression",
+          "path": "test/integration/memory/security/no-memory-regression.test.ts",
           "implementation": "implemented"
         }
       ],

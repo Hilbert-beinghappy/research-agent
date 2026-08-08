@@ -11,6 +11,7 @@
 - One `/memory` command family for confirmed first-use profile creation, status, inspection, explanation, correction/deletion, pause/resume, encrypted transfer, and deletion verification, with private profile roots, logical-path output, and restricted-value redaction.
 - `research_memory_inspect` for bounded, scope-filtered, value/hash-free classified summaries that exclude restricted items, and `research_memory_feedback` for exact current-user correction, forgetting, or deletion with interactive confirmation and immutable feedback receipts.
 - Host-only activation of allowlisted explicit writing/output preferences, plus fail-closed task-start application with bounded context, project/model egress checks, and exact-revision use receipts.
+- Privacy-minimized Personal Memory longitudinal evaluation with a fail-closed on/off mode, bound synthetic metrics, a 5,000-attempt poisoning corpus, no-memory regression coverage, and the 30-person/12-week trial protocol.
 
 ### Changed
 

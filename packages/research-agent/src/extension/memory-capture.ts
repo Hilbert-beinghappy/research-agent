@@ -110,6 +110,7 @@ function externalModelAllowed(ctx: ExtensionContext, hostContext: CaptureContext
 
 async function applyPersonalMemory(event: { prompt: string; systemPrompt: string }, ctx: ExtensionContext) {
 	try {
+		if ((process.env.DORO_MEMORY_MODE?.trim().toLocaleLowerCase("en-US") ?? "on") !== "on") return;
 		const [profileRoot, hostContext] = await Promise.all([configuredProfileRoot(), captureContext(ctx.cwd)]);
 		if (profileRoot === null || hostContext === null || ctx.model === undefined) return;
 		const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });

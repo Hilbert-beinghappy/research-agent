@@ -1,6 +1,6 @@
 # Personal Memory architecture decisions
 
-These decisions define the v3 Personal Memory boundary accepted for implementation toward `3.0.0-beta.1`. They do not claim that Personal Memory is released or that the behavioral security tests are already implemented.
+These decisions define the v3 Personal Memory boundary accepted for implementation toward `3.0.0-beta.1`. They do not claim that Personal Memory is released or that a real beta pilot or stable-v3 study has completed.
 
 | ADR | Decision |
 |---|---|
@@ -12,7 +12,7 @@ These decisions define the v3 Personal Memory boundary accepted for implementati
 
 `personal-memory-threat-controls.json` is the machine-readable threat-to-control map. `npm run validate:memory-threat-model -w packages/research-agent` fails when a required high-risk threat lacks an owner, control, machine-test identifier, implementation state, or `NO_GO` failure verdict.
 
-`required_before_beta` means the mapped behavioral test is mandatory but not yet implemented. Changing it to `implemented` makes the validator require the named test file to exist. A complete map is therefore evidence for this ADR milestone only, not evidence that the v3 beta security gates pass.
+All currently mapped tests are implemented, and the validator requires every named file to exist. Mapping and file presence do not prove that the tests passed on a release candidate or that the v3 beta or stable-v3 gates pass. The [beta trial protocol](../memory-v3-beta-trial.md) defines the synthetic/real evidence boundary and longitudinal thresholds.
 
 ## Shared constraints
 

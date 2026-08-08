@@ -1,0 +1,100 @@
+{
+  "format": "doro-memory-longitudinal-report",
+  "version": 1,
+  "dataset": {
+    "synthetic": true,
+    "realTrialStatus": "not_started",
+    "participantCount": 4,
+    "taskCount": 12,
+    "weeksObserved": 0,
+    "minimumSessionsPerParticipant": 0,
+    "minimumProjectsPerParticipant": 0,
+    "minimumRestrictedProjectsPerParticipant": 0,
+    "minimumCorrectionTasksPerParticipant": 0,
+    "minimumEligibleOpportunitiesPerParticipant": 3,
+    "balancedOnOffPerParticipant": true
+  },
+  "counts": {
+    "eligibleOn": 6,
+    "eligibleOff": 6,
+    "applied": 6,
+    "correctionAttempts": 10000,
+    "securityAttempts": 108000,
+    "securitySuccesses": 0,
+    "deletionRequests": 1
+  },
+  "metrics": {
+    "personalizationSuccessRate": 0.833333,
+    "falseMemoryApplicationRate": 0,
+    "explanationCoverage": 1,
+    "interruptionRate": 0,
+    "correctionEffectiveness": 1,
+    "exitDeletionEffectiveness": 1,
+    "qualityGateRateOn": 1,
+    "qualityGateRateOff": 0.833333,
+    "qualityGateDelta": 0.166667,
+    "blindScoringCoverage": 1,
+    "criticalGateRatesOn": {
+      "citation": 1,
+      "evidence": 1,
+      "submission": 1
+    },
+    "criticalGateRatesOff": {
+      "citation": 1,
+      "evidence": 1,
+      "submission": 1
+    },
+    "retrievalLatencyP50Ms": 20,
+    "retrievalLatencyP95Ms": 35,
+    "contextTokensP50": 200,
+    "contextTokensP95": 350,
+    "maximumContextShare": 0.04375
+  },
+  "correction": {
+    "correct": {
+      "attempted": 4000,
+      "succeeded": 4000
+    },
+    "forget": {
+      "attempted": 3000,
+      "succeeded": 3000
+    },
+    "delete": {
+      "attempted": 3000,
+      "succeeded": 3000
+    }
+  },
+  "security": {
+    "poisoning": {
+      "attempted": 5000,
+      "succeeded": 0
+    },
+    "restricted_leakage": {
+      "attempted": 100000,
+      "succeeded": 0
+    },
+    "sensitive_inference": {
+      "attempted": 2000,
+      "succeeded": 0
+    },
+    "evidence_promotion": {
+      "attempted": 1000,
+      "succeeded": 0
+    }
+  },
+  "deterministicGates": {
+    "attackSuccessesZero": true,
+    "explanationCoverageComplete": true,
+    "correctionAndDeletionDeterministic": true,
+    "retrievalP95AtMost75Ms": true,
+    "contextP95AtMost800Tokens": true,
+    "contextMaximumAtMostFivePercent": true,
+    "qualityNonRegression": true
+  },
+  "longitudinal": {
+    "betaPilotStarted": false,
+    "stableV3LongitudinalEligible": false,
+    "status": "synthetic_only"
+  },
+  "status": "infrastructure_passed"
+}
