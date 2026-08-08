@@ -1,6 +1,6 @@
 {
 	"name": "pi-research-agent",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Local-first, evidence-first research workflows for Pi",
 	"type": "module",
 	"main": "./dist/contracts/index.js",
@@ -86,6 +86,7 @@
 		"qualify:scenario-e:v2.0": "node scripts/qualify-v2.0-scenario-e.ts",
 		"qualify:release:v2.0": "node scripts/qualify-v2.0-release.ts",
 		"qualify:runtimes:v0.3": "node scripts/qualify-v0.3-runtimes.ts",
+		"report:release-identity": "node scripts/report-release-identity.ts",
 		"prepublishOnly": "npm run clean && npm run build",
 		"test:unit": "vitest run test/unit test/contracts",
 		"test:integration": "vitest run --dir test/integration",

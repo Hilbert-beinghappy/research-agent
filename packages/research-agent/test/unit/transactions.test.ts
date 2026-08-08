@@ -217,7 +217,8 @@ describe("project transactions", () => {
 
 	it("serializes 1,000 writes from two independent processes without lost updates", async () => {
 		const { root } = await createProject("multi-process-writers");
-		await Promise.all([runWriter(root, "left"), runWriter(root, "right")]);
+		const writerResults = await Promise.all([runWriter(root, "left"), runWriter(root, "right")]);
+		expect(writerResults.map(({ conflicts }) => conflicts)).toEqual([0, 0]);
 		const opened = await openProject(root, 1_000);
 		if (opened.compatibility !== "current") throw new Error("expected current project");
 		expect(opened.manifest.recordSets.find(({ kind }) => kind === "operation")?.count).toBe(1_000);

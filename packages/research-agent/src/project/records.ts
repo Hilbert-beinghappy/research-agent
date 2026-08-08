@@ -25,7 +25,7 @@ import {
 	projectRecordRevision,
 } from "./record-index.ts";
 import { commitProjectTransactionWithWriterLeaseHeld } from "./transactions.ts";
-import { withProjectWriterLease } from "./writer-lock.ts";
+import { assertProjectWriterLeaseHeld, withProjectWriterLease } from "./writer-lock.ts";
 
 export interface RecordMutationInput {
 	expectedManifestRevision: number;
@@ -255,28 +255,53 @@ export async function createRecord(
 	record: ProjectRecord,
 	input: RecordMutationInput,
 ): Promise<ResearchResult<RecordRef>> {
-	return withProjectWriteTransaction(projectRoot, input, async () => {
-		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
-		const validatedRecord = validatedNewRecord(record, input.operationId);
-		const id = projectRecordId(validatedRecord);
-		projectRecordPath(manifest, validatedRecord.kind, id);
-		const content = `${canonicalStringify(validatedRecord)}\n`;
-		await commitRecordChangesWithWriterLeaseHeld(
-			projectRoot,
-			manifest,
-			[
-				{
-					record: validatedRecord,
-					kind: validatedRecord.kind,
-					id,
-					content,
-					expectedHash: null,
-				},
-			],
-			input.operationId,
-		);
-		return successResult({ kind: validatedRecord.kind, id, revision: 0 }, input.operationId);
-	});
+	return withProjectWriteTransaction(projectRoot, input, () =>
+		createRecordWithWriterLeaseAction(projectRoot, record, input),
+	);
+}
+
+async function createRecordWithWriterLeaseAction(
+	projectRoot: string,
+	record: ProjectRecord,
+	input: RecordMutationInput,
+): Promise<ResearchResult<RecordRef>> {
+	const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
+	const validatedRecord = validatedNewRecord(record, input.operationId);
+	const id = projectRecordId(validatedRecord);
+	projectRecordPath(manifest, validatedRecord.kind, id);
+	const content = `${canonicalStringify(validatedRecord)}\n`;
+	await commitRecordChangesWithWriterLeaseHeld(
+		projectRoot,
+		manifest,
+		[
+			{
+				record: validatedRecord,
+				kind: validatedRecord.kind,
+				id,
+				content,
+				expectedHash: null,
+			},
+		],
+		input.operationId,
+	);
+	return successResult({ kind: validatedRecord.kind, id, revision: 0 }, input.operationId);
+}
+
+export async function createRecordWithWriterLeaseHeld(
+	projectRoot: string,
+	record: ProjectRecord,
+	input: RecordMutationInput,
+): Promise<ResearchResult<RecordRef>> {
+	// Internal transaction-controller entry point: the caller must already hold the project writer lease.
+	try {
+		if (!isOpaqueId(input.operationId, "operation")) {
+			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+		}
+		await assertProjectWriterLeaseHeld(projectRoot);
+		return await createRecordWithWriterLeaseAction(projectRoot, record, input);
+	} catch (error) {
+		return failureFromError(error, input.operationId);
+	}
 }
 
 export async function createRecords(

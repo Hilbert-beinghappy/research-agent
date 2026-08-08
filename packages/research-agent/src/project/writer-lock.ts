@@ -46,6 +46,15 @@ function scopeHoldsWriterLease(scope: WriterLeaseScope | undefined, path: string
 	return false;
 }
 
+export async function assertProjectWriterLeaseHeld(projectRoot: string): Promise<void> {
+	const path = await resolveProjectPath(projectRoot, WRITER_LOCK);
+	if (!scopeHoldsWriterLease(writerLeaseScope.getStore(), path)) {
+		throw new Error(
+			"PROJECT_WRITER_LEASE_REQUIRED: the current async operation does not hold the project writer lease",
+		);
+	}
+}
+
 async function readLease(path: string): Promise<WriterLease | null> {
 	try {
 		const raw = canonicalizeJson(JSON.parse(await readFile(path, "utf8")));

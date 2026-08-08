@@ -325,7 +325,7 @@ describe("research extension commands", () => {
 			| undefined;
 		const header = headerFactory?.(undefined, theme).render(80);
 		expect(header).toHaveLength(12);
-		expect(header?.[0]).toContain("Doro Research Agent v2.0.0");
+		expect(header?.[0]).toContain("Doro Research Agent v2.0.1");
 		expect(header?.[1]).toContain("deepseek-v4-flash with max effort");
 		expect(header?.join("\n")).not.toContain("Powered by Pi");
 		expect(header?.[2]).toContain(temporaryDirectory);

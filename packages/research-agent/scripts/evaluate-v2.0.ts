@@ -166,10 +166,10 @@ const [agentManifest, contractsManifest] = await Promise.all([
 ]);
 check(
 	agentManifest.name === "pi-research-agent" &&
-		agentManifest.version === "2.0.0" &&
+		agentManifest.version === "2.0.1" &&
 		agentManifest.license === "Apache-2.0" &&
 		agentManifest.dependencies["@research-agent/contracts"] === "2.0.0",
-	"Research Agent v2.0 package metadata changed",
+	"Research Agent v2.0.1 hardening package metadata changed",
 );
 check(
 	contractsManifest.name === "@research-agent/contracts" &&

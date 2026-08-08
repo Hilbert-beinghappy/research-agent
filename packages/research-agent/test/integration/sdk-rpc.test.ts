@@ -136,7 +136,7 @@ describe("stable SDK and stdio RPC", () => {
 				ok: true,
 				value: {
 					version: 2,
-					packageVersion: "2.0.0",
+					packageVersion: "2.0.1",
 					projectSchemaVersion: "1.5.1",
 					mutations: "pi-governed-surfaces-only",
 					hostPaths: "redacted",

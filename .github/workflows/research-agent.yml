@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   v2-core:
-    name: v2.0 core (${{ matrix.os }})
+    name: v2.0.1 core (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -48,6 +48,9 @@ jobs:
 
       - name: Build research-agent contracts
         run: npm run build -w packages/research-agent-contracts
+
+      - name: Record release identity
+        run: npm run report:release-identity -w packages/research-agent -- --require-clean --output research-agent-release-identity.json
 
       - name: Hydrate Pi model data
         run: npm run hydrate:model-data
@@ -105,7 +108,7 @@ jobs:
         run: node packages/research-agent/scripts/qualify-v2.0-scenario-e.ts --output research-agent-scenario-e-v2.0.json
 
       - name: Qualify reproducible release
-        run: node packages/research-agent/scripts/qualify-v2.0-release.ts --output research-agent-release-v2.0.json
+        run: node packages/research-agent/scripts/qualify-v2.0-release.ts --output research-agent-release-v2.0.1.json
 
       - name: Qualify installed Python and R runtimes
         if: runner.os != 'Windows'
@@ -127,7 +130,8 @@ jobs:
             research-agent-benchmark-v2.0.json
             research-agent-isolation-v1.5.json
             research-agent-scenario-e-v2.0.json
-            research-agent-release-v2.0.json
+            research-agent-release-v2.0.1.json
+            research-agent-release-identity.json
 
       - name: Qualify release package
         run: |
@@ -135,6 +139,65 @@ jobs:
           npm run scan:release -w packages/research-agent
           npm run test:clean-install -w packages/research-agent
           npm run test:clean-install:latest -w packages/research-agent
+
+  transaction-qualification:
+    name: v2.0.1 transaction qualification (macOS)
+    timeout-minutes: 30
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Build research-agent contracts
+        run: npm run build -w packages/research-agent-contracts
+
+      - name: Enforce transaction growth and conflict budgets
+        run: >-
+          node packages/research-agent/scripts/diagnose-project-transactions.ts
+          --counts 125,250,500
+          --processes 2
+          --repetitions 1
+          --watchdog-ms 240000
+          --timeout-ms 480000
+          --max-elapsed-ms 225000
+          --max-conflict-rate 0.001
+          --max-growth-ratio 2.6
+          --output research-agent-transaction-growth.json
+          --trace-output research-agent-transaction-growth.jsonl
+
+      - name: Enforce three consecutive 1,000-write passes
+        run: >-
+          node packages/research-agent/scripts/diagnose-project-transactions.ts
+          --counts 500
+          --processes 2
+          --repetitions 3
+          --watchdog-ms 240000
+          --timeout-ms 480000
+          --max-elapsed-ms 225000
+          --max-conflict-rate 0.001
+          --output research-agent-transaction-stability.json
+          --trace-output research-agent-transaction-stability.jsonl
+
+      - name: Upload transaction qualification
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: research-agent-transaction-qualification-macos
+          path: |
+            research-agent-transaction-growth.json
+            research-agent-transaction-growth.jsonl
+            research-agent-transaction-stability.json
+            research-agent-transaction-stability.jsonl
+          if-no-files-found: warn
 
   public-corpus:
     name: Licensed public-corpus workflow

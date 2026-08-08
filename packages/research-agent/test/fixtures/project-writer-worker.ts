@@ -7,7 +7,7 @@ import { RESEARCH_SCHEMA_VERSION } from "../../src/contracts/schemas.ts";
 import { createOpaqueId } from "../../src/kernel/identity.ts";
 import { atomicWriteFile } from "../../src/project/atomic-write.ts";
 import { openProject } from "../../src/project/open.ts";
-import { createRecord } from "../../src/project/records.ts";
+import { createRecordWithWriterLeaseHeld } from "../../src/project/records.ts";
 import { emitProjectTransactionTrace } from "../../src/project/transaction-trace.ts";
 import { prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { withProjectWriterLease } from "../../src/project/writer-lock.ts";
@@ -67,23 +67,25 @@ if (mode === "batch") {
 	if (!Number.isInteger(count) || count < 1) throw new TypeError("record count must be a positive integer");
 	const traceContext = { workerId: label, requestedWrites: count };
 	const started = performance.now();
-	let conflicts = 0;
+	const conflicts = 0;
 	emitProjectTransactionTrace("worker_batch", "started", traceContext);
 	try {
 		for (let index = 0; index < count; index += 1) {
 			const operationId = createOpaqueId("operation");
 			const record = operationRecord(operationId, operationId, `${label}-${index}`);
-			for (;;) {
-				const opened = await openProject(projectRoot);
-				if (opened.compatibility !== "current") throw new Error("expected current project");
-				const result = await createRecord(projectRoot, record, {
-					expectedManifestRevision: opened.manifest.revision,
-					operationId,
-				});
-				if (result.ok) break;
-				if (result.status !== "DATA_CONFLICT") throw new Error(result.errors[0].message);
-				conflicts += 1;
-			}
+			const result = await withProjectWriterLease(
+				projectRoot,
+				async () => {
+					const opened = await openProject(projectRoot);
+					if (opened.compatibility !== "current") throw new Error("expected current project");
+					return createRecordWithWriterLeaseHeld(projectRoot, record, {
+						expectedManifestRevision: opened.manifest.revision,
+						operationId,
+					});
+				},
+				traceContext,
+			);
+			if (!result.ok) throw new Error(result.errors[0].message);
 			const completedWrites = index + 1;
 			if (completedWrites % 25 === 0 || completedWrites === count) {
 				emitProjectTransactionTrace("worker_batch", "progress", {

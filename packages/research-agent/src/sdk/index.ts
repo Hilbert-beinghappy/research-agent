@@ -17,8 +17,9 @@ import { openProject } from "../project/open.ts";
 import { listProjectRecordIds } from "../project/record-index.ts";
 import { readRecord } from "../project/records.ts";
 import { validateProject } from "../project/validate.ts";
+import { RESEARCH_AGENT_PACKAGE_VERSION } from "../version.ts";
 
-export const RESEARCH_AGENT_SDK_VERSION = "2.0.0" as const;
+export const RESEARCH_AGENT_SDK_VERSION = RESEARCH_AGENT_PACKAGE_VERSION;
 export const RESEARCH_SDK_METHODS = [
 	"system.capabilities",
 	"projects.list",

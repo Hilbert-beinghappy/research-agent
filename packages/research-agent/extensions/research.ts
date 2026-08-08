@@ -2,8 +2,9 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerResearchCommands } from "../src/extension/commands.ts";
+import { RESEARCH_AGENT_PACKAGE_VERSION } from "../src/version.ts";
 
-export const RESEARCH_AGENT_VERSION = "2.0.0";
+export const RESEARCH_AGENT_VERSION = RESEARCH_AGENT_PACKAGE_VERSION;
 
 type Rgb = readonly [red: number, green: number, blue: number];
 

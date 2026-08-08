@@ -19,6 +19,14 @@ const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const contractsRoot = join(repositoryRoot, "packages/research-agent-contracts");
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const agentManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")) as {
+	name: string;
+	version: string;
+};
+const contractsManifest = JSON.parse(await readFile(join(contractsRoot, "package.json"), "utf8")) as {
+	name: string;
+	version: string;
+};
 
 const build = spawnSync(npm, ["run", "build"], {
 	cwd: packageRoot,
@@ -76,10 +84,14 @@ try {
 		contracts.entryManifestMatches &&
 		contracts.tarballBytesMatch;
 	const report = {
-		qualification: "pi-research-agent-v2.0-release",
+		qualification: `pi-research-agent-v${agentManifest.version}-release`,
 		generatedAt: new Date().toISOString(),
 		platform: `${process.platform}-${process.arch}`,
 		node: process.version,
+		versions: {
+			agent: `${agentManifest.name}@${agentManifest.version}`,
+			contracts: `${contractsManifest.name}@${contractsManifest.version}`,
+		},
 		agent,
 		contracts,
 		usage: { modelCalls: 0, apiRequests: 0, modelCostUsd: 0, apiCostUsd: 0 },

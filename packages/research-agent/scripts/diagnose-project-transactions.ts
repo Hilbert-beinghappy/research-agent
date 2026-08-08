@@ -12,7 +12,7 @@ import { RESEARCH_SCHEMA_VERSION } from "../src/contracts/schemas.ts";
 import { createOpaqueId } from "../src/kernel/identity.ts";
 import { initializeProject } from "../src/project/init.ts";
 import { openProject } from "../src/project/open.ts";
-import { createRecord } from "../src/project/records.ts";
+import { createRecordWithWriterLeaseHeld } from "../src/project/records.ts";
 import {
 	emitProjectTransactionTrace,
 	type ProjectTransactionTracePhase,
@@ -20,6 +20,7 @@ import {
 } from "../src/project/transaction-trace.ts";
 import { listPendingProjectTransactions } from "../src/project/transactions.ts";
 import { validateProject } from "../src/project/validate.ts";
+import { withProjectWriterLease } from "../src/project/writer-lock.ts";
 
 interface WorkerResult {
 	count: number;
@@ -32,6 +33,7 @@ interface DiagnosticCaseResult {
 	repetition: number;
 	elapsedMs: number;
 	conflicts: number;
+	conflictRate: number | null;
 	finalRevision: number | null;
 	operationCount: number | null;
 	pendingTransactions: number | null;
@@ -39,11 +41,23 @@ interface DiagnosticCaseResult {
 	fileHashCount: number;
 	performanceBudgetMs: number | null;
 	performanceBudgetPassed: boolean | null;
+	conflictRateBudget: number | null;
+	conflictRateBudgetPassed: boolean | null;
 	phaseTimings: Partial<
 		Record<ProjectTransactionTracePhase, { samples: number; totalMs: number; p50Ms: number; p95Ms: number }>
 	>;
 	status: "passed" | "failed";
 	errorCode: string | null;
+}
+
+interface GrowthCheck {
+	processes: number;
+	repetition: number;
+	fromTotalWrites: number;
+	toTotalWrites: number;
+	ratio: number;
+	budget: number;
+	passed: boolean;
 }
 
 function operationRecord(operationId: string, name: string): OperationRecord {
@@ -181,26 +195,34 @@ function positiveIntegerList(value: string, name: string): number[] {
 	return values;
 }
 
+function positiveNumber(value: string, name: string): number {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0) throw new TypeError(`${name} must be a positive number`);
+	return parsed;
+}
+
 async function runWorkerMode(projectRoot: string, workerId: string, count: number): Promise<void> {
 	const traceContext = { workerId, requestedWrites: count };
 	const started = performance.now();
-	let conflicts = 0;
+	const conflicts = 0;
 	emitProjectTransactionTrace("worker_batch", "started", traceContext);
 	try {
 		for (let index = 0; index < count; index += 1) {
 			const operationId = createOpaqueId("operation");
 			const record = operationRecord(operationId, `diagnostic-${workerId}-${index}`);
-			for (;;) {
-				const opened = await openProject(projectRoot);
-				if (opened.compatibility !== "current") throw new Error("PROJECT_INVALID: expected current project");
-				const result = await createRecord(projectRoot, record, {
-					expectedManifestRevision: opened.manifest.revision,
-					operationId,
-				});
-				if (result.ok) break;
-				if (result.status !== "DATA_CONFLICT") throw new Error("WORKER_FAILED: record creation failed");
-				conflicts += 1;
-			}
+			const result = await withProjectWriterLease(
+				projectRoot,
+				async () => {
+					const opened = await openProject(projectRoot);
+					if (opened.compatibility !== "current") throw new Error("PROJECT_INVALID: expected current project");
+					return createRecordWithWriterLeaseHeld(projectRoot, record, {
+						expectedManifestRevision: opened.manifest.revision,
+						operationId,
+					});
+				},
+				traceContext,
+			);
+			if (!result.ok) throw new Error("WORKER_FAILED: record creation failed");
 			const completedWrites = index + 1;
 			if (completedWrites % 25 === 0 || completedWrites === count) {
 				emitProjectTransactionTrace("worker_batch", "progress", {
@@ -309,6 +331,7 @@ async function runDiagnosticCase(
 	watchdogMs: number,
 	timeoutMs: number,
 	maxElapsedMs: number | null,
+	maxConflictRate: number | null,
 	allTraceRecords: ProjectTransactionTraceRecord[],
 ): Promise<DiagnosticCaseResult> {
 	const projectRoot = join(parentDirectory, `p${processes}-n${writesPerProcess}-r${repetition}`);
@@ -336,13 +359,23 @@ async function runDiagnosticCase(
 		if (!projectValid) throw new Error("PROJECT_INVALID: transaction diagnostic lost consistency");
 		const elapsedMs = Number((performance.now() - started).toFixed(3));
 		const performanceBudgetPassed = maxElapsedMs === null ? null : elapsedMs <= maxElapsedMs;
+		const conflicts = workers.reduce((total, worker) => total + worker.conflicts, 0);
+		const conflictRate = conflicts / expectedCount;
+		const conflictRateBudgetPassed = maxConflictRate === null ? null : conflictRate < maxConflictRate;
+		const errorCode =
+			performanceBudgetPassed === false
+				? "PERFORMANCE_BUDGET_EXCEEDED"
+				: conflictRateBudgetPassed === false
+					? "CONFLICT_RATE_EXCEEDED"
+					: null;
 		allTraceRecords.push(...caseTraceRecords);
 		return {
 			processes,
 			writesPerProcess,
 			repetition,
 			elapsedMs,
-			conflicts: workers.reduce((total, worker) => total + worker.conflicts, 0),
+			conflicts,
+			conflictRate,
 			finalRevision: opened.manifest.revision,
 			operationCount,
 			pendingTransactions,
@@ -350,9 +383,11 @@ async function runDiagnosticCase(
 			fileHashCount: caseTraceRecords.reduce((total, record) => total + (record.fileHashCount ?? 0), 0),
 			performanceBudgetMs: maxElapsedMs,
 			performanceBudgetPassed,
+			conflictRateBudget: maxConflictRate,
+			conflictRateBudgetPassed,
 			phaseTimings: phaseTimings(caseTraceRecords),
-			status: performanceBudgetPassed === false ? "failed" : "passed",
-			errorCode: performanceBudgetPassed === false ? "PERFORMANCE_BUDGET_EXCEEDED" : null,
+			status: errorCode === null ? "passed" : "failed",
+			errorCode,
 		};
 	} catch (error) {
 		allTraceRecords.push(...caseTraceRecords);
@@ -362,6 +397,7 @@ async function runDiagnosticCase(
 			repetition,
 			elapsedMs: Number((performance.now() - started).toFixed(3)),
 			conflicts: 0,
+			conflictRate: null,
 			finalRevision: null,
 			operationCount: null,
 			pendingTransactions: null,
@@ -369,11 +405,45 @@ async function runDiagnosticCase(
 			fileHashCount: caseTraceRecords.reduce((total, record) => total + (record.fileHashCount ?? 0), 0),
 			performanceBudgetMs: maxElapsedMs,
 			performanceBudgetPassed: null,
+			conflictRateBudget: maxConflictRate,
+			conflictRateBudgetPassed: null,
 			phaseTimings: phaseTimings(caseTraceRecords),
 			status: "failed",
 			errorCode: diagnosticErrorCode(error),
 		};
 	}
+}
+
+function calculateGrowthChecks(results: readonly DiagnosticCaseResult[], maxGrowthRatio: number | null): GrowthCheck[] {
+	if (maxGrowthRatio === null) return [];
+	const checks: GrowthCheck[] = [];
+	const cells = new Map<string, DiagnosticCaseResult[]>();
+	for (const result of results) {
+		if (result.status !== "passed") continue;
+		const key = `${result.processes}:${result.repetition}`;
+		const values = cells.get(key) ?? [];
+		values.push(result);
+		cells.set(key, values);
+	}
+	for (const values of cells.values()) {
+		values.sort((left, right) => left.writesPerProcess - right.writesPerProcess);
+		for (let index = 1; index < values.length; index += 1) {
+			const previous = values[index - 1];
+			const current = values[index];
+			if (previous === undefined || current === undefined) continue;
+			const ratio = Number((current.elapsedMs / previous.elapsedMs).toFixed(3));
+			checks.push({
+				processes: current.processes,
+				repetition: current.repetition,
+				fromTotalWrites: previous.processes * previous.writesPerProcess,
+				toTotalWrites: current.processes * current.writesPerProcess,
+				ratio,
+				budget: maxGrowthRatio,
+				passed: ratio <= maxGrowthRatio,
+			});
+		}
+	}
+	return checks;
 }
 
 async function runCoordinator(): Promise<void> {
@@ -386,6 +456,12 @@ async function runCoordinator(): Promise<void> {
 	const maxElapsedArgument = argumentValue("--max-elapsed-ms");
 	const maxElapsedMs =
 		maxElapsedArgument === undefined ? null : positiveInteger(maxElapsedArgument, "--max-elapsed-ms");
+	const maxConflictRateArgument = argumentValue("--max-conflict-rate");
+	const maxConflictRate =
+		maxConflictRateArgument === undefined ? null : positiveNumber(maxConflictRateArgument, "--max-conflict-rate");
+	const maxGrowthRatioArgument = argumentValue("--max-growth-ratio");
+	const maxGrowthRatio =
+		maxGrowthRatioArgument === undefined ? null : positiveNumber(maxGrowthRatioArgument, "--max-growth-ratio");
 	if (watchdogMs >= timeoutMs) throw new TypeError("--watchdog-ms must be less than --timeout-ms");
 	const temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-transaction-diagnostic-"));
 	const traceRecords: ProjectTransactionTraceRecord[] = [];
@@ -403,20 +479,32 @@ async function runCoordinator(): Promise<void> {
 							watchdogMs,
 							timeoutMs,
 							maxElapsedMs,
+							maxConflictRate,
 							traceRecords,
 						),
 					);
 				}
 			}
 		}
-		const passed = results.every(({ status }) => status === "passed");
+		const growthChecks = calculateGrowthChecks(results, maxGrowthRatio);
+		const passed = results.every(({ status }) => status === "passed") && growthChecks.every(({ passed }) => passed);
 		const report = {
 			benchmark: "doro-project-transaction-diagnostic-v1",
 			generatedAt: new Date().toISOString(),
 			platform: `${process.platform}-${process.arch}`,
 			node: process.version,
-			configuration: { counts, processCounts, repetitions, watchdogMs, timeoutMs, maxElapsedMs },
+			configuration: {
+				counts,
+				processCounts,
+				repetitions,
+				watchdogMs,
+				timeoutMs,
+				maxElapsedMs,
+				maxConflictRate,
+				maxGrowthRatio,
+			},
 			results,
+			growthChecks,
 			usage: { modelCalls: 0, apiRequests: 0, modelCostUsd: 0, apiCostUsd: 0 },
 			status: passed ? "passed" : "failed",
 		};

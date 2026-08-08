@@ -15,7 +15,7 @@ import {
 	prepareDerivedRecordHashIndex,
 } from "../../src/project/record-hash-index.ts";
 import { calculateRecordSetIndex, projectRecordPath } from "../../src/project/record-index.ts";
-import { createRecord, readRecord } from "../../src/project/records.ts";
+import { createRecord, createRecordWithWriterLeaseHeld, readRecord } from "../../src/project/records.ts";
 import {
 	commitPreparedTransaction,
 	listPendingProjectTransactions,
@@ -227,6 +227,22 @@ describe("derived record hash index", () => {
 		await expect(
 			withProjectWriterLease(projectRoot, () => withProjectWriterLease(projectRoot, async () => undefined)),
 		).rejects.toThrow("PROJECT_WRITER_LOCK_REENTRANT");
+	});
+
+	it("rejects the internal record writer when no lease is held", async () => {
+		const operationId = createOpaqueId("operation");
+		const claimId = createOpaqueId("claim");
+		await expect(
+			createRecordWithWriterLeaseHeld(projectRoot, claimRecord(claimId, operationId, "lease required"), {
+				expectedManifestRevision: 0,
+				operationId,
+			}),
+		).resolves.toMatchObject({
+			ok: false,
+			status: "PERMANENT_FAILURE",
+			errors: [{ message: expect.stringContaining("PROJECT_WRITER_LEASE_REQUIRED") }],
+		});
+		await expect(openProject(projectRoot, 0)).resolves.toMatchObject({ compatibility: "current" });
 	});
 
 	it("recovers record-before-index and index-before-manifest interruptions", async () => {

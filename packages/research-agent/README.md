@@ -31,10 +31,10 @@ Then initialize and load the intake workflow:
 Expected version notification:
 
 ```text
-pi-research-agent v2.0.0
+pi-research-agent v2.0.1
 ```
 
-The source package continues to report 2.0.0 until an authorized release actually performs the version bump. Do not infer v2.0.1 publication from this working tree.
+The source and packed candidate report 2.0.1. This is release-candidate identity, not evidence that npm publication or the GitHub release has occurred.
 
 The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes fourteen governed aggregate Tools; users do not edit canonical `.research/records` files directly. Seventeen administration commands cover project state, migration, domains, Adapter inspection/registration, deterministic model routing, and exchange.
 
@@ -137,6 +137,7 @@ npm run eval:v2.0 -w packages/research-agent -- v2.0
 npm run benchmark:v2.0 -w packages/research-agent
 npm run qualify:scenario-e:v2.0 -w packages/research-agent
 npm run qualify:release:v2.0 -w packages/research-agent
+npm run report:release-identity -w packages/research-agent
 npm run scan:release -w packages/research-agent
 npm run test:clean-install -w packages/research-agent
 npm run test:clean-install:latest -w packages/research-agent
