@@ -67,7 +67,7 @@
 		"benchmark:v1.5": "node scripts/benchmark-v1.5.ts",
 		"benchmark:v2.0": "node scripts/benchmark-v2.0.ts",
 		"build": "npm run build --workspace @research-agent/contracts && tsgo -p tsconfig.build.json",
-		"check": "biome check extensions src scripts test vitest.config.ts tsconfig.build.json && tsgo --noEmit -p tsconfig.json",
+		"check": "biome check extensions src scripts test vitest.config.ts tsconfig.build.json && node scripts/validate-memory-threat-model.ts && tsgo --noEmit -p tsconfig.json",
 		"clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
 		"conform:adapter": "node scripts/conform-adapter.ts",
 		"diagnose:transactions": "node scripts/diagnose-project-transactions.ts",
@@ -96,6 +96,7 @@
 		"test:clean-install": "node scripts/test-clean-install.ts",
 		"test:clean-install:latest": "node scripts/test-clean-install.ts --pi-version 0.84.0",
 		"scan:release": "npm run clean && npm run build && node scripts/generate-release-metadata.ts --check && node scripts/scan-release.ts",
+		"validate:memory-threat-model": "node scripts/validate-memory-threat-model.ts",
 		"validate:security-waivers": "node scripts/validate-security-waivers.ts"
 	},
 	"pi": {

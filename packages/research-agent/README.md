@@ -71,6 +71,7 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [Asset provenance](docs/asset-provenance.md)
 - [Evidence evaluation](docs/evaluation.md)
 - [v2.0 threat model](docs/threat-model.md)
+- [Personal Memory architecture decisions (v3 proposal)](docs/adr/README.md)
 - [v0.1 release evidence and limitations](docs/release-v0.1.md)
 - [v0.2 release evidence and limitations](docs/release-v0.2.md)
 - [v0.3 release evidence and limitations](docs/release-v0.3.md)

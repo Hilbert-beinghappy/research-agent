@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "status": "accepted_for_implementation",
+  "targetRelease": "3.0.0-beta.1",
+  "threats": [
+    {
+      "id": "PM-001",
+      "severity": "critical",
+      "owner": "Memory Policy Controller",
+      "threat": "A model or Skill writes or promotes canonical Personal Memory directly.",
+      "controls": [
+        "No model filesystem, lease, transaction, key, or generic write authority",
+        "Schema-only candidate draft followed by one deterministic choke point"
+      ],
+      "machineTests": [
+        {
+          "id": "model-write-authority",
+          "path": "test/unit/memory/security/model-write-authority.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-002",
+      "severity": "critical",
+      "owner": "Deterministic Event Capture",
+      "threat": "External documents, Tools, Adapters, or Skill text poison a user preference.",
+      "controls": [
+        "Host-bound actor=user provenance",
+        "External-content sanitizer and source-class deny rules"
+      ],
+      "machineTests": [
+        {
+          "id": "external-content-poisoning",
+          "path": "test/unit/memory/security/external-content-poisoning.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-003",
+      "severity": "critical",
+      "owner": "Memory Candidate Validator",
+      "threat": "A protected attribute, personality diagnosis, credential, or unrelated life history is inferred or persisted.",
+      "controls": [
+        "Fixed low-risk category and key allowlists",
+        "Semantic-free rejection audit and repeated-violation circuit breaker"
+      ],
+      "machineTests": [
+        {
+          "id": "prohibited-inference",
+          "path": "test/unit/memory/security/prohibited-inference.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-004",
+      "severity": "critical",
+      "owner": "Memory Retrieval Policy",
+      "threat": "Restricted project content or identity leaks into another project, global memory, context, or export.",
+      "controls": [
+        "Restricted capture off by default and no upward scope promotion",
+        "Highest-sensitivity propagation plus canonical scope recheck after cache lookup"
+      ],
+      "machineTests": [
+        {
+          "id": "restricted-cross-project-isolation",
+          "path": "test/integration/memory/security/restricted-cross-project-isolation.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-005",
+      "severity": "critical",
+      "owner": "Research Context Gate",
+      "threat": "A preference is treated as research evidence, a factual claim, method confirmation, approval, or external-effect authority.",
+      "controls": [
+        "Separate labelled preference context with allowed-effect filtering",
+        "Research evidence, confirmation, approval, and action gates recompute from canonical Project state"
+      ],
+      "machineTests": [
+        {
+          "id": "preference-not-evidence",
+          "path": "test/integration/memory/security/preference-not-evidence.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-006",
+      "severity": "high",
+      "owner": "Memory Store",
+      "threat": "A superseded or corrected revision remains retrievable because canonical state and cache diverge.",
+      "controls": [
+        "Revision activation and cache invalidation in one writer transaction",
+        "Final latest-revision canonical check before context injection"
+      ],
+      "machineTests": [
+        {
+          "id": "correction-cache-atomicity",
+          "path": "test/integration/memory/security/correction-cache-atomicity.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-007",
+      "severity": "critical",
+      "owner": "Memory Deletion Controller",
+      "threat": "Deleted semantics remain in revisions, signals, feedback, receipts, indexes, context, or transfer output.",
+      "controls": [
+        "Canonical enumeration and semantic deletion in one writer transaction",
+        "verify-delete checks every normative and derived application path"
+      ],
+      "machineTests": [
+        {
+          "id": "delete-semantic-residue",
+          "path": "test/integration/memory/security/delete-semantic-residue.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-008",
+      "severity": "high",
+      "owner": "Pi Host Integration",
+      "threat": "Missing, corrupt, paused, or recovering Personal Memory blocks Research Project work.",
+      "controls": [
+        "Physically separate stores and no Project dependency on profile state",
+        "Memory-only read-only recovery with v2.0.1 no-personalization fallback"
+      ],
+      "machineTests": [
+        {
+          "id": "memory-failure-project-isolation",
+          "path": "test/integration/memory/security/memory-failure-project-isolation.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-009",
+      "severity": "critical",
+      "owner": "Memory Transfer Controller",
+      "threat": "Malformed, conflicting, interrupted, or replayed transfer mutates the local profile or escapes staging.",
+      "controls": [
+        "Pre-decryption archive limits and canonical portable paths",
+        "Authenticated staging validation, lineage rules, snapshot, and atomic directory exchange"
+      ],
+      "machineTests": [
+        {
+          "id": "transfer-atomic-rejection",
+          "path": "test/integration/memory/security/transfer-atomic-rejection.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-010",
+      "severity": "critical",
+      "owner": "Memory Transfer Cryptography",
+      "threat": "A passphrase, KEK, DEK, plaintext, or unauthenticated metadata leaks through a transfer artifact, log, receipt, or error.",
+      "controls": [
+        "scrypt KEK, random DEK, AES-256-GCM, unique nonces, and authenticated inner manifest",
+        "No secret persistence and uniform authentication failures"
+      ],
+      "machineTests": [
+        {
+          "id": "transfer-secret-and-authentication-boundary",
+          "path": "test/unit/memory/security/transfer-secret-and-authentication-boundary.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    },
+    {
+      "id": "PM-011",
+      "severity": "high",
+      "owner": "Memory Promotion Policy",
+      "threat": "An unsupported, contradictory, or one-off behavioral preference becomes active automatically.",
+      "controls": [
+        "Independent-signal, Session, time, confidence, and contradiction thresholds",
+        "Explicit preferences outrank inferred candidates and temporary instructions remain task-local"
+      ],
+      "machineTests": [
+        {
+          "id": "promotion-support-thresholds",
+          "path": "test/unit/memory/security/promotion-support-thresholds.test.ts",
+          "implementation": "required_before_beta"
+        }
+      ],
+      "failureVerdict": "NO_GO"
+    }
+  ]
+}

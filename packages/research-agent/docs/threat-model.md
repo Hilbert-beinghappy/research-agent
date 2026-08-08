@@ -71,3 +71,9 @@ Project exports, exchange bundles, manuscripts, review findings, runtime logs, Z
 - Certifying academic correctness, legal compliance, privacy compliance, or publication readiness without human review.
 
 Unknown third-party code requires OS/container sandboxing with denied network, restricted mounts, no inherited secrets, resource limits, and Host-mediated staging. Current profiles are macOS Seatbelt and Linux bubblewrap; unsupported platforms block registration rather than falling back.
+
+## v3 Personal Memory proposal boundary
+
+Personal Memory is not part of the v2.0 release boundary above. The accepted v3 implementation decisions are under [`docs/adr/`](adr/README.md). They keep Pi Session, Research Project, Personal Memory, future Team Memory, and derived cache state separate; deny model write authority; restrict eligible learning signals; define verifiable deletion; and constrain cross-machine transfer to an authenticated offline file.
+
+The machine-readable [`personal-memory-threat-controls.json`](adr/personal-memory-threat-controls.json) maps every currently identified high-risk Personal Memory threat to an owner, deterministic controls, required behavioral tests, and a `NO_GO` failure verdict. Tests marked `required_before_beta` are obligations, not passing evidence. Stable v3 remains ineligible until the beta gates and the specified longitudinal study both complete.
