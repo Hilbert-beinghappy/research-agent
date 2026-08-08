@@ -7,6 +7,8 @@ import { validateProjectRelativePath } from "../kernel/paths.ts";
 export const MEMORY_PROFILE_PATH = "profile.json";
 export const MEMORY_WRITER_LOCK_PATH = "locks/writer.lock";
 export const MEMORY_ACTIVE_ITEMS_CACHE_PATH = "cache/active-items-v1.json";
+export const MEMORY_RETRIEVAL_INDEX_PATH = "cache/retrieval-index-v1.json";
+export const MEMORY_RETRIEVAL_INDEX_HASH_PATH = "cache/retrieval-index-v1.sha256";
 
 export const MEMORY_LAYOUT_DIRECTORIES = [
 	"signals",
@@ -14,6 +16,7 @@ export const MEMORY_LAYOUT_DIRECTORIES = [
 	"items",
 	"feedback",
 	"receipts",
+	"tombstones",
 	"audit",
 	"transfer-manifests",
 	"transactions/pending",

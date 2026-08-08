@@ -221,6 +221,9 @@ export async function applyMemoryFeedback(
 			if (opened.mode !== "read-write" || canonicalStringify(opened.profile) !== canonicalStringify(profile)) {
 				throw new Error("MEMORY_RECOVERY_REQUIRED: canonical profile changed during feedback");
 			}
+			if (opened.tombstones.some(({ memoryId }) => memoryId === request.target.memoryId)) {
+				throw new Error("MEMORY_DELETED_TERMINAL: deleted memory cannot receive feedback or be restored");
+			}
 			const latest = latestItem(opened.items, request.target.memoryId);
 			if (latest === null || latest.revision !== request.target.revision) {
 				throw new Error("DATA_CONFLICT: feedback must target the exact latest memory revision");

@@ -12,7 +12,10 @@ import { validatePortablePathSet, validateProjectRelativePath } from "../kernel/
 import { atomicWriteFile, syncParentDirectory } from "../project/atomic-write.ts";
 import { withWriterLease } from "../project/writer-lock.ts";
 import {
+	MEMORY_ACTIVE_ITEMS_CACHE_PATH,
 	MEMORY_PROFILE_PATH,
+	MEMORY_RETRIEVAL_INDEX_HASH_PATH,
+	MEMORY_RETRIEVAL_INDEX_PATH,
 	MEMORY_WRITER_LOCK_PATH,
 	resolveMemoryPath,
 	validateMemoryIdentifier,
@@ -24,9 +27,16 @@ export interface MemoryTransactionWrite {
 	content: string;
 }
 
+export interface MemoryTransactionDelete {
+	path: string;
+	delete: true;
+}
+
+export type MemoryTransactionMutation = MemoryTransactionWrite | MemoryTransactionDelete;
+
 export interface MemoryTransactionBuild<Result> {
 	profile: ResearcherProfileV1;
-	writes: readonly MemoryTransactionWrite[];
+	writes: readonly MemoryTransactionMutation[];
 	result: Result;
 }
 
@@ -37,12 +47,13 @@ export type MemoryTransactionBuilder<Result> = (
 
 interface MemoryTransactionEntry {
 	path: string;
-	newHash: string;
+	oldHash: string | null;
+	newHash: string | null;
 }
 
 interface MemoryTransactionJournal {
 	format: "doro-memory-transaction";
-	version: 1;
+	version: 1 | 2;
 	transactionId: string;
 	profileId: string;
 	expectedRevision: number;
@@ -58,7 +69,7 @@ interface PreparedMemoryTransaction<Result> {
 	result: Result;
 }
 
-type FileState = "old" | "new" | "other";
+type FileState = "old" | "new" | "new-finalized" | "other";
 
 const PENDING_DIRECTORY = "transactions/pending";
 const COMMITTED_DIRECTORY = "transactions/committed";
@@ -71,8 +82,14 @@ const canonicalRecordPrefixes = [
 	"items/",
 	"feedback/",
 	"receipts/",
+	"tombstones/",
 	"transfer-manifests/",
 ] as const;
+const derivedCachePaths = new Set([
+	MEMORY_ACTIVE_ITEMS_CACHE_PATH,
+	MEMORY_RETRIEVAL_INDEX_PATH,
+	MEMORY_RETRIEVAL_INDEX_HASH_PATH,
+]);
 
 function transactionDirectory(statusDirectory: string, transactionId: string): string {
 	if (!transactionIdPattern.test(transactionId))
@@ -86,6 +103,11 @@ function validateRecordPath(path: string): string {
 		throw new TypeError(`Memory transaction target is not a canonical record path: ${path}`);
 	}
 	return validated;
+}
+
+function validateDeletePath(path: string): string {
+	const validated = validateProjectRelativePath(path);
+	return derivedCachePaths.has(validated) ? validated : validateRecordPath(validated);
 }
 
 async function transactionPathResolver(profileRoot: string): Promise<(path: string) => Promise<string>> {
@@ -104,10 +126,27 @@ async function existingHash(path: string): Promise<string | null> {
 	}
 }
 
-async function fileState(path: string, expectedHash: string): Promise<FileState> {
-	const hash = await existingHash(path);
-	if (hash === null) return "old";
-	return hash === expectedHash ? "new" : "other";
+async function entryState(
+	profileRoot: string,
+	directory: string,
+	index: number,
+	entry: MemoryTransactionEntry,
+	resolveTransactionPath: (path: string) => Promise<string>,
+): Promise<FileState> {
+	const targetHash = await existingHash(await resolveTransactionPath(entry.path));
+	if (entry.oldHash === null && entry.newHash !== null) {
+		if (targetHash === null) return "old";
+		return targetHash === entry.newHash ? "new" : "other";
+	}
+	if (entry.oldHash !== null && entry.newHash === null) {
+		const backupHash = await existingHash(
+			await resolveMemoryPath(profileRoot, `${directory}/staged/deleted-${index}.bin`, { allowMissing: true }),
+		);
+		if (targetHash === entry.oldHash && backupHash === null) return "old";
+		if (targetHash === null && backupHash === entry.oldHash) return "new";
+		if (targetHash === null && backupHash === null) return "new-finalized";
+	}
+	return "other";
 }
 
 function exactKeys(value: object, keys: readonly string[]): boolean {
@@ -194,7 +233,7 @@ async function readJournal(profileRoot: string, transactionId: string): Promise<
 			"entries",
 		]) ||
 		raw.format !== "doro-memory-transaction" ||
-		raw.version !== 1 ||
+		(raw.version !== 1 && raw.version !== 2) ||
 		raw.transactionId !== transactionId ||
 		typeof raw.profileId !== "string" ||
 		typeof raw.expectedRevision !== "number" ||
@@ -211,24 +250,40 @@ async function readJournal(profileRoot: string, transactionId: string): Promise<
 		throw new TypeError(`Invalid memory transaction journal: ${transactionId}`);
 	}
 	const entries: MemoryTransactionEntry[] = raw.entries.map((entry) => {
+		if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+			throw new TypeError(`Invalid memory transaction journal entry: ${transactionId}`);
+		}
+		if (raw.version === 1) {
+			if (
+				!exactKeys(entry, ["path", "newHash"]) ||
+				typeof entry.path !== "string" ||
+				typeof entry.newHash !== "string" ||
+				!sha256Pattern.test(entry.newHash)
+			) {
+				throw new TypeError(`Invalid memory transaction journal entry: ${transactionId}`);
+			}
+			return { path: validateRecordPath(entry.path), oldHash: null, newHash: entry.newHash };
+		}
 		if (
-			entry === null ||
-			typeof entry !== "object" ||
-			Array.isArray(entry) ||
-			!exactKeys(entry, ["path", "newHash"]) ||
+			!exactKeys(entry, ["path", "oldHash", "newHash"]) ||
 			typeof entry.path !== "string" ||
-			typeof entry.newHash !== "string" ||
-			!sha256Pattern.test(entry.newHash)
+			!((entry.oldHash === null) !== (entry.newHash === null)) ||
+			(entry.oldHash !== null && (typeof entry.oldHash !== "string" || !sha256Pattern.test(entry.oldHash))) ||
+			(entry.newHash !== null && (typeof entry.newHash !== "string" || !sha256Pattern.test(entry.newHash)))
 		) {
 			throw new TypeError(`Invalid memory transaction journal entry: ${transactionId}`);
 		}
-		return { path: validateRecordPath(entry.path), newHash: entry.newHash };
+		return {
+			path: entry.newHash === null ? validateDeletePath(entry.path) : validateRecordPath(entry.path),
+			oldHash: entry.oldHash,
+			newHash: entry.newHash,
+		};
 	});
 	validateMemoryIdentifier(raw.profileId, "profileId");
 	validatePortablePathSet(entries.map(({ path }) => path));
 	return {
 		format: "doro-memory-transaction",
-		version: 1,
+		version: raw.version,
 		transactionId,
 		profileId: raw.profileId,
 		expectedRevision: raw.expectedRevision,
@@ -246,6 +301,21 @@ async function moveTransaction(profileRoot: string, transactionId: string, desti
 	});
 	await rename(source, target);
 	await Promise.all([syncParentDirectory(source), syncParentDirectory(target)]);
+}
+
+async function purgeDeletionBackups(
+	profileRoot: string,
+	directory: string,
+	entries: readonly MemoryTransactionEntry[],
+): Promise<void> {
+	for (const [index, entry] of entries.entries()) {
+		if (entry.newHash !== null) continue;
+		const backup = await resolveMemoryPath(profileRoot, `${directory}/staged/deleted-${index}.bin`, {
+			allowMissing: true,
+		});
+		await rm(backup, { force: true });
+		await syncParentDirectory(backup);
+	}
 }
 
 async function prepareMemoryTransactionUnlocked<Result>(
@@ -281,19 +351,27 @@ async function prepareMemoryTransactionUnlocked<Result>(
 			"Memory transaction must preserve profile identity, increment revision once, advance time, and bind its transaction ID",
 		);
 	}
-	const paths = built.writes.map(({ path }) => validateRecordPath(path));
+	const paths = built.writes.map((mutation) =>
+		"content" in mutation ? validateRecordPath(mutation.path) : validateDeletePath(mutation.path),
+	);
 	validatePortablePathSet(paths);
 	if (new Set(paths).size !== paths.length) throw new TypeError("Memory transaction contains a duplicate target");
-	for (const write of built.writes) {
-		const parsed = canonicalizeJson(JSON.parse(write.content));
-		if (write.content !== `${canonicalStringify(parsed)}\n`) {
-			throw new TypeError(`Memory transaction write is not canonical JSON: ${write.path}`);
+	for (const mutation of built.writes) {
+		if (!("content" in mutation)) continue;
+		const parsed = canonicalizeJson(JSON.parse(mutation.content));
+		if (mutation.content !== `${canonicalStringify(parsed)}\n`) {
+			throw new TypeError(`Memory transaction write is not canonical JSON: ${mutation.path}`);
 		}
 	}
 	const resolveTransactionPath = await transactionPathResolver(profileRoot);
-	for (const path of paths) {
-		if ((await existingHash(await resolveTransactionPath(path))) !== null) {
-			throw new Error(`DATA_CONFLICT: immutable memory target already exists: ${path}`);
+	const oldHashes: Array<string | null> = [];
+	for (const [index, path] of paths.entries()) {
+		const oldHash = await existingHash(await resolveTransactionPath(path));
+		oldHashes.push(oldHash);
+		if ("content" in (built.writes[index] as MemoryTransactionMutation)) {
+			if (oldHash !== null) throw new Error(`DATA_CONFLICT: immutable memory target already exists: ${path}`);
+		} else if (oldHash === null) {
+			throw new Error(`DATA_CONFLICT: memory deletion target does not exist: ${path}`);
 		}
 	}
 
@@ -302,12 +380,20 @@ async function prepareMemoryTransactionUnlocked<Result>(
 		await mkdir(await resolveMemoryPath(profileRoot, directory, { allowMissing: true }));
 		await mkdir(await resolveMemoryPath(profileRoot, `${directory}/staged`, { allowMissing: true }));
 		const entries: MemoryTransactionEntry[] = [];
-		for (const [index, write] of built.writes.entries()) {
-			await atomicWriteFile(
-				await resolveMemoryPath(profileRoot, `${directory}/staged/${index}.bin`, { allowMissing: true }),
-				write.content,
-			);
-			entries.push({ path: paths[index] as string, newHash: hashBytes(write.content).value });
+		for (const [index, mutation] of built.writes.entries()) {
+			if ("content" in mutation) {
+				await atomicWriteFile(
+					await resolveMemoryPath(profileRoot, `${directory}/staged/${index}.bin`, { allowMissing: true }),
+					mutation.content,
+				);
+				entries.push({
+					path: paths[index] as string,
+					oldHash: null,
+					newHash: hashBytes(mutation.content).value,
+				});
+			} else {
+				entries.push({ path: paths[index] as string, oldHash: oldHashes[index] as string, newHash: null });
+			}
 		}
 		const profileContent = `${canonicalStringify(built.profile)}\n`;
 		await atomicWriteFile(
@@ -316,7 +402,7 @@ async function prepareMemoryTransactionUnlocked<Result>(
 		);
 		const journal: MemoryTransactionJournal = {
 			format: "doro-memory-transaction",
-			version: 1,
+			version: 2,
 			transactionId,
 			profileId: current.profileId,
 			expectedRevision: baseRevision,
@@ -365,7 +451,7 @@ async function commitPreparedMemoryTransactionUnlocked(profileRoot: string, tran
 				? "new"
 				: "other";
 	const states = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry.newHash)),
+		journal.entries.map((entry, index) => entryState(profileRoot, directory, index, entry, resolveTransactionPath)),
 	);
 	if (profileState === "other" || states.includes("other")) {
 		throw new Error(`Memory transaction target hash mismatch: ${transactionId}`);
@@ -382,28 +468,46 @@ async function commitPreparedMemoryTransactionUnlocked(profileRoot: string, tran
 		throw new Error(`Current profile does not match memory transaction journal: ${transactionId}`);
 	}
 	if (profileState === "new") {
-		if (states.some((state) => state !== "new")) {
+		if (states.some((state) => state !== "new" && state !== "new-finalized")) {
 			throw new Error(`Committed memory transaction has mixed state: ${transactionId}`);
 		}
+		await purgeDeletionBackups(profileRoot, directory, journal.entries);
 		await moveTransaction(profileRoot, transactionId, COMMITTED_DIRECTORY);
 		return;
 	}
+	if (states.includes("new-finalized")) {
+		throw new Error(`Uncommitted memory deletion backup is missing: ${transactionId}`);
+	}
 	for (const [index, entry] of journal.entries.entries()) {
 		if (states[index] === "new") continue;
-		const staged = await resolveMemoryPath(profileRoot, `${directory}/staged/${index}.bin`);
-		if ((await hashFile(staged)).value !== entry.newHash) throw new Error(`Staged hash mismatch: ${entry.path}`);
 		const target = await resolveTransactionPath(entry.path);
-		await mkdir(dirname(target), { recursive: true });
-		await rename(staged, target);
-		await syncParentDirectory(target);
+		if (entry.newHash !== null) {
+			const staged = await resolveMemoryPath(profileRoot, `${directory}/staged/${index}.bin`);
+			if ((await hashFile(staged)).value !== entry.newHash) {
+				throw new Error(`Staged hash mismatch: ${entry.path}`);
+			}
+			await mkdir(dirname(target), { recursive: true });
+			await rename(staged, target);
+			await Promise.all([syncParentDirectory(staged), syncParentDirectory(target)]);
+		} else {
+			const backup = await resolveMemoryPath(profileRoot, `${directory}/staged/deleted-${index}.bin`, {
+				allowMissing: true,
+			});
+			await rename(target, backup);
+			await Promise.all([syncParentDirectory(target), syncParentDirectory(backup)]);
+		}
 	}
 	await atomicWriteFile(profilePath, stagedProfileContent);
 	const finalStates = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry.newHash)),
+		journal.entries.map((entry, index) => entryState(profileRoot, directory, index, entry, resolveTransactionPath)),
 	);
-	if ((await existingHash(profilePath)) !== journal.profileNewHash || finalStates.some((state) => state !== "new")) {
+	if (
+		(await existingHash(profilePath)) !== journal.profileNewHash ||
+		finalStates.some((state) => state !== "new" && state !== "new-finalized")
+	) {
 		throw new Error(`Memory transaction commit verification failed: ${transactionId}`);
 	}
+	await purgeDeletionBackups(profileRoot, directory, journal.entries);
 	await moveTransaction(profileRoot, transactionId, COMMITTED_DIRECTORY);
 }
 
@@ -419,19 +523,31 @@ async function rollbackPreparedMemoryTransactionUnlocked(profileRoot: string, tr
 	if (currentProfile.profileId !== journal.profileId || currentProfile.revision !== journal.expectedRevision) {
 		throw new Error(`Current profile does not match memory transaction journal: ${transactionId}`);
 	}
-	for (const entry of journal.entries) {
+	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
+	for (const [index, entry] of journal.entries.entries()) {
 		const target = await resolveTransactionPath(entry.path);
-		const state = await fileState(target, entry.newHash);
+		const state = await entryState(profileRoot, directory, index, entry, resolveTransactionPath);
 		if (state === "other") throw new Error(`Memory transaction target hash mismatch: ${transactionId}`);
+		if (state === "new-finalized") {
+			throw new Error(`Memory transaction deletion backup is missing: ${transactionId}`);
+		}
 		if (state === "new") {
-			await rm(target);
-			await syncParentDirectory(target);
+			if (entry.newHash !== null) {
+				await rm(target);
+				await syncParentDirectory(target);
+			} else {
+				const backup = await resolveMemoryPath(profileRoot, `${directory}/staged/deleted-${index}.bin`);
+				await mkdir(dirname(target), { recursive: true });
+				await rename(backup, target);
+				await Promise.all([syncParentDirectory(backup), syncParentDirectory(target)]);
+			}
 		}
 	}
+	await rm(await resolveMemoryPath(profileRoot, `${directory}/staged`), { recursive: true, force: true });
 	await moveTransaction(profileRoot, transactionId, FAILED_DIRECTORY);
 }
 
-async function withMemoryWriterLease<Value>(
+export async function withMemoryWriterLease<Value>(
 	profileRoot: string,
 	action: (canonicalRoot: string) => Promise<Value>,
 ): Promise<Value> {

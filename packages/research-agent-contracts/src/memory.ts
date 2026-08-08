@@ -359,3 +359,24 @@ export const MemoryFeedbackV1Schema = StrictObject({
 	errorCode: Type.Union([CodeSchema, Type.Null()]),
 });
 export type MemoryFeedbackV1 = Static<typeof MemoryFeedbackV1Schema>;
+
+export const MemoryDeletionTombstoneV1Schema = StrictObject({
+	format: Type.Literal("doro-memory-deletion-tombstone"),
+	schemaVersion: Type.Literal(MEMORY_SCHEMA_VERSION),
+	profileId: IdentifierSchema,
+	memoryId: IdentifierSchema,
+	terminalRevision: Type.Integer({ minimum: 2 }),
+	lineageHash: Sha256Schema,
+	deletedRecordHashes: Type.Array(Sha256Schema, { minItems: 1, uniqueItems: true }),
+	relatedIdentifierHashes: Type.Array(Sha256Schema, { minItems: 1, uniqueItems: true }),
+	deletedPathHashes: Type.Array(Sha256Schema, { minItems: 1, uniqueItems: true }),
+	deletedAt: IsoDateTimeSchema,
+	reasonCode: Type.Union([
+		Type.Literal("user_requested"),
+		Type.Literal("privacy_request"),
+		Type.Literal("retention_expired"),
+		Type.Literal("policy_required"),
+	]),
+	transactionId: IdentifierSchema,
+});
+export type MemoryDeletionTombstoneV1 = Static<typeof MemoryDeletionTombstoneV1Schema>;

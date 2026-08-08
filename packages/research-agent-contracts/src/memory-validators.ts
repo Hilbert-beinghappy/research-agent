@@ -8,6 +8,8 @@ import {
 	type MemoryCandidateDraftV1,
 	MemoryCandidateDraftV1Schema,
 	type MemoryCategory,
+	type MemoryDeletionTombstoneV1,
+	MemoryDeletionTombstoneV1Schema,
 	type MemoryEffect,
 	type MemoryFeedbackV1,
 	MemoryFeedbackV1Schema,
@@ -46,6 +48,7 @@ const candidateValidator = Compile(MemoryCandidateDraftV1Schema);
 const itemValidator = Compile(MemoryItemV1Schema);
 const receiptValidator = Compile(MemoryUseReceiptV1Schema);
 const feedbackValidator = Compile(MemoryFeedbackV1Schema);
+const deletionTombstoneValidator = Compile(MemoryDeletionTombstoneV1Schema);
 const snapshotValidator = Compile(MemorySnapshotManifestV1Schema);
 const transferValidator = Compile(EncryptedTransferEnvelopeV1Schema);
 
@@ -536,6 +539,20 @@ function feedbackIssues(feedback: MemoryFeedbackV1): MemoryContractIssue[] {
 	return issues;
 }
 
+function deletionTombstoneIssues(tombstone: MemoryDeletionTombstoneV1): MemoryContractIssue[] {
+	const issues = timestampIssues([["deletedAt", tombstone.deletedAt]]);
+	for (const [path, hashes] of [
+		["deletedRecordHashes", tombstone.deletedRecordHashes],
+		["relatedIdentifierHashes", tombstone.relatedIdentifierHashes],
+		["deletedPathHashes", tombstone.deletedPathHashes],
+	] as const) {
+		if (hashes.some((value, index) => index > 0 && value <= (hashes[index - 1] as string))) {
+			issues.push(issue(path, "deletion.hash_order", "deletion hashes must be unique and sorted"));
+		}
+	}
+	return issues;
+}
+
 function snapshotIssues(snapshot: MemorySnapshotManifestV1): MemoryContractIssue[] {
 	const issues = timestampIssues([["createdAt", snapshot.createdAt]]);
 	if (snapshot.sourceLineage.profileId !== snapshot.profileId) {
@@ -599,6 +616,10 @@ export function validateMemoryUseReceiptV1(value: unknown): MemoryContractValida
 
 export function validateMemoryFeedbackV1(value: unknown): MemoryContractValidation<MemoryFeedbackV1> {
 	return validateWith(value, feedbackValidator, feedbackIssues);
+}
+
+export function validateMemoryDeletionTombstoneV1(value: unknown): MemoryContractValidation<MemoryDeletionTombstoneV1> {
+	return validateWith(value, deletionTombstoneValidator, deletionTombstoneIssues);
 }
 
 export function validateMemorySnapshotManifestV1(value: unknown): MemoryContractValidation<MemorySnapshotManifestV1> {

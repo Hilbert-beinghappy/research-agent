@@ -3,6 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open as openFile, readdir, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { MemoryDeletionTombstoneV1 } from "@research-agent/contracts";
+import { validateMemoryDeletionTombstoneV1 } from "@research-agent/contracts";
 import type {
 	MemoryCandidateDraftV1,
 	MemoryCategory,
@@ -36,7 +38,13 @@ import {
 	validateMemoryIdentifier,
 	validateMemoryLayout,
 } from "./layout.ts";
-import { listPendingMemoryTransactions, readMemoryProfileFile, runMemoryTransaction } from "./transactions.ts";
+import {
+	listPendingMemoryTransactions,
+	listPendingMemoryTransactionsAtRoot,
+	readMemoryProfileFile,
+	runMemoryTransaction,
+	withMemoryWriterLease,
+} from "./transactions.ts";
 
 export type ImmutableMemoryRecord =
 	| PreferenceSignalV1
@@ -68,15 +76,22 @@ interface ActiveItemsCacheV1 {
 	items: ActiveItemRef[];
 }
 
-interface CanonicalMemoryState {
+export interface CanonicalMemoryState {
+	signals: PreferenceSignalV1[];
+	candidates: MemoryCandidateDraftV1[];
 	items: MemoryItemV1[];
 	activeItems: MemoryItemV1[];
+	feedback: MemoryFeedbackV1[];
+	receipts: MemoryUseReceiptV1[];
+	tombstones: MemoryDeletionTombstoneV1[];
+	transferManifests: MemorySnapshotManifestV1[];
 	counts: {
 		signals: number;
 		candidates: number;
 		items: number;
 		feedback: number;
 		receipts: number;
+		tombstones: number;
 		transferManifests: number;
 	};
 }
@@ -88,6 +103,7 @@ export type OpenedMemoryProfile =
 			profile: ResearcherProfileV1;
 			items: MemoryItemV1[];
 			activeItems: MemoryItemV1[];
+			tombstones: MemoryDeletionTombstoneV1[];
 			cacheStatus: "valid" | "rebuilt" | "stale" | "unavailable";
 			counts: CanonicalMemoryState["counts"];
 	  }
@@ -260,12 +276,15 @@ function validateItemHistory(profile: ResearcherProfileV1, items: MemoryItemV1[]
 	return active.sort((left, right) => left.memoryId.localeCompare(right.memoryId));
 }
 
-async function loadCanonicalState(profileRoot: string, profile: ResearcherProfileV1): Promise<CanonicalMemoryState> {
+export async function loadCanonicalMemoryState(
+	profileRoot: string,
+	profile: ResearcherProfileV1,
+): Promise<CanonicalMemoryState> {
 	// ponytail: reject audit records until their schema lands; add the validator with the audit contract.
 	if ((await canonicalFiles(profileRoot, "audit")).length > 0) {
 		throw new TypeError("Memory audit records are not supported by the current contract version");
 	}
-	const [signals, candidates, items, feedback, receipts, transferManifests] = await Promise.all([
+	const [signals, candidates, items, feedback, receipts, tombstones, transferManifests] = await Promise.all([
 		scanRecords(
 			profileRoot,
 			profile.profileId,
@@ -309,6 +328,14 @@ async function loadCanonicalState(profileRoot: string, profile: ResearcherProfil
 		scanRecords(
 			profileRoot,
 			profile.profileId,
+			"tombstones",
+			validateMemoryDeletionTombstoneV1,
+			(record) => record.memoryId,
+			(record) => `tombstones/${record.memoryId}.json`,
+		),
+		scanRecords(
+			profileRoot,
+			profile.profileId,
 			"transfer-manifests",
 			validateMemorySnapshotManifestV1,
 			(record) => record.snapshotId,
@@ -316,14 +343,21 @@ async function loadCanonicalState(profileRoot: string, profile: ResearcherProfil
 		),
 	]);
 	return {
+		signals,
+		candidates,
 		items,
 		activeItems: validateItemHistory(profile, items),
+		feedback,
+		receipts,
+		tombstones,
+		transferManifests,
 		counts: {
 			signals: signals.length,
 			candidates: candidates.length,
 			items: items.length,
 			feedback: feedback.length,
 			receipts: receipts.length,
+			tombstones: tombstones.length,
 			transferManifests: transferManifests.length,
 		},
 	};
@@ -478,13 +512,22 @@ export async function openMemoryProfile(
 				],
 			};
 		}
-		const state = await loadCanonicalState(root, profile);
+		const state = await loadCanonicalMemoryState(root, profile);
 		const cache = cacheDocument(profile, state.activeItems);
 		let cacheStatus: "valid" | "rebuilt" | "stale" | "unavailable" = "unavailable";
 		try {
 			cacheStatus = (await cacheMatches(root, cache)) ? "valid" : "stale";
 			if (cacheStatus === "stale" && (options.rebuildCache ?? true)) {
-				await writeActiveItemsCache(root, cache);
+				await withMemoryWriterLease(root, async (lockedRoot) => {
+					const [currentProfile, pending] = await Promise.all([
+						readMemoryProfileFile(lockedRoot),
+						listPendingMemoryTransactionsAtRoot(lockedRoot),
+					]);
+					if (pending.length > 0 || canonicalStringify(currentProfile) !== canonicalStringify(profile)) {
+						throw new Error("DATA_CONFLICT: profile changed before active memory cache rebuild");
+					}
+					await writeActiveItemsCache(lockedRoot, cache);
+				});
 				cacheStatus = "rebuilt";
 			}
 		} catch {
@@ -496,6 +539,7 @@ export async function openMemoryProfile(
 			profile,
 			items: state.items,
 			activeItems: profile.status === "active" ? state.activeItems : [],
+			tombstones: state.tombstones,
 			cacheStatus,
 			counts: state.counts,
 		};
@@ -614,7 +658,10 @@ export async function appendMemoryItem(
 				throw new Error("MEMORY_PROFILE_PAUSED: paused profiles cannot activate memory items");
 			}
 			// ponytail: scan canonical items here; add a validated item hash index only after profile-scale benchmarks require it.
-			const state = await loadCanonicalState(profileRoot, profile);
+			const state = await loadCanonicalMemoryState(profileRoot, profile);
+			if (state.tombstones.some(({ memoryId }) => memoryId === itemInput.memoryId)) {
+				throw new Error("MEMORY_DELETED_TERMINAL: deleted memory IDs cannot be reused");
+			}
 			const revisions = state.items
 				.filter(({ memoryId }) => memoryId === itemInput.memoryId)
 				.sort((left, right) => left.revision - right.revision);

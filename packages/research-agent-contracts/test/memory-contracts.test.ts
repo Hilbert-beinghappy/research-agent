@@ -8,6 +8,8 @@ import {
 	EncryptedTransferEnvelopeV1Schema,
 	type MemoryCandidateDraftV1,
 	MemoryCandidateDraftV1Schema,
+	type MemoryDeletionTombstoneV1,
+	MemoryDeletionTombstoneV1Schema,
 	type MemoryFeedbackV1,
 	MemoryFeedbackV1Schema,
 	type MemoryItemV1,
@@ -22,6 +24,7 @@ import {
 	ResearcherProfileV1Schema,
 	validateEncryptedTransferEnvelopeV1,
 	validateMemoryCandidateDraftV1,
+	validateMemoryDeletionTombstoneV1,
 	validateMemoryFeedbackV1,
 	validateMemoryItemV1,
 	validateMemorySnapshotManifestV1,
@@ -37,6 +40,7 @@ interface GoldenMemoryContracts {
 	memoryItem: MemoryItemV1;
 	memoryUseReceipt: MemoryUseReceiptV1;
 	memoryFeedback: MemoryFeedbackV1;
+	memoryDeletionTombstone: MemoryDeletionTombstoneV1;
 	memorySnapshotManifest: MemorySnapshotManifestV1;
 	encryptedTransferEnvelope: EncryptedTransferEnvelopeV1;
 }
@@ -87,6 +91,13 @@ const contracts = [
 		MemoryFeedbackV1Schema,
 		golden.memoryFeedback,
 		(value: unknown) => validateMemoryFeedbackV1(value),
+	],
+	[
+		"memory-deletion-tombstone",
+		"Doro Memory Deletion Tombstone v1",
+		MemoryDeletionTombstoneV1Schema,
+		golden.memoryDeletionTombstone,
+		(value: unknown) => validateMemoryDeletionTombstoneV1(value),
 	],
 	[
 		"memory-snapshot-manifest",
@@ -183,6 +194,12 @@ describe("Personal Memory contracts", () => {
 			}).ok,
 		).toBe(false);
 		expect(validateMemoryFeedbackV1({ ...golden.memoryFeedback, resultingRevision: 4 }).ok).toBe(false);
+		expect(
+			validateMemoryDeletionTombstoneV1({
+				...golden.memoryDeletionTombstone,
+				deletedPathHashes: [...golden.memoryDeletionTombstone.deletedPathHashes].reverse(),
+			}).ok,
+		).toBe(false);
 		expect(
 			validateMemoryCandidateDraftV1({
 				...golden.memoryCandidateDraft,

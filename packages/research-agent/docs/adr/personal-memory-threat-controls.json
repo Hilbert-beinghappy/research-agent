@@ -124,7 +124,7 @@
         {
           "id": "delete-semantic-residue",
           "path": "test/integration/memory/security/delete-semantic-residue.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"

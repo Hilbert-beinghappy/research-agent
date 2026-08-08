@@ -14,6 +14,7 @@ import {
 } from "../src/adapters.ts";
 import {
 	MemoryCandidateDraftV1Schema,
+	MemoryDeletionTombstoneV1Schema,
 	MemoryFeedbackV1Schema,
 	MemoryItemV1Schema,
 	MemoryUseReceiptV1Schema,
@@ -58,6 +59,7 @@ const memorySchemas = [
 	["memory-item", "Doro Memory Item v1", MemoryItemV1Schema],
 	["memory-use-receipt", "Doro Memory Use Receipt v1", MemoryUseReceiptV1Schema],
 	["memory-feedback", "Doro Memory Feedback v1", MemoryFeedbackV1Schema],
+	["memory-deletion-tombstone", "Doro Memory Deletion Tombstone v1", MemoryDeletionTombstoneV1Schema],
 	["memory-snapshot-manifest", "Doro Memory Snapshot Manifest v1", MemorySnapshotManifestV1Schema],
 	["encrypted-transfer-envelope", "Doro Encrypted Transfer Envelope v1", EncryptedTransferEnvelopeV1Schema],
 ] as const;

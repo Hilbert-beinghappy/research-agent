@@ -216,6 +216,28 @@
 		"transactionId": "transaction-2",
 		"errorCode": null
 	},
+	"memoryDeletionTombstone": {
+		"format": "doro-memory-deletion-tombstone",
+		"schemaVersion": "1.0.0",
+		"profileId": "profile-1",
+		"memoryId": "memory-writing-language",
+		"terminalRevision": 2,
+		"lineageHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+		"deletedRecordHashes": [
+			"sha256:2222222222222222222222222222222222222222222222222222222222222222",
+			"sha256:3333333333333333333333333333333333333333333333333333333333333333"
+		],
+		"relatedIdentifierHashes": [
+			"sha256:4444444444444444444444444444444444444444444444444444444444444444"
+		],
+		"deletedPathHashes": [
+			"sha256:5555555555555555555555555555555555555555555555555555555555555555",
+			"sha256:6666666666666666666666666666666666666666666666666666666666666666"
+		],
+		"deletedAt": "2026-08-08T00:00:06.000Z",
+		"reasonCode": "user_requested",
+		"transactionId": "transaction-3"
+	},
 	"memorySnapshotManifest": {
 		"format": "doro-memory-snapshot",
 		"schemaVersion": "1.0.0",

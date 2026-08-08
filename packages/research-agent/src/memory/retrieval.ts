@@ -13,13 +13,24 @@ import { validateMemoryItemV1 } from "@research-agent/contracts/memory-validator
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
 import { hashBytes, hashCanonicalJson } from "../contracts/integrity.ts";
 import { atomicWriteFile } from "../project/atomic-write.ts";
-import { MEMORY_PROFILE_PATH, resolveMemoryPath, validateMemoryIdentifier, validateMemoryLayout } from "./layout.ts";
+import {
+	MEMORY_PROFILE_PATH,
+	MEMORY_RETRIEVAL_INDEX_HASH_PATH,
+	MEMORY_RETRIEVAL_INDEX_PATH,
+	resolveMemoryPath,
+	validateMemoryIdentifier,
+	validateMemoryLayout,
+} from "./layout.ts";
 import { openMemoryProfile } from "./store.ts";
-import { listPendingMemoryTransactionsAtRoot, parseMemoryProfile } from "./transactions.ts";
+import {
+	listPendingMemoryTransactionsAtRoot,
+	parseMemoryProfile,
+	readMemoryProfileFile,
+	withMemoryWriterLease,
+} from "./transactions.ts";
 
 export const MEMORY_CONTEXT_LABEL = "User preferences; not domain facts or research evidence.";
-export const MEMORY_RETRIEVAL_INDEX_PATH = "cache/retrieval-index-v1.json";
-export const MEMORY_RETRIEVAL_INDEX_HASH_PATH = "cache/retrieval-index-v1.sha256";
+export { MEMORY_RETRIEVAL_INDEX_HASH_PATH, MEMORY_RETRIEVAL_INDEX_PATH };
 
 const categories = new Set<MemoryCategory>([
 	"domain",
@@ -159,6 +170,12 @@ interface CachedRetrievalIndex {
 
 const profileCache = new Map<string, CachedProfile>();
 const retrievalIndexCache = new Map<string, CachedRetrievalIndex>();
+
+export async function clearPersonalMemoryRetrievalCache(profileRoot: string): Promise<void> {
+	const root = await validateMemoryLayout(profileRoot);
+	profileCache.delete(root);
+	retrievalIndexCache.delete(root);
+}
 
 function remember<Value>(cache: Map<string, Value>, key: string, value: Value): void {
 	cache.delete(key);
@@ -483,13 +500,25 @@ async function writeRetrievalIndex(root: string, profile: ResearcherProfileV1, i
 		currentItemRootHash: profile.currentItemRootHash,
 		items: items.map(retrievalIndexEntry).sort((left, right) => left.memoryId.localeCompare(right.memoryId)),
 	};
-	// ponytail: this is a derived atomic last-writer-wins cache; add a lock only if rebuild contention is measured.
+	// The shared memory lease prevents a stale rebuild from racing correction or deletion.
 	const text = `${canonicalStringify(document)}\n`;
-	await atomicWriteFile(await resolveMemoryPath(root, MEMORY_RETRIEVAL_INDEX_PATH, { allowMissing: true }), text);
-	await atomicWriteFile(
-		await resolveMemoryPath(root, MEMORY_RETRIEVAL_INDEX_HASH_PATH, { allowMissing: true }),
-		`sha256:${hashBytes(text).value}\n`,
-	);
+	await withMemoryWriterLease(root, async (lockedRoot) => {
+		const [currentProfile, pending] = await Promise.all([
+			readMemoryProfileFile(lockedRoot),
+			listPendingMemoryTransactionsAtRoot(lockedRoot),
+		]);
+		if (pending.length > 0 || canonicalStringify(currentProfile) !== canonicalStringify(profile)) {
+			throw new Error("DATA_CONFLICT: profile changed before retrieval cache rebuild");
+		}
+		await atomicWriteFile(
+			await resolveMemoryPath(lockedRoot, MEMORY_RETRIEVAL_INDEX_PATH, { allowMissing: true }),
+			text,
+		);
+		await atomicWriteFile(
+			await resolveMemoryPath(lockedRoot, MEMORY_RETRIEVAL_INDEX_HASH_PATH, { allowMissing: true }),
+			`sha256:${hashBytes(text).value}\n`,
+		);
+	});
 }
 
 async function activeItemSource(profileRoot: string): Promise<ActiveItemSource | null> {
@@ -509,7 +538,7 @@ async function activeItemSource(profileRoot: string): Promise<ActiveItemSource |
 	} catch {
 		// Rebuild from canonical state below.
 	}
-	const opened = await openMemoryProfile(root);
+	const opened = await openMemoryProfile(root, { rebuildCache: false });
 	if (opened.mode !== "read-write") return null;
 	const rebuiltSnapshot = await readProfileSnapshot(opened.root);
 	if (canonicalStringify(rebuiltSnapshot.profile) !== canonicalStringify(opened.profile)) return null;
