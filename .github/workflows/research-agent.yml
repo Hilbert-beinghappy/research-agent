@@ -13,8 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  v2-core:
-    name: v2.0.1 core (${{ matrix.os }})
+  v3-beta-core:
+    name: v3.0.0-beta.1 technical core (${{ matrix.os }})
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -68,7 +71,7 @@ jobs:
           npm run test:e2e -w packages/research-agent
           npm run test:compat -w packages/research-agent
 
-      - name: Replay v0.1 through v2.0 release gates
+      - name: Replay v0.1 through v3 technical gates
         run: |
           npm run eval -w packages/research-agent -- v0.1
           npm run eval:v0.2 -w packages/research-agent -- v0.2
@@ -79,6 +82,15 @@ jobs:
           npm run eval:v1.1 -w packages/research-agent -- v1.1
           npm run eval:v1.5 -w packages/research-agent -- v1.5
           npm run eval:v2.0 -w packages/research-agent -- v2.0
+          npm run eval:memory:v3 -w packages/research-agent
+
+      - name: Qualify Personal Memory scale
+        run: |
+          node packages/research-agent/scripts/qualify-memory-store.ts --output research-agent-memory-store-v3.json
+          node packages/research-agent/scripts/qualify-memory-retrieval.ts --output research-agent-memory-retrieval-v3.json
+
+      - name: Qualify v3 beta technical boundary
+        run: npm run qualify:v3-beta -w packages/research-agent -- --output ../../research-agent-v3-beta-qualification.json
 
       - name: Benchmark v0.1 through v2.0
         run: |
@@ -108,13 +120,14 @@ jobs:
         run: node packages/research-agent/scripts/qualify-v2.0-scenario-e.ts --output research-agent-scenario-e-v2.0.json
 
       - name: Qualify reproducible release
-        run: node packages/research-agent/scripts/qualify-v2.0-release.ts --output research-agent-release-v2.0.1.json
+        run: npm run qualify:release:v3-beta -w packages/research-agent -- --output ../../research-agent-release-v3.0.0-beta.1.json
 
       - name: Qualify installed Python and R runtimes
         if: runner.os != 'Windows'
         run: npm run qualify:runtimes:v0.3 -w packages/research-agent
 
       - name: Upload benchmark report
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: research-agent-benchmark-${{ matrix.os }}
@@ -128,10 +141,14 @@ jobs:
             research-agent-benchmark-v1.1.json
             research-agent-benchmark-v1.5.json
             research-agent-benchmark-v2.0.json
+            research-agent-memory-store-v3.json
+            research-agent-memory-retrieval-v3.json
+            research-agent-v3-beta-qualification.json
             research-agent-isolation-v1.5.json
             research-agent-scenario-e-v2.0.json
-            research-agent-release-v2.0.1.json
+            research-agent-release-v3.0.0-beta.1.json
             research-agent-release-identity.json
+          if-no-files-found: warn
 
       - name: Qualify release package
         run: |
@@ -141,7 +158,7 @@ jobs:
           npm run test:clean-install:latest -w packages/research-agent
 
   transaction-qualification:
-    name: v2.0.1 transaction qualification (macOS)
+    name: v3.0.0-beta.1 transaction qualification (macOS)
     timeout-minutes: 30
     runs-on: macos-latest
     steps:

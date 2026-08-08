@@ -70,7 +70,7 @@ async function qualifyPackage(root: string, first: string, second: string) {
 	};
 }
 
-const temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-v2.0-release-"));
+const temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-release-"));
 try {
 	const directories = ["agent-a", "agent-b", "contracts-a", "contracts-b"].map((name) =>
 		join(temporaryDirectory, name),

@@ -1,0 +1,25 @@
+{
+  "format": "doro-memory-transfer-crypto-vector",
+  "version": 1,
+  "description": "Public test-only known-answer vector; contains no production key or credential.",
+  "kdf": {
+    "name": "scrypt",
+    "N": 131072,
+    "r": 8,
+    "p": 1,
+    "maxmem": 268435456
+  },
+  "cipher": "AES-256-GCM",
+  "input": {
+    "passphraseUtf8": "doro-memory-transfer-v1-vector",
+    "saltHex": "000102030405060708090a0b0c0d0e0f",
+    "dekHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "nonceHex": "101112131415161718191a1b",
+    "aadBase64": "eyJmb3JtYXQiOiJkb3JvLW1lbW9yeS10cmFuc2Zlci1rZXktYWFkIiwidmVyc2lvbiI6MX0="
+  },
+  "expected": {
+    "kekHex": "34b674dd50f4412ec246a24ce83d5da8151d805920b2b9afce0a47fbeff44ac9",
+    "ciphertextHex": "f1cc5a7877937ba48b5e15093dcc2892526cd1bf1c7fd14cd2c1b7c59ed385fa",
+    "tagHex": "86961a68cc9fccff73f9ac8af5e06a10"
+  }
+}

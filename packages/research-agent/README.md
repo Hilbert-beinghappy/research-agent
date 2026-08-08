@@ -1,6 +1,6 @@
 # Pi Research Agent
 
-Pi Research Agent is a local-first Pi package for evidence-based research. The current source tree is an unpublished v2.0.1 hardening candidate; Doro is the branded Pi Package/Profile and does not provide a standalone `doro` CLI. The package connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, isolated local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, a Zotero export/push adapter, Obsidian-compatible Markdown export, and user-triggered literature monitoring. It extends Pi without replacing Pi Core, adding a database, or requiring a separate UI.
+Pi Research Agent is a local-first Pi package for evidence-based research. The current source tree is an unpublished `3.0.0-beta.1` technical candidate; Doro is the branded Pi Package/Profile and does not provide a standalone `doro` CLI. Personal Memory is opt-in, isolated from Research Projects, and limited to governed preferences. The real beta pilot has not started, so this source tree is not release-qualified and cannot support a stable-v3 claim. The package connects topic intake, governed literature discovery, evidence and citation checks, user-confirmed research design, isolated local Python/R analysis, optional user-owned Stata execution, auditable qualitative coding, immutable claim-to-evidence manuscript revision, portable knowledge exports, a Zotero export/push adapter, Obsidian-compatible Markdown export, and user-triggered literature monitoring. It extends Pi without replacing Pi Core, adding a database, or requiring a separate UI.
 
 The package is evidence-first: metadata, abstract text, acquired full text, located excerpts, and verified citations are distinct states. Missing full text, unresolved metadata, paywalls, retractions, and insufficient evidence remain explicit; they are never converted into success by model wording.
 
@@ -31,10 +31,10 @@ Then initialize and load the intake workflow:
 Expected version notification:
 
 ```text
-pi-research-agent v2.0.1
+pi-research-agent v3.0.0-beta.1
 ```
 
-The source and packed candidate report 2.0.1. This is release-candidate identity, not evidence that npm publication or the GitHub release has occurred.
+The source and packed candidate report `3.0.0-beta.1`. This is technical candidate identity, not evidence that the beta pilot, npm publication, or a GitHub release has occurred.
 
 The eleven bundled Skills cover the research lifecycle from intake through monitoring. `/scope-review` and `/integrity-review` expand deterministic review prompts. The model invokes sixteen governed aggregate Tools; Personal Memory inspection is value-free, and feedback requires the exact current user request plus interactive confirmation. Eighteen commands cover the bounded `/memory` family, project state, migration, domains, Adapter inspection/registration, deterministic model routing, exchange, and version reporting.
 
@@ -72,6 +72,8 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [Evidence evaluation](docs/evaluation.md)
 - [v2.0 threat model](docs/threat-model.md)
 - [Personal Memory architecture decisions (v3 proposal)](docs/adr/README.md)
+- [Personal Memory beta trial protocol](docs/memory-v3-beta-trial.md)
+- [Personal Memory v3 migration and rollback](docs/memory-v3-migration.md)
 - [v0.1 release evidence and limitations](docs/release-v0.1.md)
 - [v0.2 release evidence and limitations](docs/release-v0.2.md)
 - [v0.3 release evidence and limitations](docs/release-v0.3.md)
@@ -82,7 +84,8 @@ Crossref works without `CROSSREF_MAILTO`. OpenAlex search and Unpaywall lookup r
 - [v1.5 release evidence and limitations](docs/release-v1.5.md)
 - [v2.0 release evidence and limitations](docs/release-v2.0.md)
 - [v2.0.1 release-candidate boundary](docs/release-v2.0.1-rc.md)
-- [Release-candidate checklist](docs/release-checklist.md)
+- [v3.0.0-beta.1 technical-candidate boundary](docs/release-v3.0.0-beta.1.md)
+- [Technical-candidate checklist](docs/release-checklist.md)
 - [Literature monitoring and scheduling](docs/monitoring.md)
 - [Manuscript review rubrics](docs/review-rubrics.md)
 - [Submission gate](docs/submission-gate.md)
@@ -138,6 +141,11 @@ npm run eval:v2.0 -w packages/research-agent -- v2.0
 npm run benchmark:v2.0 -w packages/research-agent
 npm run qualify:scenario-e:v2.0 -w packages/research-agent
 npm run qualify:release:v2.0 -w packages/research-agent
+npm run eval:memory:v3 -w packages/research-agent
+npm run qualify:memory-retrieval:v3 -w packages/research-agent
+npm run qualify:memory-store:v3 -w packages/research-agent
+npm run qualify:release:v3-beta -w packages/research-agent
+npm run qualify:v3-beta -w packages/research-agent
 npm run report:release-identity -w packages/research-agent
 npm run scan:release -w packages/research-agent
 npm run test:clean-install -w packages/research-agent

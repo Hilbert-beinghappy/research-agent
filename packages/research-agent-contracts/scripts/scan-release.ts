@@ -67,6 +67,7 @@ for (const path of [
 	"schemas/v1.5/model-route-decision.schema.json",
 	"schemas/memory/v1.0/encrypted-transfer-envelope.schema.json",
 	"schemas/memory/v1.0/memory-candidate-draft.schema.json",
+	"schemas/memory/v1.0/memory-deletion-tombstone.schema.json",
 	"schemas/memory/v1.0/memory-feedback.schema.json",
 	"schemas/memory/v1.0/memory-item.schema.json",
 	"schemas/memory/v1.0/memory-snapshot-manifest.schema.json",
@@ -109,5 +110,14 @@ for (const file of result.files) {
 	}
 }
 process.stdout.write(
-	`${JSON.stringify({ status: "passed", entryCount: result.entryCount, scannedBytes, schemas: 25 }, null, 2)}\n`,
+	`${JSON.stringify(
+		{
+			status: "passed",
+			entryCount: result.entryCount,
+			scannedBytes,
+			schemas: [...paths].filter((path) => path.startsWith("schemas/") && path.endsWith(".schema.json")).length,
+		},
+		null,
+		2,
+	)}\n`,
 );

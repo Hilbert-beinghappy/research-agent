@@ -1,8 +1,8 @@
 # SDK and stdio RPC v1
 
-`pi-research-agent` 2.0.1 exposes the same inspection dispatcher through a TypeScript SDK and a local newline-delimited JSON RPC process. Both surfaces operate only on project roots supplied by the caller at startup. They do not accept arbitrary filesystem paths in requests and do not expose canonical mutation methods.
+`pi-research-agent` `3.0.0-beta.1` exposes the same inspection dispatcher through a TypeScript SDK and a local newline-delimited JSON RPC process. Both surfaces operate only on project roots supplied by the caller at startup. They do not accept arbitrary filesystem paths in requests and do not expose canonical mutation methods.
 
-The package and SDK report 2.0.1 while `@research-agent/contracts` remains 2.0.0. The canonical research project schema is 1.5.1. A 1.5.0 project opens read-only until its provenance migration is confirmed.
+The package and SDK report `3.0.0-beta.1` while `@research-agent/contracts` remains `2.1.0`. The canonical research project schema is 1.5.1. A 1.5.0 project opens read-only until its provenance migration is confirmed.
 
 ## SDK
 

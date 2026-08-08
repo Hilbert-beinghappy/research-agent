@@ -16,6 +16,7 @@ import { initializeProject } from "../src/project/init.ts";
 import { validateProject } from "../src/project/validate.ts";
 import { runResearchRpcServer } from "../src/rpc/server.ts";
 import { createResearchSdk, RESEARCH_SDK_METHODS } from "../src/sdk/index.ts";
+import { RESEARCH_AGENT_PACKAGE_VERSION } from "../src/version.ts";
 
 interface Rubric {
 	version: string;
@@ -166,16 +167,16 @@ const [agentManifest, contractsManifest] = await Promise.all([
 ]);
 check(
 	agentManifest.name === "pi-research-agent" &&
-		agentManifest.version === "2.0.1" &&
+		agentManifest.version === RESEARCH_AGENT_PACKAGE_VERSION &&
 		agentManifest.license === "Apache-2.0" &&
-		agentManifest.dependencies["@research-agent/contracts"] === "2.0.0",
-	"Research Agent v2.0.1 hardening package metadata changed",
+		agentManifest.dependencies["@research-agent/contracts"] === contractsManifest.version,
+	"Research Agent compatibility package metadata changed",
 );
 check(
 	contractsManifest.name === "@research-agent/contracts" &&
-		contractsManifest.version === "2.0.0" &&
+		contractsManifest.version === "2.1.0" &&
 		contractsManifest.license === "Apache-2.0",
-	"Contracts v2.0 package metadata changed",
+	"Contracts package metadata changed",
 );
 check(RESEARCH_SCHEMA_VERSION === "1.5.1", "Semantic-provenance schema hardening is missing");
 check(

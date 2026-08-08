@@ -1,6 +1,6 @@
 {
   "qualification": "pi-research-agent-v3-memory-store",
-  "generatedAt": "2026-08-08T13:15:53.440Z",
+  "generatedAt": "2026-08-08T15:59:08.050Z",
   "platform": "darwin-arm64",
   "node": "v24.14.0",
   "configuration": {
@@ -15,8 +15,8 @@
   },
   "recordRootHash": "sha256:aff7dbc7126e0a2ba1d731b8b485585fdeea55b8201ea345f79c25c24c5c846a",
   "input": {
-    "storeSha256": "fc196e60691e568df667cc8878954ba1dc79ea35ba12653978d7e68503ad5e9a",
-    "transactionsSha256": "fdb24c47c4938a98f687d94965a3dccf66143a0cf5512ab1e481abeed680e739",
+    "storeSha256": "64924b101001c68521f63f20a516ff75d405c7cd119737333b4e0432abe84309",
+    "transactionsSha256": "65bc7923df6cd17527a775ab6048c49f2c856bf5012970144c1a457261df9b3d",
     "qualificationScriptSha256": "41518bddc130f972bf4b9500f8cd6c21f5bdf47a4ed558897d187fc41af964ca"
   },
   "checks": {
@@ -27,7 +27,7 @@
     "noPendingTransactions": true,
     "recordRootExact": true
   },
-  "elapsedMs": 700291,
+  "elapsedMs": 779037,
   "usage": {
     "modelCalls": 0,
     "apiRequests": 0,

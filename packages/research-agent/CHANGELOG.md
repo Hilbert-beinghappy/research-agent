@@ -15,7 +15,7 @@
 
 ### Changed
 
-- The Agent package, Extension, SDK identity, clean-install probes, SBOM, and compatibility manifest advance to the unpublished 2.0.1 candidate while contracts remain pinned to 2.0.0 and project schema remains 1.5.1.
+- The Agent package, Extension, SDK identity, clean-install probes, SBOM, and compatibility manifest advance to the unpublished `3.0.0-beta.1` technical candidate while contracts remain `2.1.0` and project schema remains `1.5.1`.
 - Fixed-SHA CI now records machine-readable release identity and enforces three macOS 1,000-write passes, a 225-second budget, 2.6 growth ratios, and a sub-0.1% distinct-ID conflict rate.
 - Doro terminal sessions replace Pi's generic startup help with a compact side-by-side identity panel showing a scaled-down Bocchi pet with the blue-yellow hair ornament preserved, the active model and effort, and current directory.
 - Public package exports now load compiled `dist` modules and expose only contracts, Adapter protocol, SDK, RPC, schemas, and package metadata.

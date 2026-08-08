@@ -26,6 +26,7 @@ import { calculateRecordSetIndex, listProjectRecordIds, projectRecordPath } from
 import { readRecord } from "../../src/project/records.ts";
 import { prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { validateProject } from "../../src/project/validate.ts";
+import { RESEARCH_AGENT_PACKAGE_VERSION } from "../../src/version.ts";
 import { itemDraft, retrievalQuery } from "./memory/security/retrieval-fixtures.ts";
 
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
@@ -334,7 +335,7 @@ describe("research extension commands", () => {
 			| undefined;
 		const header = headerFactory?.(undefined, theme).render(80);
 		expect(header).toHaveLength(12);
-		expect(header?.[0]).toContain("Doro Research Agent v2.0.1");
+		expect(header?.[0]).toContain(`Doro Research Agent v${RESEARCH_AGENT_PACKAGE_VERSION}`);
 		expect(header?.[1]).toContain("deepseek-v4-flash with max effort");
 		expect(header?.join("\n")).not.toContain("Powered by Pi");
 		expect(header?.[2]).toContain(temporaryDirectory);

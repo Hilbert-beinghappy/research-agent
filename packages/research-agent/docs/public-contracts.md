@@ -22,7 +22,7 @@
 
 Canonical project JSON Schemas remain under `schemas/v1.5`; the current project schema is 1.5.1. SDK/RPC protocol schemas are published under `schemas/v2.0` in both packages. Package v2.0 introduces no project schema 2.0 migration. Compiled modules and generated schemas are shipped for consumers; TypeBox source remains the repository authority.
 
-Contracts package 2.1.0 adds the data-only Personal Memory entry points above and generated schemas under `schemas/memory/v1.0`. The v1 validators apply the exported fixed low-risk key allowlist and bounded structured values; registry-backed identifiers still require deterministic Host resolution before activation. This is additive contract work toward v3 beta; it does not migrate Research Project schema 1.5.1, expose a memory writer, or claim that the Personal Memory runtime is complete.
+Contracts package 2.1.0 adds the data-only Personal Memory entry points above and generated schemas under `schemas/memory/v1.0`. The v1 validators apply the exported fixed low-risk key allowlist and bounded structured values; registry-backed identifiers still require deterministic Host resolution before activation. The v3.0.0-beta.1 Agent technical candidate implements the governed runtime while keeping these public contracts data-only. It does not migrate Research Project schema 1.5.1 or establish beta/stable release eligibility.
 
 ## Frozen Adapter contract v1
 

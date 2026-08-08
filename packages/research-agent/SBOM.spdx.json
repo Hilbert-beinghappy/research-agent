@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "pi-research-agent-2.0.1",
-  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-2.0.1-afd225937c9e0e699f8a3868377ed2c2d24425263815731c3f338ff2d9e5f693",
+  "name": "pi-research-agent-3.0.0-beta.1",
+  "documentNamespace": "https://spdx.org/spdxdocs/pi-research-agent-3.0.0-beta.1-3168b036a06a47fce41b1bfce31c6ea6eb121b504642700b1ae915221e98193d",
   "creationInfo": {
     "created": "2026-08-06T00:00:00.000Z",
     "creators": [
@@ -461,9 +461,9 @@
       "packageComment": "npm integrity: sha512-YxFb+SQcodN2rnX9Tn3dHYlqfb7NjlzzfONPpJd+AKoKtUjEdevTfbC07d5TcczzOK6261auRkP/M8OBHs9vFQ=="
     },
     {
-      "SPDXID": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
+      "SPDXID": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670",
       "name": "pi-research-agent",
-      "versionInfo": "2.0.1",
+      "versionInfo": "3.0.0-beta.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -473,7 +473,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/pi-research-agent@2.0.1"
+          "referenceLocator": "pkg:npm/pi-research-agent@3.0.0-beta.1"
         }
       ]
     },
@@ -572,7 +572,7 @@
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
-      "relatedSpdxElement": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670"
+      "relatedSpdxElement": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670"
     },
     {
       "spdxElementId": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825",
@@ -665,27 +665,27 @@
       "relatedSpdxElement": "SPDXRef-Package-whatwg-mimetype-4.0.0-a5a0d607763e"
     },
     {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package--citation-js-core-0.8.2-706cfd643825"
     },
     {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package--citation-js-plugin-bibtex-0.8.2-66c5ff6e7ae9"
     },
     {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package--citation-js-plugin-ris-0.8.2-724b182b1c7a"
     },
     {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package--research-agent-contracts-2.1.0-979817e9e3f8"
     },
     {
-      "spdxElementId": "SPDXRef-Package-pi-research-agent-2.0.1-49958eeae670",
+      "spdxElementId": "SPDXRef-Package-pi-research-agent-3.0.0-beta.1-49958eeae670",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package-pdfjs-dist-6.2.108-6a602c539868"
     },

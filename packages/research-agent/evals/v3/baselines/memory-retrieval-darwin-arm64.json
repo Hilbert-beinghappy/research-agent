@@ -1,6 +1,6 @@
 {
   "qualification": "pi-research-agent-v3-memory-retrieval",
-  "generatedAt": "2026-08-08T13:04:06.701Z",
+  "generatedAt": "2026-08-08T15:45:59.268Z",
   "platform": "darwin-arm64",
   "node": "v24.14.0",
   "configuration": {
@@ -16,32 +16,32 @@
     {
       "size": 1000,
       "iterations": 30,
-      "p50Ms": 0.46425,
-      "p95Ms": 0.527125,
-      "maxMs": 1.2615,
+      "p50Ms": 0.466375,
+      "p95Ms": 0.56825,
+      "maxMs": 1.47725,
       "topMemoryId": "memory-00000"
     },
     {
       "size": 10000,
       "iterations": 30,
-      "p50Ms": 4.385875,
-      "p95Ms": 5.018958,
-      "maxMs": 5.337417,
+      "p50Ms": 4.388542,
+      "p95Ms": 4.756541,
+      "maxMs": 5.192917,
       "topMemoryId": "memory-00000"
     },
     {
       "size": 50000,
       "iterations": 30,
-      "p50Ms": 25.802459,
-      "p95Ms": 27.499458,
-      "maxMs": 27.682833,
+      "p50Ms": 26.013042,
+      "p95Ms": 30.277291,
+      "maxMs": 30.442667,
       "topMemoryId": "memory-00000"
     }
   ],
   "endToEndTenThousand": {
-    "p50Ms": 10.99675,
-    "p95Ms": 12.749291,
-    "maxMs": 12.809333,
+    "p50Ms": 11.151791,
+    "p95Ms": 12.141834,
+    "maxMs": 12.98625,
     "estimatedTokens": 228,
     "selectedItems": 8
   },

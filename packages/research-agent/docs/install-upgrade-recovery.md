@@ -11,7 +11,7 @@ pi -e /path/to/pi-research-agent
 
 Start Pi inside an empty project directory, run `/research-version`, then `/research-init "title"`. Review the package before loading it: Pi Extensions run in the host process.
 
-v2.0 release qualification uses Pi npm packages 0.83.0 and 0.84.0. The authoritative tested matrix is `docs/compatibility/pi-baselines.json`; an unlisted Pi main commit is not implicitly supported. The clean-install probes load the Pi Extension, the inspection-only SDK, and the local stdio RPC executable from packed tarballs.
+The v3.0.0-beta.1 technical candidate qualifies Pi npm packages 0.83.0 and 0.84.0. The authoritative tested matrix is `docs/compatibility/pi-baselines.json`; an unlisted Pi main commit is not implicitly supported. The clean-install probes load the Pi Extension, the inspection-only SDK, and the local stdio RPC executable from packed tarballs.
 
 ## Upgrade a project
 

@@ -11,6 +11,7 @@ import { initializeProject } from "../../src/project/init.ts";
 import { runResearchRpcServer } from "../../src/rpc/server.ts";
 import { createResearchSdk } from "../../src/sdk/index.ts";
 import { finishOperation, startOperation } from "../../src/tools/operations.ts";
+import { RESEARCH_AGENT_PACKAGE_VERSION } from "../../src/version.ts";
 
 let root: string;
 
@@ -136,7 +137,7 @@ describe("stable SDK and stdio RPC", () => {
 				ok: true,
 				value: {
 					version: 2,
-					packageVersion: "2.0.1",
+					packageVersion: RESEARCH_AGENT_PACKAGE_VERSION,
 					projectSchemaVersion: "1.5.1",
 					mutations: "pi-governed-surfaces-only",
 					hostPaths: "redacted",
