@@ -130,7 +130,7 @@ function validateProfileInvariants(profile: ResearcherProfileV1): ResearcherProf
 	return profile;
 }
 
-function parseMemoryProfile(text: string, label: string): ResearcherProfileV1 {
+export function parseMemoryProfile(text: string, label: string): ResearcherProfileV1 {
 	const raw = canonicalizeJson(JSON.parse(text));
 	if (text !== `${canonicalStringify(raw)}\n`) throw new TypeError(`${label} is not canonical JSON`);
 	const validation = validateResearcherProfileV1(raw);
@@ -147,7 +147,7 @@ export async function readMemoryProfileFile(profileRoot: string): Promise<Resear
 	return parseMemoryProfile(await readFile(path, "utf8"), MEMORY_PROFILE_PATH);
 }
 
-async function listPendingMemoryTransactionsAtRoot(profileRoot: string): Promise<string[]> {
+export async function listPendingMemoryTransactionsAtRoot(profileRoot: string): Promise<string[]> {
 	try {
 		const entries = await readdir(await resolveMemoryPath(profileRoot, PENDING_DIRECTORY), {
 			withFileTypes: true,

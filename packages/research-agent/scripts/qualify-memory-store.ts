@@ -101,6 +101,7 @@ async function digestRecords(root: string, paths: readonly string[]): Promise<Re
 
 const transactionCount = integerArgument("--transactions", 10_000, 100_000);
 const seed = integerArgument("--seed", 0x5eed2026, 0xffffffff);
+const epoch = "2026-08-08T00:00:00.000Z";
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 const root = await mkdtemp(join(tmpdir(), "doro-memory-qualification-"));
 const started = performance.now();
@@ -116,9 +117,9 @@ try {
 	const expected: RecordDigest[] = [];
 	let signalCount = 0;
 	let candidateCount = 0;
-	const epoch = Date.now();
+	const epochMilliseconds = Date.parse(epoch);
 	for (let index = 0; index < transactionCount; index += 1) {
-		const createdAt = new Date(epoch + index).toISOString();
+		const createdAt = new Date(epochMilliseconds + index).toISOString();
 		const record =
 			nextRandom() % 5 === 0
 				? candidate(created.profile.profileId, candidateCount++, createdAt)
@@ -159,7 +160,7 @@ try {
 		generatedAt: new Date().toISOString(),
 		platform: `${process.platform}-${process.arch}`,
 		node: process.version,
-		configuration: { transactions: transactionCount, seed },
+		configuration: { transactions: transactionCount, seed, epoch },
 		counts: { signals: signalCount, candidates: candidateCount, committed },
 		recordRootHash: `sha256:${actualRoot}`,
 		input: {

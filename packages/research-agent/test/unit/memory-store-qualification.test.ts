@@ -7,7 +7,7 @@ import { hashBytes } from "../../src/contracts/integrity.ts";
 
 interface MemoryStoreBaseline {
 	qualification: string;
-	configuration: { transactions: number; seed: number };
+	configuration: { transactions: number; seed: number; epoch: string };
 	counts: { signals: number; candidates: number; committed: number };
 	recordRootHash: string;
 	input: { storeSha256: string; transactionsSha256: string; qualificationScriptSha256: string };
@@ -25,9 +25,13 @@ describe("Personal Memory qualification baseline", () => {
 		) as MemoryStoreBaseline;
 		expect(baseline).toMatchObject({
 			qualification: "pi-research-agent-v3-memory-store",
-			configuration: { transactions: 10_000, seed: 1_592_598_566 },
+			configuration: {
+				transactions: 10_000,
+				seed: 1_592_598_566,
+				epoch: "2026-08-08T00:00:00.000Z",
+			},
 			counts: { signals: 7_971, candidates: 2_029, committed: 10_000 },
-			recordRootHash: "sha256:6c768df9c6badc408a5b6912f205f18617679e5cee70afa583d06a80946d8bd7",
+			recordRootHash: "sha256:aff7dbc7126e0a2ba1d731b8b485585fdeea55b8201ea345f79c25c24c5c846a",
 			usage: { modelCalls: 0, apiRequests: 0, modelCostUsd: 0, apiCostUsd: 0 },
 			status: "passed",
 		});

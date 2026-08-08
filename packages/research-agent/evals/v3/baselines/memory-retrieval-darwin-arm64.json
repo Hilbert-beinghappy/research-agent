@@ -1,0 +1,72 @@
+{
+  "qualification": "pi-research-agent-v3-memory-retrieval",
+  "generatedAt": "2026-08-08T12:16:56.462Z",
+  "platform": "darwin-arm64",
+  "node": "v24.14.0",
+  "configuration": {
+    "sizes": [
+      1000,
+      10000,
+      50000
+    ],
+    "iterations": 30,
+    "warmupIterations": 5
+  },
+  "benchmarks": [
+    {
+      "size": 1000,
+      "iterations": 30,
+      "p50Ms": 0.497583,
+      "p95Ms": 1.028709,
+      "maxMs": 1.682875,
+      "topMemoryId": "memory-00000"
+    },
+    {
+      "size": 10000,
+      "iterations": 30,
+      "p50Ms": 4.6835,
+      "p95Ms": 5.433667,
+      "maxMs": 5.480667,
+      "topMemoryId": "memory-00000"
+    },
+    {
+      "size": 50000,
+      "iterations": 30,
+      "p50Ms": 26.261958,
+      "p95Ms": 29.240958,
+      "maxMs": 30.505167,
+      "topMemoryId": "memory-00000"
+    }
+  ],
+  "endToEndTenThousand": {
+    "p50Ms": 10.862042,
+    "p95Ms": 14.179375,
+    "maxMs": 15.119458,
+    "estimatedTokens": 228,
+    "selectedItems": 8
+  },
+  "context": {
+    "estimatedTokens": 228,
+    "maximumTokens": 800,
+    "availableContextTokens": 20000
+  },
+  "input": {
+    "retrievalSha256": "e0ae6d59843679cae587b7f4696b8017f030ac2ee877adf9bc2da5bb5ce527e7",
+    "qualificationScriptSha256": "f87f38be5bdfc9e7af4b79b0a7bee3b1b5fd6c4d41aa74180052766bcde983d3"
+  },
+  "checks": {
+    "tenThousandP95AtMost75Ms": true,
+    "endToEndTenThousandP95AtMost75Ms": true,
+    "deterministicTopItem": true,
+    "maximumItemsAtMostEight": true,
+    "contextAtMost800Tokens": true,
+    "contextAtMostFivePercent": true
+  },
+  "usage": {
+    "modelCalls": 0,
+    "apiRequests": 0,
+    "modelCostUsd": 0,
+    "apiCostUsd": 0
+  },
+  "status": "passed"
+}

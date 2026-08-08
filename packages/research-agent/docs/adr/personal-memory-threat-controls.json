@@ -70,7 +70,7 @@
         {
           "id": "restricted-cross-project-isolation",
           "path": "test/integration/memory/security/restricted-cross-project-isolation.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
@@ -88,7 +88,7 @@
         {
           "id": "preference-not-evidence",
           "path": "test/integration/memory/security/preference-not-evidence.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
@@ -142,7 +142,7 @@
         {
           "id": "memory-failure-project-isolation",
           "path": "test/integration/memory/security/memory-failure-project-isolation.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"

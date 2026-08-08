@@ -84,6 +84,7 @@
 		"eval:v2.0": "node scripts/evaluate-v2.0.ts",
 		"qualify:isolation:v1.5": "node scripts/qualify-v1.5-isolation.ts",
 		"qualify:memory-store:v3": "node scripts/qualify-memory-store.ts",
+		"qualify:memory-retrieval:v3": "node scripts/qualify-memory-retrieval.ts",
 		"qualify:scenario-e:v2.0": "node scripts/qualify-v2.0-scenario-e.ts",
 		"qualify:release:v2.0": "node scripts/qualify-v2.0-release.ts",
 		"qualify:runtimes:v0.3": "node scripts/qualify-v0.3-runtimes.ts",
