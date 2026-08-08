@@ -16,7 +16,7 @@
         {
           "id": "model-write-authority",
           "path": "test/unit/memory/security/model-write-authority.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
@@ -52,7 +52,7 @@
         {
           "id": "prohibited-inference",
           "path": "test/unit/memory/security/prohibited-inference.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
@@ -196,7 +196,7 @@
         {
           "id": "promotion-support-thresholds",
           "path": "test/unit/memory/security/promotion-support-thresholds.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"

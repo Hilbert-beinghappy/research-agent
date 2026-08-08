@@ -172,12 +172,11 @@ function hasRequiredProvenance(signalType: PreferenceSignalV1["signalType"], sou
 	}
 }
 
-async function findSignalByDedupeKey(
+export async function readCanonicalPreferenceSignals(
 	profileRoot: string,
 	profileId: string,
-	dedupeKey: PreferenceSignalV1["dedupeKey"],
-): Promise<PreferenceSignalV1 | null> {
-	const matches: PreferenceSignalV1[] = [];
+): Promise<PreferenceSignalV1[]> {
+	const signals: PreferenceSignalV1[] = [];
 	const walk = async (directory: string): Promise<void> => {
 		for (const entry of await readdir(directory, { withFileTypes: true, encoding: "utf8" })) {
 			if (entry.name.startsWith("._") || entry.name === ".DS_Store") continue;
@@ -197,11 +196,22 @@ async function findSignalByDedupeKey(
 			if (!validation.ok || validation.value.profileId !== profileId) {
 				throw new TypeError("Memory signal failed validation during dedupe scan");
 			}
-			if (validation.value.dedupeKey === dedupeKey) matches.push(validation.value);
+			signals.push(validation.value);
 		}
 	};
-	// ponytail: scan canonical signals; add a derived dedupe index only after capture latency requires it.
 	await walk(await resolveMemoryPath(profileRoot, "signals"));
+	return signals.sort((left, right) => left.signalId.localeCompare(right.signalId));
+}
+
+async function findSignalByDedupeKey(
+	profileRoot: string,
+	profileId: string,
+	dedupeKey: PreferenceSignalV1["dedupeKey"],
+): Promise<PreferenceSignalV1 | null> {
+	// ponytail: scan canonical signals; add a derived dedupe index only after capture latency requires it.
+	const matches = (await readCanonicalPreferenceSignals(profileRoot, profileId)).filter(
+		(signal) => signal.dedupeKey === dedupeKey,
+	);
 	if (matches.length > 1) throw new TypeError("Memory signals contain a duplicate dedupe key");
 	return matches[0] ?? null;
 }
