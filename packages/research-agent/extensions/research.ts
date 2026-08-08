@@ -2,6 +2,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerResearchCommands } from "../src/extension/commands.ts";
+import { registerMemorySignalCapture } from "../src/extension/memory-capture.ts";
 import { RESEARCH_AGENT_PACKAGE_VERSION } from "../src/version.ts";
 
 export const RESEARCH_AGENT_VERSION = RESEARCH_AGENT_PACKAGE_VERSION;
@@ -89,6 +90,7 @@ function renderBocchi(): string[] {
 }
 
 export default function researchExtension(pi: ExtensionAPI): void {
+	registerMemorySignalCapture(pi);
 	pi.on("session_start", (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
 		ctx.ui.setHeader((_tui, theme) => ({

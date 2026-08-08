@@ -34,7 +34,7 @@
         {
           "id": "external-content-poisoning",
           "path": "test/unit/memory/security/external-content-poisoning.test.ts",
-          "implementation": "required_before_beta"
+          "implementation": "implemented"
         }
       ],
       "failureVerdict": "NO_GO"
