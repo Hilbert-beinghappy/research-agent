@@ -238,6 +238,17 @@ describe("project transactions", () => {
 		expect(records.some(({ phase, state }) => phase === "record_index_hash" && state === "completed")).toBe(true);
 		expect(records.some(({ phase, state }) => phase === "writer_lease_wait" && state === "completed")).toBe(true);
 		expect(records.some(({ phase, state }) => phase === "worker_batch" && state === "completed")).toBe(true);
+		const leaseAcquired = records.findIndex(
+			({ phase, state }) => phase === "writer_lease_wait" && state === "completed",
+		);
+		const recordHashStarted = records.findIndex(
+			({ phase, state }) => phase === "record_index_hash" && state === "started",
+		);
+		const leaseReleased = records.findIndex(
+			({ phase, state }) => phase === "writer_lease_release" && state === "completed",
+		);
+		expect(leaseAcquired).toBeLessThan(recordHashStarted);
+		expect(recordHashStarted).toBeLessThan(leaseReleased);
 		expect(result.stderr).not.toContain(root);
 		expect(result.stderr).not.toContain(label);
 		for (const record of records) {

@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Record mutations now hold the project writer lease from manifest validation through record-set hashing and commit, so stale concurrent requests fail before expensive index scans.
 - Model-visible corpus and record payloads now fail closed under project/provider/data-class egress policy, and model-authored evidence can no longer claim deterministic or imported semantic provenance.
 - PDF.js is pinned to 6.2.108; scripted PDFs are rejected through the official JavaScript-action check and hostile fixtures verify no network, process, or file side effects.
 - Project backups serialize with canonical writers and restore the required empty directory layout before validation.

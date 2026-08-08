@@ -24,7 +24,8 @@ import {
 	projectRecordPath,
 	projectRecordRevision,
 } from "./record-index.ts";
-import { commitProjectTransaction } from "./transactions.ts";
+import { commitProjectTransactionWithWriterLeaseHeld } from "./transactions.ts";
+import { withProjectWriterLease } from "./writer-lock.ts";
 
 export interface RecordMutationInput {
 	expectedManifestRevision: number;
@@ -72,6 +73,24 @@ function failureFromError<Value>(error: unknown, operationId: string | null): Re
 		return failureResult("PERMANENT_FAILURE", "RECORD_VALIDATION_FAILED", "validation", message, operationId);
 	}
 	return failureResult("PERMANENT_FAILURE", "RECORD_REPOSITORY_FAILED", "runtime", message, operationId);
+}
+
+async function withProjectWriteTransaction<Value>(
+	projectRoot: string,
+	input: RecordMutationInput,
+	action: () => Promise<ResearchResult<Value>>,
+): Promise<ResearchResult<Value>> {
+	try {
+		if (!isOpaqueId(input.operationId, "operation")) {
+			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+		}
+		return await withProjectWriterLease(projectRoot, action, {
+			operationId: input.operationId,
+			manifestRevision: input.expectedManifestRevision,
+		});
+	} catch (error) {
+		return failureFromError(error, input.operationId);
+	}
 }
 
 async function currentManifest(projectRoot: string, expectedRevision?: number): Promise<ResearchProjectManifest> {
@@ -175,7 +194,7 @@ function validatedNewRecord(record: ProjectRecord, operationId: string): Project
 	return created;
 }
 
-async function commitRecordChanges(
+async function commitRecordChangesWithWriterLeaseHeld(
 	projectRoot: string,
 	manifest: ResearchProjectManifest,
 	changes: readonly PreparedRecordChange[],
@@ -216,7 +235,7 @@ async function commitRecordChanges(
 		updatedAt: new Date().toISOString(),
 		revision: manifest.revision + 1,
 	};
-	await commitProjectTransaction(projectRoot, {
+	await commitProjectTransactionWithWriterLeaseHeld(projectRoot, {
 		expectedRevision: manifest.revision,
 		writes: changes.map(({ kind, id, content, expectedHash }) => ({
 			path: projectRecordPath(manifest, kind, id),
@@ -232,15 +251,13 @@ export async function createRecord(
 	record: ProjectRecord,
 	input: RecordMutationInput,
 ): Promise<ResearchResult<RecordRef>> {
-	try {
-		if (!isOpaqueId(input.operationId, "operation"))
-			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+	return withProjectWriteTransaction(projectRoot, input, async () => {
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
 		const validatedRecord = validatedNewRecord(record, input.operationId);
 		const id = projectRecordId(validatedRecord);
 		projectRecordPath(manifest, validatedRecord.kind, id);
 		const content = `${canonicalStringify(validatedRecord)}\n`;
-		await commitRecordChanges(
+		await commitRecordChangesWithWriterLeaseHeld(
 			projectRoot,
 			manifest,
 			[
@@ -255,9 +272,7 @@ export async function createRecord(
 			input.operationId,
 		);
 		return successResult({ kind: validatedRecord.kind, id, revision: 0 }, input.operationId);
-	} catch (error) {
-		return failureFromError(error, input.operationId);
-	}
+	});
 }
 
 export async function createRecords(
@@ -265,9 +280,7 @@ export async function createRecords(
 	records: readonly ProjectRecord[],
 	input: RecordMutationInput,
 ): Promise<ResearchResult<RecordRef[]>> {
-	try {
-		if (!isOpaqueId(input.operationId, "operation"))
-			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+	return withProjectWriteTransaction(projectRoot, input, async () => {
 		if (records.length === 0) throw new TypeError("Record transaction cannot be empty");
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
 		const created = records.map((record) => validatedNewRecord(record, input.operationId));
@@ -282,14 +295,12 @@ export async function createRecords(
 				expectedHash: null,
 			};
 		});
-		await commitRecordChanges(projectRoot, manifest, changes, input.operationId);
+		await commitRecordChangesWithWriterLeaseHeld(projectRoot, manifest, changes, input.operationId);
 		return successResult(
 			created.map((record) => ({ kind: record.kind, id: projectRecordId(record), revision: 0 })),
 			input.operationId,
 		);
-	} catch (error) {
-		return failureFromError(error, input.operationId);
-	}
+	});
 }
 
 export async function readRecord(
@@ -311,9 +322,7 @@ export async function updateRecord(
 	id: string,
 	input: UpdateRecordInput,
 ): Promise<ResearchResult<RecordRef>> {
-	try {
-		if (!isOpaqueId(input.operationId, "operation"))
-			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+	return withProjectWriteTransaction(projectRoot, input, async () => {
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
 		const loaded = await loadRecord(projectRoot, manifest, kind, id);
 		const currentRevision = projectRecordRevision(loaded.record);
@@ -329,16 +338,14 @@ export async function updateRecord(
 		}
 		const candidate = updatedRecord(loaded.record, kind, id, input.changes, input.operationId);
 		const content = `${canonicalStringify(candidate)}\n`;
-		await commitRecordChanges(
+		await commitRecordChangesWithWriterLeaseHeld(
 			projectRoot,
 			manifest,
 			[{ record: candidate, kind, id, content, expectedHash: loaded.hash }],
 			input.operationId,
 		);
 		return successResult({ kind, id, revision: projectRecordRevision(candidate) }, input.operationId);
-	} catch (error) {
-		return failureFromError(error, input.operationId);
-	}
+	});
 }
 
 export async function deleteRecord(
@@ -347,9 +354,7 @@ export async function deleteRecord(
 	id: string,
 	input: DeleteRecordInput,
 ): Promise<ResearchResult<RecordRef>> {
-	try {
-		if (!isOpaqueId(input.operationId, "operation"))
-			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+	return withProjectWriteTransaction(projectRoot, input, async () => {
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
 		const loaded = await loadRecord(projectRoot, manifest, kind, id);
 		const currentRevision = projectRecordRevision(loaded.record);
@@ -362,16 +367,14 @@ export async function deleteRecord(
 				input.operationId,
 			);
 		}
-		await commitRecordChanges(
+		await commitRecordChangesWithWriterLeaseHeld(
 			projectRoot,
 			manifest,
 			[{ record: null, kind, id, content: null, expectedHash: loaded.hash }],
 			input.operationId,
 		);
 		return successResult({ kind, id, revision: currentRevision }, input.operationId);
-	} catch (error) {
-		return failureFromError(error, input.operationId);
-	}
+	});
 }
 
 export async function createRecordWithUpdate(
@@ -380,9 +383,7 @@ export async function createRecordWithUpdate(
 	update: AtomicRecordUpdate,
 	input: RecordMutationInput,
 ): Promise<ResearchResult<RecordRef[]>> {
-	try {
-		if (!isOpaqueId(input.operationId, "operation"))
-			throw new TypeError(`Invalid operation ID: ${input.operationId}`);
+	return withProjectWriteTransaction(projectRoot, input, async () => {
 		const manifest = await currentManifest(projectRoot, input.expectedManifestRevision);
 		const created = validatedNewRecord(record, input.operationId);
 		const createdId = projectRecordId(created);
@@ -400,7 +401,7 @@ export async function createRecordWithUpdate(
 		const updated = updatedRecord(loaded.record, update.kind, update.id, update.changes, input.operationId);
 		const createdContent = `${canonicalStringify(created)}\n`;
 		const updatedContent = `${canonicalStringify(updated)}\n`;
-		await commitRecordChanges(
+		await commitRecordChangesWithWriterLeaseHeld(
 			projectRoot,
 			manifest,
 			[
@@ -428,7 +429,5 @@ export async function createRecordWithUpdate(
 			],
 			input.operationId,
 		);
-	} catch (error) {
-		return failureFromError(error, input.operationId);
-	}
+	});
 }

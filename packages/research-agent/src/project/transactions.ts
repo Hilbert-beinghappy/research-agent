@@ -434,13 +434,20 @@ export async function commitProjectTransaction(projectRoot: string, input: Proje
 	const traceContext = traceContextFromInput(input);
 	return withProjectWriterLease(
 		projectRoot,
-		async () => {
-			const transactionId = await prepareProjectTransactionUnlocked(projectRoot, input, traceContext);
-			await commitPreparedTransactionUnlocked(projectRoot, transactionId);
-			return transactionId;
-		},
+		() => commitProjectTransactionWithWriterLeaseHeld(projectRoot, input, traceContext),
 		traceContext,
 	);
+}
+
+export async function commitProjectTransactionWithWriterLeaseHeld(
+	projectRoot: string,
+	input: ProjectTransactionInput,
+	traceContext = traceContextFromInput(input),
+): Promise<string> {
+	// Internal transaction entry point: the caller must already hold the project writer lease.
+	const transactionId = await prepareProjectTransactionUnlocked(projectRoot, input, traceContext);
+	await commitPreparedTransactionUnlocked(projectRoot, transactionId);
+	return transactionId;
 }
 
 export async function prepareProjectTransaction(projectRoot: string, input: ProjectTransactionInput): Promise<string> {
