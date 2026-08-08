@@ -5,6 +5,8 @@ import { join } from "node:path";
 import type {
 	DataClass,
 	MemoryCategory,
+	MemoryEffect,
+	MemoryItemV1,
 	MemoryScope,
 	PreferenceSignalV1,
 	SafeRef,
@@ -14,7 +16,7 @@ import { canonicalStringify } from "../contracts/canonical-json.ts";
 import { hashBytes, hashCanonicalJson } from "../contracts/integrity.ts";
 import { withWriterLease } from "../project/writer-lock.ts";
 import { resolveMemoryPath, validateMemoryLayout } from "./layout.ts";
-import { appendMemoryRecord, openMemoryProfile } from "./store.ts";
+import { appendMemoryItem, appendMemoryRecord, openMemoryProfile } from "./store.ts";
 
 export type HostPreferenceActor = "user" | "model" | "tool" | "adapter" | "skill" | "system";
 
@@ -73,6 +75,7 @@ export type SignalCaptureResult =
 			outcome: "duplicate";
 			signalId: string;
 			dedupeKey: PreferenceSignalV1["dedupeKey"];
+			signal: PreferenceSignalV1;
 	  }
 	| {
 			outcome: "discarded";
@@ -341,7 +344,12 @@ export async function capturePreferenceSignal(
 			if (!validatePreferenceSignalV1(signal).ok) return discard("invalid_signal", eventView);
 			const existing = await findSignalByDedupeKey(canonicalRoot, opened.profile.profileId, dedupeKey);
 			if (existing !== null) {
-				return { outcome: "duplicate", signalId: existing.signalId, dedupeKey: existing.dedupeKey };
+				return {
+					outcome: "duplicate",
+					signalId: existing.signalId,
+					dedupeKey: existing.dedupeKey,
+					signal: existing,
+				};
 			}
 			const result = await appendMemoryRecord(canonicalRoot, signal);
 			return {
@@ -359,6 +367,127 @@ export async function capturePreferenceSignal(
 		}
 		throw error;
 	}
+}
+
+const explicitEffects = {
+	writing: ["prompt_context", "formatting"],
+	output: ["prompt_context", "formatting"],
+} as const satisfies Readonly<Record<"writing" | "output", readonly MemoryEffect[]>>;
+const explicitItemSchemaHash = `sha256:${hashCanonicalJson("MemoryItemV1:explicit-promotion-v1").value}`;
+
+function explicitMemoryId(signal: PreferenceSignalV1): string {
+	return `memory_${hash({
+		profileId: signal.profileId,
+		category: signal.category,
+		key: signal.normalizedKey,
+		scope: signal.scopeCandidate,
+	}).slice("sha256:".length)}`;
+}
+
+function signalContentRef(signal: PreferenceSignalV1): MemoryItemV1["sourceSignalRefs"][number] {
+	return { signalId: signal.signalId, contentHash: hash(signal) };
+}
+
+function explicitItemDraft(
+	signal: PreferenceSignalV1,
+	latest: MemoryItemV1 | null,
+): Omit<MemoryItemV1, "transactionId"> {
+	if (signal.category !== "writing" && signal.category !== "output") {
+		throw new TypeError("Explicit auto-activation supports only allowlisted low-risk preferences");
+	}
+	const memoryId = latest?.memoryId ?? explicitMemoryId(signal);
+	const sameValue = latest !== null && canonicalStringify(latest.value) === canonicalStringify(signal.normalizedValue);
+	const refs = sameValue
+		? [...latest.sourceSignalRefs, signalContentRef(signal)].filter(
+				(ref, index, all) => all.findIndex(({ signalId }) => signalId === ref.signalId) === index,
+			)
+		: [signalContentRef(signal)];
+	const revision = (latest?.revision ?? 0) + 1;
+	const dataClass =
+		sameValue && latest !== null && dataClassRanks[latest.dataClass] > dataClassRanks[signal.dataClass]
+			? latest.dataClass
+			: signal.dataClass;
+	const generator = { type: "rule", version: "explicit-promotion-v1", schemaHash: explicitItemSchemaHash } as const;
+	return {
+		format: "doro-memory-item",
+		schemaVersion: "1.0.0",
+		profileId: signal.profileId,
+		memoryId,
+		revision,
+		previousRevision: latest?.revision ?? null,
+		status: "active",
+		category: signal.category,
+		key: signal.normalizedKey,
+		value: signal.normalizedValue,
+		origin: "explicit",
+		scope: signal.scopeCandidate,
+		confidence: 1,
+		supportCount: sameValue && latest !== null ? latest.supportCount + 1 : 1,
+		independentSupportCount: refs.length,
+		contradictionCount: 0,
+		dataClass,
+		allowedEffects: [...explicitEffects[signal.category]],
+		criticalDecisionPolicy: "format_only",
+		sourceSignalRefs: refs.sort((left, right) => left.signalId.localeCompare(right.signalId)),
+		supersedes: latest === null ? [] : [{ memoryId, revision: latest.revision }],
+		generator,
+		provenanceHash: hash({
+			profileId: signal.profileId,
+			memoryId,
+			revision,
+			value: signal.normalizedValue,
+			scope: signal.scopeCandidate,
+			dataClass,
+			sourceSignalRefs: refs,
+			generator,
+		}),
+		validFrom: signal.observedAt,
+		validUntil: null,
+		lastSupportedAt: signal.observedAt,
+		lastUsedAt: null,
+		decay: { halfLifeDays: null },
+		createdAt: signal.createdAt,
+	};
+}
+
+async function activateExplicitPreferenceSignal(profileRoot: string, signal: PreferenceSignalV1): Promise<void> {
+	await withWriterLease(profileRoot, "locks/explicit-activation.lock", "MEMORY_EXPLICIT_ACTIVATION", async () => {
+		const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
+		if (
+			opened.mode !== "read-write" ||
+			opened.profile.status !== "active" ||
+			opened.profile.learningPolicy.mode !== "active" ||
+			!opened.profile.learningPolicy.explicitAutoActivation
+		) {
+			return;
+		}
+		const memoryId = explicitMemoryId(signal);
+		const latestById = new Map<string, MemoryItemV1>();
+		for (const item of opened.items) {
+			const current = latestById.get(item.memoryId);
+			if (current === undefined || item.revision > current.revision) latestById.set(item.memoryId, item);
+		}
+		const matching = [...latestById.values()].filter(
+			(item) =>
+				item.category === signal.category &&
+				item.key === signal.normalizedKey &&
+				canonicalStringify(item.scope) === canonicalStringify(signal.scopeCandidate),
+		);
+		const deterministic = matching.find((item) => item.memoryId === memoryId) ?? null;
+		if (deterministic === null && matching.length > 1) {
+			throw new Error("MEMORY_EXPLICIT_CONFLICT: multiple items match one explicit preference");
+		}
+		const latest = deterministic ?? matching[0] ?? null;
+		if (latest?.sourceSignalRefs.some(({ signalId }) => signalId === signal.signalId)) return;
+		if (
+			latest?.status === "active" &&
+			latest.origin === "explicit" &&
+			canonicalStringify(latest.value) === canonicalStringify(signal.normalizedValue)
+		) {
+			return;
+		}
+		await appendMemoryItem(profileRoot, explicitItemDraft(signal, latest));
+	});
 }
 
 export interface ParsedExplicitPreference {
@@ -426,7 +555,7 @@ export async function captureExplicitPreferenceInput(
 	if (input.hasAttachments) return discard("attachments_not_eligible", input.text);
 	const parsed = parseExplicitPreferenceInput(input.text);
 	if (parsed === null) return discard("not_explicit_preference", input.text);
-	return capturePreferenceSignal(profileRoot, {
+	const captured = await capturePreferenceSignal(profileRoot, {
 		actor: "user",
 		source: "user_input",
 		signalType: "explicit_statement",
@@ -435,4 +564,8 @@ export async function captureExplicitPreferenceInput(
 		sourceRefs: input.sourceRefs,
 		sourceContentHash: textHash(input.text),
 	});
+	if (captured.outcome === "persisted" || captured.outcome === "duplicate") {
+		await activateExplicitPreferenceSignal(profileRoot, captured.signal);
+	}
+	return captured;
 }

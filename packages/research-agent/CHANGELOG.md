@@ -10,6 +10,7 @@
 - Offline Personal Memory export/import with scrypt-wrapped AES-256-GCM keys, encrypted manifests, bounded canonical containers, fast-forward lineage checks, and crash-recoverable atomic profile exchange.
 - One `/memory` command family for confirmed first-use profile creation, status, inspection, explanation, correction/deletion, pause/resume, encrypted transfer, and deletion verification, with private profile roots, logical-path output, and restricted-value redaction.
 - `research_memory_inspect` for bounded, scope-filtered, value/hash-free classified summaries that exclude restricted items, and `research_memory_feedback` for exact current-user correction, forgetting, or deletion with interactive confirmation and immutable feedback receipts.
+- Host-only activation of allowlisted explicit writing/output preferences, plus fail-closed task-start application with bounded context, project/model egress checks, and exact-revision use receipts.
 
 ### Changed
 

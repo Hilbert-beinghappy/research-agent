@@ -321,6 +321,11 @@ describe("deterministic Personal Memory signal capture", () => {
 			ctx,
 		);
 		const opened = await openMemoryProfile(profileRoot);
-		expect(opened).toMatchObject({ mode: "read-write", profile: { revision: 1 }, counts: { signals: 1 } });
+		expect(opened).toMatchObject({
+			mode: "read-write",
+			profile: { revision: 2 },
+			counts: { signals: 1, items: 1 },
+			activeItems: [{ category: "writing", key: "language", value: "zh-CN", origin: "explicit" }],
+		});
 	});
 });
