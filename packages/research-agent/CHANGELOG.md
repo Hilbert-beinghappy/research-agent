@@ -18,6 +18,8 @@
 
 ### Fixed
 
+- Record-set hashes now use a manifest-bound, transactionally updated derived index that rebuilds from canonical records when missing, stale, corrupt, or forced into scan mode.
+- Same-process concurrent writers now wait for the project lease while true nested lease acquisition remains fail-closed.
 - Record mutations now hold the project writer lease from manifest validation through record-set hashing and commit, so stale concurrent requests fail before expensive index scans.
 - Model-visible corpus and record payloads now fail closed under project/provider/data-class egress policy, and model-authored evidence can no longer claim deterministic or imported semantic provenance.
 - PDF.js is pinned to 6.2.108; scripted PDFs are rejected through the official JavaScript-action check and hostile fixtures verify no network, process, or file side effects.

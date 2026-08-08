@@ -219,20 +219,22 @@ export async function calculateRecordSetIndex(
 	changes: readonly { id: string; hash: HashValue | null }[] | { id: string; hash: HashValue | null } = [],
 ): Promise<{ count: number; contentHash: HashValue | null }> {
 	const recordSet = projectRecordSet(manifest, kind);
-	const directory = await resolveProjectPath(projectRoot, recordSet.path);
-	const hashes = new Map<string, HashValue>();
 	const traceContext = { manifestRevision: manifest.revision, recordKind: kind, recordCount: recordSet.count };
 	const started = performance.now();
 	emitProjectTransactionTrace("record_index_hash", "started", traceContext);
 	let fileHashCount = 0;
 	try {
-		// ponytail: O(n) hash scan; add a derived index only when project-size benchmarks require it.
-		for (const fileName of await readdir(directory)) {
-			if (!fileName.endsWith(".json")) continue;
-			const id = fileName.slice(0, -5);
-			hashes.set(id, await hashFile(await resolveProjectPath(projectRoot, `${recordSet.path}/${fileName}`)));
-			fileHashCount += 1;
-		}
+		const hashes = await scanProjectRecordHashes(projectRoot, manifest, kind);
+		fileHashCount = hashes.size;
+		applyRecordHashChanges(hashes, changes);
+		const index = recordSetIndexFromHashes(hashes);
+		emitProjectTransactionTrace(
+			"record_index_hash",
+			"completed",
+			{ ...traceContext, recordCount: index.count, fileHashCount },
+			performance.now() - started,
+		);
+		return index;
 	} catch (error) {
 		emitProjectTransactionTrace(
 			"record_index_hash",
@@ -243,18 +245,40 @@ export async function calculateRecordSetIndex(
 		);
 		throw error;
 	}
+}
+
+export async function scanProjectRecordHashes(
+	projectRoot: string,
+	manifest: ResearchProjectManifest,
+	kind: RecordKind,
+): Promise<Map<string, HashValue>> {
+	const recordSet = projectRecordSet(manifest, kind);
+	const directory = await resolveProjectPath(projectRoot, recordSet.path);
+	const hashes = new Map<string, HashValue>();
+	for (const fileName of await readdir(directory)) {
+		if (!fileName.endsWith(".json")) continue;
+		const id = fileName.slice(0, -5);
+		hashes.set(id, await hashFile(await resolveProjectPath(projectRoot, `${recordSet.path}/${fileName}`)));
+	}
+	return hashes;
+}
+
+export function applyRecordHashChanges(
+	hashes: Map<string, HashValue>,
+	changes: readonly { id: string; hash: HashValue | null }[] | { id: string; hash: HashValue | null },
+): void {
 	const pendingChanges = Array.isArray(changes) ? changes : [changes as { id: string; hash: HashValue | null }];
 	for (const change of pendingChanges) {
 		if (change.hash === null) hashes.delete(change.id);
 		else hashes.set(change.id, change.hash);
 	}
+}
+
+export function recordSetIndexFromHashes(hashes: ReadonlyMap<string, HashValue>): {
+	count: number;
+	contentHash: HashValue | null;
+} {
 	const entries = [...hashes].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
-	emitProjectTransactionTrace(
-		"record_index_hash",
-		"completed",
-		{ ...traceContext, recordCount: entries.length, fileHashCount },
-		performance.now() - started,
-	);
 	return {
 		count: entries.length,
 		contentHash: entries.length === 0 ? null : hashCanonicalJson(entries.map(([id, hash]) => ({ id, hash }))),

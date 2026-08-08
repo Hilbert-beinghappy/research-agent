@@ -37,6 +37,8 @@ interface DiagnosticCaseResult {
 	pendingTransactions: number | null;
 	projectValid: boolean;
 	fileHashCount: number;
+	performanceBudgetMs: number | null;
+	performanceBudgetPassed: boolean | null;
 	phaseTimings: Partial<
 		Record<ProjectTransactionTracePhase, { samples: number; totalMs: number; p50Ms: number; p95Ms: number }>
 	>;
@@ -306,6 +308,7 @@ async function runDiagnosticCase(
 	repetition: number,
 	watchdogMs: number,
 	timeoutMs: number,
+	maxElapsedMs: number | null,
 	allTraceRecords: ProjectTransactionTraceRecord[],
 ): Promise<DiagnosticCaseResult> {
 	const projectRoot = join(parentDirectory, `p${processes}-n${writesPerProcess}-r${repetition}`);
@@ -331,21 +334,25 @@ async function runDiagnosticCase(
 		const validation = await validateProject(projectRoot);
 		const projectValid = validation.valid && operationCount === expectedCount && pendingTransactions === 0;
 		if (!projectValid) throw new Error("PROJECT_INVALID: transaction diagnostic lost consistency");
+		const elapsedMs = Number((performance.now() - started).toFixed(3));
+		const performanceBudgetPassed = maxElapsedMs === null ? null : elapsedMs <= maxElapsedMs;
 		allTraceRecords.push(...caseTraceRecords);
 		return {
 			processes,
 			writesPerProcess,
 			repetition,
-			elapsedMs: Number((performance.now() - started).toFixed(3)),
+			elapsedMs,
 			conflicts: workers.reduce((total, worker) => total + worker.conflicts, 0),
 			finalRevision: opened.manifest.revision,
 			operationCount,
 			pendingTransactions,
 			projectValid,
 			fileHashCount: caseTraceRecords.reduce((total, record) => total + (record.fileHashCount ?? 0), 0),
+			performanceBudgetMs: maxElapsedMs,
+			performanceBudgetPassed,
 			phaseTimings: phaseTimings(caseTraceRecords),
-			status: "passed",
-			errorCode: null,
+			status: performanceBudgetPassed === false ? "failed" : "passed",
+			errorCode: performanceBudgetPassed === false ? "PERFORMANCE_BUDGET_EXCEEDED" : null,
 		};
 	} catch (error) {
 		allTraceRecords.push(...caseTraceRecords);
@@ -360,6 +367,8 @@ async function runDiagnosticCase(
 			pendingTransactions: null,
 			projectValid: false,
 			fileHashCount: caseTraceRecords.reduce((total, record) => total + (record.fileHashCount ?? 0), 0),
+			performanceBudgetMs: maxElapsedMs,
+			performanceBudgetPassed: null,
 			phaseTimings: phaseTimings(caseTraceRecords),
 			status: "failed",
 			errorCode: diagnosticErrorCode(error),
@@ -374,6 +383,9 @@ async function runCoordinator(): Promise<void> {
 	const repetitions = positiveInteger(argumentValue("--repetitions") ?? "1", "--repetitions");
 	const watchdogMs = positiveInteger(argumentValue("--watchdog-ms") ?? "240000", "--watchdog-ms");
 	const timeoutMs = positiveInteger(argumentValue("--timeout-ms") ?? "600000", "--timeout-ms");
+	const maxElapsedArgument = argumentValue("--max-elapsed-ms");
+	const maxElapsedMs =
+		maxElapsedArgument === undefined ? null : positiveInteger(maxElapsedArgument, "--max-elapsed-ms");
 	if (watchdogMs >= timeoutMs) throw new TypeError("--watchdog-ms must be less than --timeout-ms");
 	const temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-transaction-diagnostic-"));
 	const traceRecords: ProjectTransactionTraceRecord[] = [];
@@ -390,6 +402,7 @@ async function runCoordinator(): Promise<void> {
 							repetition,
 							watchdogMs,
 							timeoutMs,
+							maxElapsedMs,
 							traceRecords,
 						),
 					);
@@ -402,7 +415,7 @@ async function runCoordinator(): Promise<void> {
 			generatedAt: new Date().toISOString(),
 			platform: `${process.platform}-${process.arch}`,
 			node: process.version,
-			configuration: { counts, processCounts, repetitions, watchdogMs, timeoutMs },
+			configuration: { counts, processCounts, repetitions, watchdogMs, timeoutMs, maxElapsedMs },
 			results,
 			usage: { modelCalls: 0, apiRequests: 0, modelCostUsd: 0, apiCostUsd: 0 },
 			status: passed ? "passed" : "failed",

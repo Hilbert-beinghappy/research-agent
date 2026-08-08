@@ -16,8 +16,8 @@ import { hashBytes } from "../kernel/integrity.ts";
 import { resolveProjectPath } from "../kernel/paths.ts";
 import { failureResult, successResult } from "../kernel/results.ts";
 import { openProject } from "./open.ts";
+import { prepareDerivedRecordHashIndex } from "./record-hash-index.ts";
 import {
-	calculateRecordSetIndex,
 	type ProjectRecord,
 	projectRecordId,
 	projectRecordIdField,
@@ -212,7 +212,7 @@ async function commitRecordChangesWithWriterLeaseHeld(
 		await Promise.all(
 			[...changesByKind].map(
 				async ([kind, kindChanges]) =>
-					[kind, await calculateRecordSetIndex(projectRoot, manifest, kind, kindChanges)] as const,
+					[kind, await prepareDerivedRecordHashIndex(projectRoot, manifest, kind, kindChanges)] as const,
 			),
 		),
 	);
@@ -228,20 +228,24 @@ async function commitRecordChangesWithWriterLeaseHeld(
 	const nextManifest: ResearchProjectManifest = {
 		...manifest,
 		activeTaskIds,
-		recordSets: manifest.recordSets.map((recordSet) =>
-			indexes.has(recordSet.kind) ? { ...recordSet, ...indexes.get(recordSet.kind) } : recordSet,
-		),
+		recordSets: manifest.recordSets.map((recordSet) => {
+			const index = indexes.get(recordSet.kind);
+			return index === undefined ? recordSet : { ...recordSet, count: index.count, contentHash: index.contentHash };
+		}),
 		lastCommittedOperationId: operationId,
 		updatedAt: new Date().toISOString(),
 		revision: manifest.revision + 1,
 	};
 	await commitProjectTransactionWithWriterLeaseHeld(projectRoot, {
 		expectedRevision: manifest.revision,
-		writes: changes.map(({ kind, id, content, expectedHash }) => ({
-			path: projectRecordPath(manifest, kind, id),
-			content,
-			expectedHash,
-		})),
+		writes: [
+			...changes.map(({ kind, id, content, expectedHash }) => ({
+				path: projectRecordPath(manifest, kind, id),
+				content,
+				expectedHash,
+			})),
+			...[...indexes.values()].map(({ write }) => write),
+		],
 		manifest: nextManifest,
 	});
 }

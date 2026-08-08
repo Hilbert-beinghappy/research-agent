@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, stat, unlink } from "node:fs/promises";
 import { hostname } from "node:os";
@@ -26,6 +27,23 @@ interface WriterLease {
 	nonce: string;
 	acquiredAt: string;
 	expiresAt: string;
+}
+
+interface WriterLeaseScope {
+	path: string;
+	active: boolean;
+	parent: WriterLeaseScope | null;
+}
+
+const writerLeaseScope = new AsyncLocalStorage<WriterLeaseScope>();
+
+function scopeHoldsWriterLease(scope: WriterLeaseScope | undefined, path: string): boolean {
+	let current = scope;
+	while (current !== undefined) {
+		if (current.active && current.path === path) return true;
+		current = current.parent ?? undefined;
+	}
+	return false;
 }
 
 async function readLease(path: string): Promise<WriterLease | null> {
@@ -94,6 +112,14 @@ export async function withProjectWriterLease<Value>(
 	const deadline = Date.now() + ACQUIRE_TIMEOUT_MS;
 	const waitStarted = performance.now();
 	emitProjectTransactionTrace("writer_lease_wait", "started", traceContext);
+	const parentScope = writerLeaseScope.getStore();
+	if (scopeHoldsWriterLease(parentScope, path)) {
+		const error = new Error(
+			"PROJECT_WRITER_LOCK_REENTRANT: the current async operation already holds the project writer lease",
+		);
+		emitProjectTransactionTrace("writer_lease_wait", "failed", traceContext, performance.now() - waitStarted, error);
+		throw error;
+	}
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
 	try {
 		while (handle === null) {
@@ -102,11 +128,6 @@ export async function withProjectWriterLease<Value>(
 			} catch (error) {
 				if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
 				const lease = await readLease(path);
-				if (lease?.hostname === host && lease.pid === process.pid) {
-					throw new Error(
-						"PROJECT_WRITER_LOCK_REENTRANT: the current process already holds the project writer lease",
-					);
-				}
 				const sameHostProcessEnded = lease !== null && lease.hostname === host && !processIsAlive(lease.pid);
 				const expiredRemoteLease =
 					lease !== null && lease.hostname !== host && Date.parse(lease.expiresAt) <= Date.now();
@@ -177,10 +198,15 @@ export async function withProjectWriterLease<Value>(
 			});
 	}, RENEW_INTERVAL_MS);
 	timer.unref();
-	const outcome = await action().then(
-		(value) => ({ ok: true as const, value }),
-		(error: unknown) => ({ ok: false as const, error }),
-	);
+	const scope: WriterLeaseScope = { path, active: true, parent: parentScope ?? null };
+	let outcome: { ok: true; value: Value } | { ok: false; error: unknown };
+	try {
+		outcome = { ok: true, value: await writerLeaseScope.run(scope, action) };
+	} catch (error) {
+		outcome = { ok: false, error };
+	} finally {
+		scope.active = false;
+	}
 	clearInterval(timer);
 	await traceProjectTransactionPhase("writer_lease_release", { ...traceContext, renewalCount }, async () => {
 		await renewal;

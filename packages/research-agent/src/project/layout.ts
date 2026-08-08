@@ -3,6 +3,7 @@
 import type { ProjectDirectories, ProjectRecordSet, RecordKind } from "../contracts/schemas.ts";
 
 export const PROJECT_MANIFEST_PATH = "research-project.json";
+export const DERIVED_RECORD_HASH_INDEX_DIRECTORY = ".research/cache/record-hash-index/v1";
 
 export const PROJECT_DIRECTORIES = {
 	sources: ".research/records/sources",
@@ -79,6 +80,7 @@ export const PROJECT_LAYOUT_DIRECTORIES = [
 		".research/backups",
 		".research/locks",
 		".research/cache",
+		DERIVED_RECORD_HASH_INDEX_DIRECTORY,
 		"sources/originals",
 		"sources/originals/datasets",
 		"sources/originals/materials",

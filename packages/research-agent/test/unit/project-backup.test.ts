@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -22,6 +22,7 @@ beforeEach(async () => {
 	projectRoot = join(temporaryDirectory, "project");
 	await initializeProject(projectRoot, { title: "Backup fixture" });
 	await writeFile(join(projectRoot, "notes", "decision.md"), "# Decision\n\nSynthetic project note.\n");
+	await writeFile(join(projectRoot, ".research", "cache", "record-hash-index", "v1", "claim.json"), "derived\n");
 });
 
 afterEach(async () => {
@@ -44,6 +45,9 @@ describe("project backup and restore", () => {
 		await expect(readFile(join(destination, "notes", "decision.md"), "utf8")).resolves.toBe(
 			"# Decision\n\nSynthetic project note.\n",
 		);
+		await expect(
+			access(join(destination, ".research", "cache", "record-hash-index", "v1", "claim.json")),
+		).rejects.toThrow();
 		await expect(openProject(destination)).resolves.toMatchObject({ compatibility: "current" });
 		expect(await validateProject(destination)).toMatchObject({ valid: true, issues: [] });
 	});

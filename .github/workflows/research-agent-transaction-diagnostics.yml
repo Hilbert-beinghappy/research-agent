@@ -6,7 +6,7 @@ on:
       counts:
         description: Comma-separated writes per process
         required: true
-        default: "100,250"
+        default: "100,250,500"
         type: string
       processes:
         description: Comma-separated process counts (1 and/or 2)
@@ -63,6 +63,7 @@ jobs:
           --repetitions "$DIAGNOSTIC_REPETITIONS"
           --watchdog-ms 240000
           --timeout-ms 480000
+          --max-elapsed-ms 225000
           --output transaction-diagnostic-${{ matrix.os }}.json
           --trace-output transaction-trace-${{ matrix.os }}.jsonl
 
