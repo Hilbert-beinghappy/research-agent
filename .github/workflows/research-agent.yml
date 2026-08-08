@@ -50,7 +50,7 @@ jobs:
         run: npm run build -w packages/research-agent-contracts
 
       - name: Record release identity
-        run: npm run report:release-identity -w packages/research-agent -- --require-clean --output research-agent-release-identity.json
+        run: npm run report:release-identity -w packages/research-agent -- --require-clean --output ../../research-agent-release-identity.json
 
       - name: Hydrate Pi model data
         run: npm run hydrate:model-data
