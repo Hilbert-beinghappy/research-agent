@@ -218,9 +218,7 @@ describe("isolated synthetic Agent pilot", () => {
 				configs.push({ ...value, configPath });
 			}
 
-			const outcomes = await Promise.allSettled(configs.map(({ configPath }) => runWorker(configPath)));
-			const failure = outcomes.find((outcome) => outcome.status === "rejected");
-			if (failure?.status === "rejected") throw failure.reason;
+			for (const { configPath } of configs) await runWorker(configPath);
 			const rawResults = await Promise.all(
 				configs.map(async ({ outputPath }) => JSON.parse(await readFile(outputPath, "utf8")) as unknown),
 			);
