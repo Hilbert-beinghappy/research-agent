@@ -298,4 +298,51 @@ describe("Personal Memory promotion support thresholds", () => {
 			confidence: 1,
 		});
 	});
+
+	it("does not count an ambiguously attributed signal as multiple independent Sessions", () => {
+		const signals = [
+			behavioralSignal("session-1", { session: "s1", day: "2026-08-01" }),
+			behavioralSignal("session-2", { session: "s1", day: "2026-08-02" }),
+			behavioralSignal("session-3", { session: "s1", day: "2026-08-03" }),
+		];
+		const ambiguous = signals[2] as PreferenceSignalV1;
+		signals[2] = { ...ambiguous, sourceRefs: [...ambiguous.sourceRefs, ref("session", "s2")] };
+
+		expect(
+			evaluateCandidatePromotion(candidate(signals[0] as PreferenceSignalV1), signals, [], policy),
+		).toMatchObject({
+			disposition: "candidate",
+			independentSessionCount: 1,
+		});
+	});
+
+	it("does not count an ambiguously attributed signal as multiple independent Projects", () => {
+		const signals = Array.from({ length: 5 }, (_, index) =>
+			behavioralSignal(`project-${index + 1}`, {
+				session: `s${index + 1}`,
+				project: "p1",
+				day: `2026-08-0${index + 1}`,
+				type: "tool_choice",
+				category: "method",
+				key: "preferred_method_ids",
+				value: ["did"],
+			}),
+		);
+		const ambiguous = signals[4] as PreferenceSignalV1;
+		signals[4] = {
+			...ambiguous,
+			sourceRefs: [...ambiguous.sourceRefs, ref("project", "p2", 1), ref("project", "p3", 1)],
+		};
+		const methodCandidate = candidate(signals[0] as PreferenceSignalV1, {
+			category: "method",
+			key: "preferred_method_ids",
+			value: ["did"],
+			proposedEffects: ["ranking"],
+		});
+
+		expect(evaluateCandidatePromotion(methodCandidate, signals, [], policy)).toMatchObject({
+			disposition: "candidate",
+			independentProjectCount: 1,
+		});
+	});
 });

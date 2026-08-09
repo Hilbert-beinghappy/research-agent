@@ -305,6 +305,20 @@ function supportingSignals(
 	};
 }
 
+function independentlyAttributedSourceLocators(
+	signals: readonly PreferenceSignalV1[],
+	kind: "session" | "project",
+): Set<string> {
+	const independent = new Set<string>();
+	for (const signal of signals) {
+		const locators = new Set(signal.sourceRefs.filter((ref) => ref.kind === kind).map(({ locator }) => locator));
+		if (locators.size !== 1) continue;
+		const locator = locators.values().next().value;
+		if (locator !== undefined) independent.add(locator);
+	}
+	return independent;
+}
+
 export function evaluateCandidatePromotion(
 	candidate: MemoryCandidateDraftV1,
 	signals: readonly PreferenceSignalV1[],
@@ -312,16 +326,8 @@ export function evaluateCandidatePromotion(
 	policy: ResearcherProfileV1["learningPolicy"],
 ): PromotionEvaluation {
 	const { support, contradictions } = supportingSignals(candidate, signals);
-	const sessions = new Set(
-		support.flatMap((signal) =>
-			signal.sourceRefs.filter(({ kind }) => kind === "session").map(({ locator }) => locator),
-		),
-	);
-	const projects = new Set(
-		support.flatMap((signal) =>
-			signal.sourceRefs.filter(({ kind }) => kind === "project").map(({ locator }) => locator),
-		),
-	);
+	const sessions = independentlyAttributedSourceLocators(support, "session");
+	const projects = independentlyAttributedSourceLocators(support, "project");
 	const days = new Set(support.map(({ observedAt }) => observedAt.slice(0, 10)));
 	const independentSupportCount = new Set(support.map(({ dedupeKey }) => dedupeKey)).size;
 	const supportWeight = support.reduce((total, signal) => total + signal.baseWeight, 0);
