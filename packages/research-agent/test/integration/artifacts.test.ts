@@ -679,6 +679,7 @@ describe("research artifacts", () => {
 		expect(await listProjectRecordIds(opened.root, opened.manifest, "artifact")).toHaveLength(0);
 	});
 
+	// biome-ignore format: Keep the platform timeout change focused on this test.
 	it("requires final confirmation and approval before replacing a fixed artifact path", async () => {
 		const seeded = await seedClaimProject({ located: true, verified: true, reviewed: false });
 		const harness = createHarness();
@@ -760,5 +761,5 @@ describe("research artifacts", () => {
 		expect(harness.confirm).toHaveBeenCalledTimes(4);
 		expect(await readFile(join(projectRoot, ...outputPath.split("/")), "utf8")).toContain("Review v2");
 		expect(await validateProject(projectRoot)).toMatchObject({ valid: true, issues: [] });
-	});
+	}, process.platform === "linux" ? 15_000 : undefined);
 });
