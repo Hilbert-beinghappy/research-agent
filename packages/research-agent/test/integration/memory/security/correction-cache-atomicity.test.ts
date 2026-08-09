@@ -67,7 +67,7 @@ describe("Personal Memory correction and cache atomicity", () => {
 		expect(applied.feedback.transactionId).toBe(applied.transactionId);
 		expect(await readFile(indexPath, "utf8")).toContain("zh-CN");
 
-		const corrected = await retrievePersonalMemory(profileRoot, retrievalQuery({ now: "2026-08-09T12:00:00.000Z" }));
+		const corrected = await retrievePersonalMemory(profileRoot, retrievalQuery({ now: applied.item.validFrom }));
 		expect(corrected).toMatchObject({
 			status: "applied",
 			cacheStatus: "rebuilt",
@@ -119,7 +119,7 @@ describe("Personal Memory correction and cache atomicity", () => {
 		);
 		expect(forgotten.item).toMatchObject({ revision: 2, status: "forgotten", value: null });
 		expect(
-			await retrievePersonalMemory(profileRoot, retrievalQuery({ now: "2026-08-09T12:00:00.000Z" })),
+			await retrievePersonalMemory(profileRoot, retrievalQuery({ now: forgotten.item.validFrom })),
 		).toMatchObject({
 			status: "empty",
 			code: "no_eligible_items",
@@ -141,7 +141,7 @@ describe("Personal Memory correction and cache atomicity", () => {
 			{ expectedProfileRevision: 2 },
 		);
 		expect(restored.item).toMatchObject({ revision: 3, status: "active", value: "zh-CN", origin: "explicit" });
-		const retrieval = await retrievePersonalMemory(profileRoot, retrievalQuery({ now: "2026-08-09T12:00:00.000Z" }));
+		const retrieval = await retrievePersonalMemory(profileRoot, retrievalQuery({ now: restored.item.validFrom }));
 		expect(retrieval).toMatchObject({
 			status: "applied",
 			items: [{ memoryId: "memory-language", revision: 3, value: "zh-CN" }],
