@@ -16,7 +16,7 @@ on:
       repetitions:
         description: Repetitions per matrix cell
         required: true
-        default: "1"
+        default: "3"
         type: string
 
 permissions:
@@ -29,7 +29,7 @@ concurrency:
 jobs:
   transaction-diagnostics:
     name: Transaction diagnostics (${{ matrix.os }})
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

@@ -27,7 +27,7 @@ interface WorkerResult {
 	conflicts: number;
 }
 
-interface DiagnosticCaseResult {
+export interface DiagnosticCaseResult {
 	processes: number;
 	writesPerProcess: number;
 	repetition: number;
@@ -50,11 +50,12 @@ interface DiagnosticCaseResult {
 	errorCode: string | null;
 }
 
-interface GrowthCheck {
+export interface GrowthCheck {
 	processes: number;
-	repetition: number;
 	fromTotalWrites: number;
 	toTotalWrites: number;
+	fromMedianElapsedMs: number;
+	toMedianElapsedMs: number;
 	ratio: number;
 	budget: number;
 	passed: boolean;
@@ -155,6 +156,14 @@ function percentile(values: readonly number[], quantile: number): number {
 	const sorted = [...values].sort((left, right) => left - right);
 	const value = sorted[Math.max(0, Math.ceil(sorted.length * quantile) - 1)];
 	return value === undefined ? 0 : Number(value.toFixed(3));
+}
+
+function median(values: readonly number[]): number {
+	const sorted = [...values].sort((left, right) => left - right);
+	const middle = Math.floor(sorted.length / 2);
+	const value =
+		sorted.length % 2 === 0 ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2 : (sorted[middle] ?? 0);
+	return Number(value.toFixed(3));
 }
 
 function phaseTimings(records: readonly ProjectTransactionTraceRecord[]): DiagnosticCaseResult["phaseTimings"] {
@@ -414,29 +423,44 @@ async function runDiagnosticCase(
 	}
 }
 
-function calculateGrowthChecks(results: readonly DiagnosticCaseResult[], maxGrowthRatio: number | null): GrowthCheck[] {
+export function calculateGrowthChecks(
+	results: readonly DiagnosticCaseResult[],
+	maxGrowthRatio: number | null,
+): GrowthCheck[] {
 	if (maxGrowthRatio === null) return [];
 	const checks: GrowthCheck[] = [];
 	const cells = new Map<string, DiagnosticCaseResult[]>();
 	for (const result of results) {
 		if (result.status !== "passed") continue;
-		const key = `${result.processes}:${result.repetition}`;
+		const key = `${result.processes}:${result.writesPerProcess}`;
 		const values = cells.get(key) ?? [];
 		values.push(result);
 		cells.set(key, values);
 	}
+	const tiersByProcess = new Map<number, Array<{ writesPerProcess: number; medianElapsedMs: number }>>();
 	for (const values of cells.values()) {
-		values.sort((left, right) => left.writesPerProcess - right.writesPerProcess);
-		for (let index = 1; index < values.length; index += 1) {
-			const previous = values[index - 1];
-			const current = values[index];
+		const first = values[0];
+		if (first === undefined) continue;
+		const tiers = tiersByProcess.get(first.processes) ?? [];
+		tiers.push({
+			writesPerProcess: first.writesPerProcess,
+			medianElapsedMs: median(values.map(({ elapsedMs }) => elapsedMs)),
+		});
+		tiersByProcess.set(first.processes, tiers);
+	}
+	for (const [processes, tiers] of tiersByProcess) {
+		tiers.sort((left, right) => left.writesPerProcess - right.writesPerProcess);
+		for (let index = 1; index < tiers.length; index += 1) {
+			const previous = tiers[index - 1];
+			const current = tiers[index];
 			if (previous === undefined || current === undefined) continue;
-			const ratio = Number((current.elapsedMs / previous.elapsedMs).toFixed(3));
+			const ratio = Number((current.medianElapsedMs / previous.medianElapsedMs).toFixed(3));
 			checks.push({
-				processes: current.processes,
-				repetition: current.repetition,
-				fromTotalWrites: previous.processes * previous.writesPerProcess,
-				toTotalWrites: current.processes * current.writesPerProcess,
+				processes,
+				fromTotalWrites: processes * previous.writesPerProcess,
+				toTotalWrites: processes * current.writesPerProcess,
+				fromMedianElapsedMs: previous.medianElapsedMs,
+				toMedianElapsedMs: current.medianElapsedMs,
 				ratio,
 				budget: maxGrowthRatio,
 				passed: ratio <= maxGrowthRatio,
@@ -462,14 +486,17 @@ async function runCoordinator(): Promise<void> {
 	const maxGrowthRatioArgument = argumentValue("--max-growth-ratio");
 	const maxGrowthRatio =
 		maxGrowthRatioArgument === undefined ? null : positiveNumber(maxGrowthRatioArgument, "--max-growth-ratio");
+	if (maxGrowthRatio !== null && repetitions < 3) {
+		throw new TypeError("--max-growth-ratio requires at least 3 repetitions per matrix cell");
+	}
 	if (watchdogMs >= timeoutMs) throw new TypeError("--watchdog-ms must be less than --timeout-ms");
 	const temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-transaction-diagnostic-"));
 	const traceRecords: ProjectTransactionTraceRecord[] = [];
 	try {
 		const results: DiagnosticCaseResult[] = [];
 		for (const processes of processCounts) {
-			for (const writesPerProcess of counts) {
-				for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+			for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+				for (const writesPerProcess of counts) {
 					results.push(
 						await runDiagnosticCase(
 							temporaryDirectory,
@@ -489,7 +516,7 @@ async function runCoordinator(): Promise<void> {
 		const growthChecks = calculateGrowthChecks(results, maxGrowthRatio);
 		const passed = results.every(({ status }) => status === "passed") && growthChecks.every(({ passed }) => passed);
 		const report = {
-			benchmark: "doro-project-transaction-diagnostic-v1",
+			benchmark: "doro-project-transaction-diagnostic-v2",
 			generatedAt: new Date().toISOString(),
 			platform: `${process.platform}-${process.arch}`,
 			node: process.version,
@@ -528,15 +555,17 @@ async function runCoordinator(): Promise<void> {
 	}
 }
 
-const workerIndex = process.argv.indexOf("--worker");
-if (workerIndex >= 0) {
-	const projectRoot = process.argv[workerIndex + 1];
-	const workerId = process.argv[workerIndex + 2];
-	const count = process.argv[workerIndex + 3];
-	if (projectRoot === undefined || workerId === undefined || count === undefined) {
-		throw new TypeError("--worker requires project root, worker ID, and count");
+if (import.meta.main) {
+	const workerIndex = process.argv.indexOf("--worker");
+	if (workerIndex >= 0) {
+		const projectRoot = process.argv[workerIndex + 1];
+		const workerId = process.argv[workerIndex + 2];
+		const count = process.argv[workerIndex + 3];
+		if (projectRoot === undefined || workerId === undefined || count === undefined) {
+			throw new TypeError("--worker requires project root, worker ID, and count");
+		}
+		await runWorkerMode(projectRoot, workerId, positiveInteger(count, "worker count"));
+	} else {
+		await runCoordinator();
 	}
-	await runWorkerMode(projectRoot, workerId, positiveInteger(count, "worker count"));
-} else {
-	await runCoordinator();
 }

@@ -196,7 +196,7 @@ jobs:
           node packages/research-agent/scripts/diagnose-project-transactions.ts
           --counts 125,250,500
           --processes 2
-          --repetitions 1
+          --repetitions 3
           --watchdog-ms 240000
           --timeout-ms 480000
           --max-elapsed-ms 225000
