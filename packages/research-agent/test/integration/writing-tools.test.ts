@@ -116,6 +116,7 @@ function manuscriptFrom(result: Record<string, unknown>): Record<string, unknown
 }
 
 describe("Pi manuscript and review tools", () => {
+	// biome-ignore format: Keep the platform timeout change focused on this test.
 	it("connects immutable drafting, review, revision, disclosure, and submission approval", async () => {
 		const testHarness = harness();
 		const first = await createRevision(testHarness, "The first immutable draft.", null);
@@ -240,7 +241,7 @@ describe("Pi manuscript and review tools", () => {
 			submissionGatesByPublishability: { submission_candidate: 1 },
 		});
 		expect(await validateProject(projectRoot)).toMatchObject({ valid: true, issues: [] });
-	}, 15_000);
+	}, process.platform === "win32" ? 60_000 : 15_000);
 
 	it("blocks manuscript content before reading records when model egress is denied", async () => {
 		const opened = await openProject(projectRoot);

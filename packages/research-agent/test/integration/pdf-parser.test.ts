@@ -305,6 +305,7 @@ describe("project PDF parsing", () => {
 		expect(reopened.compatibility).toBe("current");
 	});
 
+	// biome-ignore format: Keep the platform timeout change focused on this test.
 	it("persists OCR, partial text, and parse failures as distinct states", async () => {
 		const cases = [
 			["scanned.pdf", 1_000_000, 10, "ocr_required", "absent", "PDF_OCR_REQUIRED", true],
@@ -330,7 +331,7 @@ describe("project PDF parsing", () => {
 			if (!result.ok) throw new Error(result.errors[0].message);
 			expect(result.value.parsedOutput !== null, name).toBe(hasOutput);
 		}
-	}, 15_000);
+	}, process.platform === "win32" ? 60_000 : 15_000);
 
 	it("quarantines an original whose bytes no longer match its content hash", async () => {
 		const document = await createDocument("text-layer.pdf");

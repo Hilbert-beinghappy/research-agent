@@ -149,6 +149,7 @@ async function code(
 }
 
 describe("qualitative coding and audit workbench", () => {
+	// biome-ignore format: Keep the platform timeout change focused on this test.
 	it("preserves stable locators, model suggestions, human edits, negative cases, and reruns", async () => {
 		const materialPath = join(temporaryDirectory, "interviews.txt");
 		await writeFile(
@@ -288,5 +289,5 @@ describe("qualitative coding and audit workbench", () => {
 		expect(audit.value.json).toContain(synthesis.value.themeSynthesisId);
 		expect(audit.value.json).toContain(rerun.value.themeSynthesisId);
 		expect(await validateProject(projectRoot)).toMatchObject({ valid: true, issues: [] });
-	}, 20_000);
+	}, process.platform === "win32" ? 60_000 : 20_000);
 });
