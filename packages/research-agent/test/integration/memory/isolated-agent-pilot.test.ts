@@ -42,6 +42,16 @@ interface ParticipantResult {
 }
 
 const worker = join(import.meta.dirname, "..", "..", "fixtures", "memory-agent-pilot-worker.ts");
+const expectedReportPath = join(
+	import.meta.dirname,
+	"..",
+	"..",
+	"..",
+	"evals",
+	"v3",
+	"baselines",
+	"memory-agent-pilot-synthetic.json",
+);
 const scenarios = [
 	"systematic-review",
 	"policy-comparison",
@@ -217,6 +227,9 @@ describe("isolated synthetic Agent pilot", () => {
 				await writeFile(configPath, `${canonicalStringify(value)}\n`, { mode: 0o600 });
 				configs.push({ ...value, configPath });
 			}
+			const sessionRefs = configs.flatMap(({ sessionIds }) => Object.values(sessionIds));
+			expect(sessionRefs).toHaveLength(20);
+			expect(new Set(sessionRefs).size).toBe(20);
 
 			for (const { configPath } of configs) await runWorker(configPath);
 			const rawResults = await Promise.all(
@@ -235,6 +248,10 @@ describe("isolated synthetic Agent pilot", () => {
 			expect(results.filter(({ lifecycle }) => lifecycle.action === "delete")).toHaveLength(3);
 
 			for (const result of results) {
+				expect(result.conditionResults).toHaveLength(2);
+				expect(result.conditionResults.map(({ condition, sequence }) => ({ condition, sequence }))).toEqual(
+					result.order.map((condition, index) => ({ condition, sequence: index + 1 })),
+				);
 				expect(result).toMatchObject({
 					format: "doro-memory-agent-pilot-participant",
 					version: 1,
@@ -278,6 +295,87 @@ describe("isolated synthetic Agent pilot", () => {
 				}
 			}
 			expect(await allFileText(temporaryDirectory)).not.toContain(coordinatorSecret);
+
+			const onResults = results.flatMap(({ conditionResults }) =>
+				conditionResults.filter(({ condition }) => condition === "memory_on"),
+			);
+			const offResults = results.flatMap(({ conditionResults }) =>
+				conditionResults.filter(({ condition }) => condition === "memory_off"),
+			);
+			const report = {
+				format: "doro-memory-agent-pilot-report",
+				version: 1,
+				synthetic: true,
+				platform: "darwin",
+				randomizationSeedHash: `sha256:${createHash("sha256").update(randomizationSeed).digest("hex")}`,
+				participantResultRootHash: `sha256:${createHash("sha256")
+					.update(
+						canonicalStringify(
+							[...results].sort((left, right) => left.participantCode.localeCompare(right.participantCode)),
+						),
+					)
+					.digest("hex")}`,
+				counts: {
+					agents: results.length,
+					pairs: results.length,
+					tasks: results.reduce((count, { conditionResults }) => count + conditionResults.length, 0),
+					sessions: new Set(sessionRefs).size,
+					isolatedHomes: new Set(results.map(({ homeRef }) => homeRef)).size,
+					isolatedProfiles: new Set(results.map(({ profileId }) => profileId)).size,
+					restrictedProjects: results.filter(({ boundaries }) => boundaries.restrictedProject).length,
+					memoryOnApplied: onResults.filter(({ applied }) => applied).length,
+					memoryOnReceipts: onResults.reduce((count, { receiptDelta }) => count + receiptDelta, 0),
+					memoryOffApplications: offResults.filter(({ applied }) => applied).length,
+					memoryOffReceipts: offResults.reduce((count, { receiptDelta }) => count + receiptDelta, 0),
+					siblingReadBlocked: results.filter(({ boundaries }) => boundaries.siblingReadBlocked).length,
+					restrictedSignalLeakage: results.reduce(
+						(count, { boundaries }) => count + boundaries.restrictedSignalDelta,
+						0,
+					),
+				},
+				firstCondition: {
+					memoryOn: results.filter(({ order }) => order[0] === "memory_on").length,
+					memoryOff: results.filter(({ order }) => order[0] === "memory_off").length,
+				},
+				lifecycle: Object.fromEntries(
+					(["correct", "forget", "delete"] as const).map((action) => {
+						const matching = results.filter(({ lifecycle }) => lifecycle.action === action);
+						return [
+							action,
+							{
+								attempted: matching.length,
+								passed: matching.filter(({ lifecycle }) => lifecycle.passed).length,
+							},
+						];
+					}),
+				),
+				gates: {
+					exactReportSchema: true,
+					identityBinding: true,
+					uniqueCanaryIsolation: true,
+					strongSandboxProbe: results.every(({ boundaries }) => boundaries.siblingReadBlocked),
+					allParticipantsPassed: results.every(
+						({ lifecycle, conditionResults }) =>
+							lifecycle.passed &&
+							conditionResults.some(({ condition, applied }) => condition === "memory_on" && applied) &&
+							conditionResults.some(({ condition, applied }) => condition === "memory_off" && !applied),
+					),
+				},
+				claims: {
+					betaPilotStarted: false,
+					stableStudyEligible: false,
+					realUserEvidence: false,
+					longitudinal12WeekEvidence: false,
+				},
+				limitations: [
+					"Synthetic Agents are not human participants.",
+					"One paired smoke per Agent does not satisfy longitudinal exposure minima.",
+					"This run qualifies macOS memory isolation and lifecycle behavior only.",
+					"Citation, evidence, submission, and blinded research-quality gates were not evaluated.",
+				],
+			};
+			const expectedReport = JSON.parse(await readFile(expectedReportPath, "utf8")) as unknown;
+			expect(report).toEqual(expectedReport);
 		},
 		60_000,
 	);

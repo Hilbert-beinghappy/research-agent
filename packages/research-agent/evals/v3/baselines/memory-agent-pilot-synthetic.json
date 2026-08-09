@@ -3,9 +3,8 @@
   "version": 1,
   "synthetic": true,
   "platform": "darwin",
-  "candidateCommit": "24d94622fd0a82dc8156c188a3e6b5f062722829",
   "randomizationSeedHash": "sha256:a42ccf0fbbe455529a812c6abf3843daf61020ad9a0bcae2a446194794ce8df6",
-  "participantResultRootHash": "sha256:003c8106eb4f7ce470714981a0ab42bf97190c3bf774094a4e442b51adb6c855",
+  "participantResultRootHash": "sha256:a37c94da213f8f9fb9a693d34e3ad81cef67e0813ce2e9bf88025728489f2119",
   "counts": {
     "agents": 10,
     "pairs": 10,

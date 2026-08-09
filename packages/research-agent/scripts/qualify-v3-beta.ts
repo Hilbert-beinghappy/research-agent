@@ -193,6 +193,7 @@ const artifactHashes = {
 	transferCryptoVector: await fileHash(join(packageRoot, "evals/v3/memory-transfer-v1-crypto-vector.json")),
 	migrationGuide: await fileHash(join(packageRoot, "docs/memory-v3-migration.md")),
 	trialProtocol: await fileHash(join(packageRoot, "docs/memory-v3-beta-trial.md")),
+	syntheticAgentPilot: await fileHash(join(packageRoot, "evals/v3/baselines/memory-agent-pilot-synthetic.json")),
 	releaseBoundary: await fileHash(join(packageRoot, "docs/release-v3.0.0-beta.1.md")),
 	compatibilityMatrix: await fileHash(join(packageRoot, "docs/compatibility/pi-baselines.json")),
 	sbom: await fileHash(join(packageRoot, "SBOM.spdx.json")),
