@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { canonicalStringify } from "../../../../src/contracts/canonical-json.ts";
-import { hashCanonicalJson } from "../../../../src/contracts/integrity.ts";
+import { hashBytes, hashCanonicalJson } from "../../../../src/contracts/integrity.ts";
+import { deletePersonalMemory, verifyAndRecordMemoryDeletion } from "../../../../src/memory/deletion.ts";
 import { memoryProfileRoot } from "../../../../src/memory/layout.ts";
 import { appendMemoryItem, createMemoryProfile, openMemoryProfile } from "../../../../src/memory/store.ts";
 import {
@@ -135,6 +136,220 @@ describe("Personal Memory transfer atomic rejection", { timeout: 60_000 }, () =>
 		await exportEncryptedMemoryTransfer(source, forkBundle, passphrase, { snapshotId: "snapshot-fork" });
 		const before = await directoryDigest(targetRoot);
 		await expect(importEncryptedMemoryTransfer(targetHome, forkBundle, passphrase)).rejects.toMatchObject({
+			code: "MEMORY_TRANSFER_CONFLICT",
+		});
+		expect(await directoryDigest(targetRoot)).toBe(before);
+	});
+
+	it("keeps deletion verification audit local and blocks a non-idempotent merge", async () => {
+		const source = join(temporaryDirectory, "audit-source");
+		const targetHome = join(temporaryDirectory, "audit-target-home");
+		const baseBundle = join(temporaryDirectory, "audit-base.doro-memory");
+		await createSource(source);
+		await exportEncryptedMemoryTransfer(source, baseBundle, passphrase, { snapshotId: "snapshot-audit-base" });
+		await importEncryptedMemoryTransfer(targetHome, baseBundle, passphrase);
+		const targetRoot = memoryProfileRoot(targetHome, profileId);
+		await deletePersonalMemory(
+			targetRoot,
+			{
+				feedbackId: "feedback-audit-local",
+				target: { memoryId: "memory-base", revision: 1 },
+				sourceRef: { kind: "session", locator: "session:audit-local", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:00.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 2 },
+		);
+		const localBundle = join(temporaryDirectory, "audit-local.doro-memory");
+		await exportEncryptedMemoryTransfer(targetRoot, localBundle, passphrase, { snapshotId: "snapshot-audit-local" });
+		const localSnapshot = await verifyEncryptedMemoryTransfer(localBundle, passphrase);
+		expect(localSnapshot.snapshot.files.some(({ path }) => path.startsWith("audit/"))).toBe(false);
+		expect(localSnapshot.snapshot.files.some(({ path }) => path.startsWith("tombstones/"))).toBe(true);
+
+		await addMemory(source, profileId, "memory-audit-advance-1", "prose", 2);
+		await addMemory(source, profileId, "memory-audit-advance-2", "mixed", 3);
+		await addMemory(source, profileId, "memory-audit-advance-3", "table", 4);
+		await addMemory(source, profileId, "memory-audit-advance-4", "prose", 5);
+		const advancedBundle = join(temporaryDirectory, "audit-advanced.doro-memory");
+		await exportEncryptedMemoryTransfer(source, advancedBundle, passphrase, {
+			snapshotId: "snapshot-audit-advanced",
+		});
+		const before = await directoryDigest(targetRoot);
+		await expect(importEncryptedMemoryTransfer(targetHome, advancedBundle, passphrase)).rejects.toMatchObject({
+			code: "MEMORY_TRANSFER_CONFLICT",
+		});
+		expect(await directoryDigest(targetRoot)).toBe(before);
+	});
+
+	it("rejects export rather than orphaning a tombstone from restricted delete feedback", async () => {
+		const source = join(temporaryDirectory, "restricted-delete-source");
+		const bundle = join(temporaryDirectory, "restricted-delete.doro-memory");
+		await createSource(source);
+		await expect(
+			deletePersonalMemory(
+				source,
+				{
+					feedbackId: "feedback-restricted-delete",
+					target: { memoryId: "memory-base", revision: 1 },
+					sourceRef: { kind: "session", locator: "session:restricted-delete", dataClass: "restricted" },
+					requestedAt: "2026-08-08T10:00:00.000Z",
+					reasonCode: "privacy_request",
+				},
+				{ expectedProfileRevision: 1 },
+			),
+		).resolves.toMatchObject({
+			committed: true,
+			verification: {
+				status: "failed",
+				checkedClasses: [],
+				residueCodes: ["verification_unavailable"],
+			},
+		});
+		await expect(exportEncryptedMemoryTransfer(source, bundle, passphrase)).rejects.toMatchObject({
+			code: "MEMORY_TRANSFER_INVALID_BUNDLE",
+		});
+	});
+
+	it("imports a terminal pair without claiming the missing source deletion journal", async () => {
+		const source = join(temporaryDirectory, "terminal-import-source");
+		const targetHome = join(temporaryDirectory, "terminal-import-home");
+		const bundle = join(temporaryDirectory, "terminal-import.doro-memory");
+		await createSource(source);
+		await deletePersonalMemory(
+			source,
+			{
+				feedbackId: "feedback-terminal-import",
+				target: { memoryId: "memory-base", revision: 1 },
+				sourceRef: { kind: "session", locator: "session:terminal-import", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:00.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 1 },
+		);
+		await exportEncryptedMemoryTransfer(source, bundle, passphrase, { snapshotId: "snapshot-terminal-import" });
+		await importEncryptedMemoryTransfer(targetHome, bundle, passphrase);
+		const targetRoot = memoryProfileRoot(targetHome, profileId);
+		const recorded = await verifyAndRecordMemoryDeletion(targetRoot, "memory-base");
+		expect(recorded).toMatchObject({
+			attestationRecorded: true,
+			errorCode: "MEMORY_DELETE_VERIFICATION_FAILED",
+			verification: { status: "failed", residueCodes: ["deletion_binding_mismatch"] },
+		});
+		expect(recorded.verification.checkedClasses).not.toContain("deletion_transaction");
+		const opened = await openMemoryProfile(targetRoot, { rebuildCache: false });
+		if (opened.mode !== "read-write") throw new Error("expected writable imported terminal profile");
+		await expect(
+			appendMemoryItem(
+				targetRoot,
+				itemDraft(profileId, "memory-base", {
+					category: "writing",
+					key: "representation",
+					value: "prose",
+					allowedEffects: ["formatting"],
+				}),
+				{ expectedProfileRevision: opened.profile.revision },
+			),
+		).rejects.toThrow("MEMORY_DELETED_TERMINAL");
+	});
+
+	it("requires incoming fast-forwards to preserve the local terminal pair byte-for-byte", async () => {
+		const source = join(temporaryDirectory, "terminal-merge-source");
+		const targetHome = join(temporaryDirectory, "terminal-merge-home");
+		const baseBundle = join(temporaryDirectory, "terminal-merge-base.doro-memory");
+		await createSource(source);
+		await exportEncryptedMemoryTransfer(source, baseBundle, passphrase, {
+			snapshotId: "snapshot-terminal-merge-base",
+		});
+		await importEncryptedMemoryTransfer(targetHome, baseBundle, passphrase);
+		const targetRoot = memoryProfileRoot(targetHome, profileId);
+		const localRequestedAt = "2026-08-08T10:00:00.000Z";
+		await deletePersonalMemory(
+			targetRoot,
+			{
+				feedbackId: "feedback-local-terminal",
+				target: { memoryId: "memory-base", revision: 1 },
+				sourceRef: { kind: "session", locator: "session:local-terminal", dataClass: "public" },
+				requestedAt: localRequestedAt,
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 2, faultAfterDeletionCommit: "attestation" },
+		);
+		await addMemory(source, profileId, "memory-cover", "prose", 2);
+		await deletePersonalMemory(
+			source,
+			{
+				feedbackId: "feedback-cover-terminal",
+				target: { memoryId: "memory-cover", revision: 1 },
+				sourceRef: { kind: "session", locator: "session:cover-terminal", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:01.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 3, faultAfterDeletionCommit: "attestation" },
+		);
+		const coverTombstonePath = join(source, "tombstones", "memory-cover.json");
+		const coverTombstone = JSON.parse(await readFile(coverTombstonePath, "utf8")) as {
+			deletedPathHashes: string[];
+			[key: string]: unknown;
+		};
+		const localFeedbackPath = `feedback/2026/08/feedback-local-terminal.json`;
+		coverTombstone.deletedPathHashes = [
+			...new Set([
+				...coverTombstone.deletedPathHashes,
+				`sha256:${hashBytes("tombstones/memory-base.json").value}`,
+				`sha256:${hashBytes(localFeedbackPath).value}`,
+			]),
+		].sort();
+		await writeFile(coverTombstonePath, `${canonicalStringify(coverTombstone)}\n`);
+		const omittedBundle = join(temporaryDirectory, "terminal-merge-omitted.doro-memory");
+		await exportEncryptedMemoryTransfer(source, omittedBundle, passphrase, {
+			snapshotId: "snapshot-terminal-merge-omitted",
+		});
+		const before = await directoryDigest(targetRoot);
+		await expect(importEncryptedMemoryTransfer(targetHome, omittedBundle, passphrase)).rejects.toMatchObject({
+			code: "MEMORY_TRANSFER_CONFLICT",
+		});
+		expect(await directoryDigest(targetRoot)).toBe(before);
+
+		const rewrittenSource = join(temporaryDirectory, "terminal-merge-rewritten-source");
+		await cp(targetRoot, rewrittenSource, { recursive: true });
+		const oldFeedbackFile = join(rewrittenSource, ...localFeedbackPath.split("/"));
+		const oldFeedback = JSON.parse(await readFile(oldFeedbackFile, "utf8")) as Record<string, unknown>;
+		const rewrittenFeedback = {
+			...oldFeedback,
+			feedbackId: "feedback-local-terminal-rewritten",
+			sourceRef: { kind: "session", locator: "session:rewritten-terminal", dataClass: "public" },
+		};
+		await rm(oldFeedbackFile);
+		await writeFile(
+			join(rewrittenSource, "feedback", "2026", "08", "feedback-local-terminal-rewritten.json"),
+			`${canonicalStringify(rewrittenFeedback)}\n`,
+		);
+		await addMemory(rewrittenSource, profileId, "memory-rewrite-cover", "mixed", 3);
+		await deletePersonalMemory(
+			rewrittenSource,
+			{
+				feedbackId: "feedback-rewrite-cover",
+				target: { memoryId: "memory-rewrite-cover", revision: 1 },
+				sourceRef: { kind: "session", locator: "session:rewrite-cover", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:02.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 4, faultAfterDeletionCommit: "attestation" },
+		);
+		const rewriteCoverPath = join(rewrittenSource, "tombstones", "memory-rewrite-cover.json");
+		const rewriteCover = JSON.parse(await readFile(rewriteCoverPath, "utf8")) as {
+			deletedPathHashes: string[];
+			[key: string]: unknown;
+		};
+		rewriteCover.deletedPathHashes = [
+			...new Set([...rewriteCover.deletedPathHashes, `sha256:${hashBytes(localFeedbackPath).value}`]),
+		].sort();
+		await writeFile(rewriteCoverPath, `${canonicalStringify(rewriteCover)}\n`);
+		const rewrittenBundle = join(temporaryDirectory, "terminal-merge-rewritten.doro-memory");
+		await exportEncryptedMemoryTransfer(rewrittenSource, rewrittenBundle, passphrase, {
+			snapshotId: "snapshot-terminal-merge-rewritten",
+		});
+		await expect(importEncryptedMemoryTransfer(targetHome, rewrittenBundle, passphrase)).rejects.toMatchObject({
 			code: "MEMORY_TRANSFER_CONFLICT",
 		});
 		expect(await directoryDigest(targetRoot)).toBe(before);

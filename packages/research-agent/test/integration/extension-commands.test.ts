@@ -543,10 +543,41 @@ describe("research extension commands", () => {
 		await harness.commands.get("memory")?.("delete memory-secret", ctx);
 		expect(commandResult(harness)).toMatchObject({
 			ok: true,
-			value: { memoryId: "memory-secret", verification: { status: "verified" } },
+			value: {
+				committed: true,
+				memoryId: "memory-secret",
+				verificationTransactionId: expect.any(String),
+				verification: {
+					verificationId: expect.any(String),
+					deletionTransactionId: expect.any(String),
+					status: "verified",
+				},
+			},
 		});
 		await harness.commands.get("memory")?.("verify-delete memory-secret", ctx);
-		expect(commandResult(harness)).toMatchObject({ ok: true, value: { status: "verified", residueCodes: [] } });
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			value: {
+				status: "verified",
+				residueCodes: [],
+				attestationRecorded: true,
+				verificationTransactionId: expect.any(String),
+			},
+		});
+		await harness.commands.get("memory")?.("verify-delete memory-missing", ctx);
+		expect(commandResult(harness)).toMatchObject({
+			ok: true,
+			status: "PARTIAL_SUCCESS",
+			errors: [{ code: "MEMORY_DELETE_VERIFICATION_FAILED", category: "integrity" }],
+			value: {
+				memoryId: "memory-missing",
+				status: "failed",
+				attestationRecorded: false,
+				verificationTransactionId: null,
+				errorCode: "MEMORY_DELETE_VERIFICATION_FAILED",
+			},
+		});
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({ counts: { audit: 2 } });
 
 		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		await harness.commands.get("memory")?.("status", harness.context(temporaryDirectory, false));

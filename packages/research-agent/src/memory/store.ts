@@ -3,8 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, open as openFile, readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { MemoryDeletionTombstoneV1 } from "@research-agent/contracts";
-import { validateMemoryDeletionTombstoneV1 } from "@research-agent/contracts";
+import type { MemoryDeletionTombstoneV1, MemoryDeletionVerificationV1 } from "@research-agent/contracts";
+import { validateMemoryDeletionTombstoneV1, validateMemoryDeletionVerificationV1 } from "@research-agent/contracts";
 import type {
 	MemoryCandidateDraftV1,
 	MemoryCategory,
@@ -26,7 +26,7 @@ import {
 	validatePreferenceSignalV1,
 } from "@research-agent/contracts/memory-validators";
 import { canonicalizeJson, canonicalStringify } from "../contracts/canonical-json.ts";
-import { hashCanonicalJson } from "../contracts/integrity.ts";
+import { hashBytes, hashCanonicalJson } from "../contracts/integrity.ts";
 import { resolveProjectPath, validatePortablePathSet } from "../kernel/paths.ts";
 import { atomicWriteFile, syncParentDirectory } from "../project/atomic-write.ts";
 import {
@@ -41,6 +41,7 @@ import {
 	validateMemoryLayout,
 } from "./layout.ts";
 import {
+	assertCommittedMemoryRecords,
 	listPendingMemoryTransactions,
 	listPendingMemoryTransactionsAtRoot,
 	readMemoryProfileFile,
@@ -54,6 +55,8 @@ export type ImmutableMemoryRecord =
 	| MemoryUseReceiptV1
 	| MemoryFeedbackV1
 	| MemorySnapshotManifestV1;
+
+type DeletionProtectedRecord = ImmutableMemoryRecord | MemoryItemV1;
 
 export type MemoryItemDraft = Omit<MemoryItemV1, "transactionId">;
 
@@ -86,6 +89,7 @@ export interface CanonicalMemoryState {
 	feedback: MemoryFeedbackV1[];
 	receipts: MemoryUseReceiptV1[];
 	tombstones: MemoryDeletionTombstoneV1[];
+	audit: MemoryDeletionVerificationV1[];
 	transferManifests: MemorySnapshotManifestV1[];
 	counts: {
 		signals: number;
@@ -94,6 +98,7 @@ export interface CanonicalMemoryState {
 		feedback: number;
 		receipts: number;
 		tombstones: number;
+		audit: number;
 		transferManifests: number;
 	};
 }
@@ -278,15 +283,101 @@ function validateItemHistory(profile: ResearcherProfileV1, items: MemoryItemV1[]
 	return active.sort((left, right) => left.memoryId.localeCompare(right.memoryId));
 }
 
+function validateDeletionTombstoneFeedbackBindings(
+	tombstones: readonly MemoryDeletionTombstoneV1[],
+	signals: readonly PreferenceSignalV1[],
+	candidates: readonly MemoryCandidateDraftV1[],
+	items: readonly MemoryItemV1[],
+	feedback: readonly MemoryFeedbackV1[],
+	receipts: readonly MemoryUseReceiptV1[],
+	transferManifests: readonly MemorySnapshotManifestV1[],
+): void {
+	const appliedDeletes = feedback.filter(
+		(record) => record.action === "delete" && record.applicationStatus === "applied",
+	);
+	for (const tombstone of tombstones) {
+		const targeted = feedback.filter((record) => record.target.memoryId === tombstone.memoryId);
+		const record = targeted[0];
+		if (targeted.length !== 1 || record === undefined || !deletionFeedbackMatchesTombstone(record, tombstone)) {
+			throw new TypeError(`Memory deletion tombstone does not match applied feedback: ${tombstone.memoryId}`);
+		}
+	}
+	for (const record of appliedDeletes) {
+		const matchingTombstones = tombstones.filter((tombstone) => deletionFeedbackMatchesTombstone(record, tombstone));
+		if (matchingTombstones.length !== 1) {
+			throw new TypeError(`Applied deletion feedback does not match a tombstone: ${record.feedbackId}`);
+		}
+	}
+	const records: Array<{ path: string; record: DeletionProtectedRecord }> = [
+		...signals.map((record) => ({
+			path: `signals/${memoryMonthPath(record.createdAt)}/${record.signalId}.json`,
+			record,
+		})),
+		...candidates.map((record) => ({ path: `candidates/${record.candidateId}.json`, record })),
+		...items.map((record) => ({
+			path: `items/${record.category}/${record.memoryId}/${record.revision}.json`,
+			record,
+		})),
+		...feedback.map((record) => ({
+			path: `feedback/${memoryMonthPath(record.requestedAt)}/${record.feedbackId}.json`,
+			record,
+		})),
+		...receipts.map((record) => ({
+			path: `receipts/${memoryMonthPath(record.appliedAt)}/${record.receiptId}.json`,
+			record,
+		})),
+		...transferManifests.map((record) => ({ path: `transfer-manifests/${record.snapshotId}.json`, record })),
+	];
+	for (const { path, record } of records) {
+		if (deletionRecordConflicts(record, path, `${canonicalStringify(record)}\n`, tombstones)) {
+			throw new TypeError(`Canonical record conflicts with deletion tombstone: ${path}`);
+		}
+	}
+}
+
+async function validateDeletionVerificationBindings(
+	profileRoot: string,
+	profile: ResearcherProfileV1,
+	tombstones: readonly MemoryDeletionTombstoneV1[],
+	audit: readonly MemoryDeletionVerificationV1[],
+): Promise<void> {
+	const tombstonesByMemoryId = new Map(tombstones.map((tombstone) => [tombstone.memoryId, tombstone]));
+	for (const verification of audit) {
+		const tombstone = tombstonesByMemoryId.get(verification.memoryId);
+		const tombstoneHash =
+			tombstone === undefined ? null : `sha256:${hashBytes(`${canonicalStringify(tombstone)}\n`).value}`;
+		if (
+			tombstone === undefined ||
+			verification.deletionTransactionId !== tombstone.transactionId ||
+			verification.tombstoneHash !== tombstoneHash ||
+			Date.parse(verification.checkedAt) < Date.parse(tombstone.deletedAt) ||
+			verification.verificationId !== `deletion_verification_${verification.transactionId}` ||
+			verification.profileRevision >= profile.revision
+		) {
+			throw new TypeError(
+				`Memory deletion verification does not match canonical tombstone: ${verification.verificationId}`,
+			);
+		}
+		await assertCommittedMemoryRecords(profileRoot, {
+			transactionId: verification.transactionId,
+			profileId: verification.profileId,
+			expectedRevision: verification.profileRevision,
+			exactEntryCount: 1,
+			records: [
+				{
+					path: `audit/${memoryMonthPath(verification.checkedAt)}/${verification.verificationId}.json`,
+					content: `${canonicalStringify(verification)}\n`,
+				},
+			],
+		});
+	}
+}
+
 export async function loadCanonicalMemoryState(
 	profileRoot: string,
 	profile: ResearcherProfileV1,
 ): Promise<CanonicalMemoryState> {
-	// ponytail: reject audit records until their schema lands; add the validator with the audit contract.
-	if ((await canonicalFiles(profileRoot, "audit")).length > 0) {
-		throw new TypeError("Memory audit records are not supported by the current contract version");
-	}
-	const [signals, candidates, items, feedback, receipts, tombstones, transferManifests] = await Promise.all([
+	const [signals, candidates, items, feedback, receipts, tombstones, audit, transferManifests] = await Promise.all([
 		scanRecords(
 			profileRoot,
 			profile.profileId,
@@ -338,12 +429,30 @@ export async function loadCanonicalMemoryState(
 		scanRecords(
 			profileRoot,
 			profile.profileId,
+			"audit",
+			validateMemoryDeletionVerificationV1,
+			(record) => record.verificationId,
+			(record) => `audit/${memoryMonthPath(record.checkedAt)}/${record.verificationId}.json`,
+		),
+		scanRecords(
+			profileRoot,
+			profile.profileId,
 			"transfer-manifests",
 			validateMemorySnapshotManifestV1,
 			(record) => record.snapshotId,
 			(record) => `transfer-manifests/${record.snapshotId}.json`,
 		),
 	]);
+	validateDeletionTombstoneFeedbackBindings(
+		tombstones,
+		signals,
+		candidates,
+		items,
+		feedback,
+		receipts,
+		transferManifests,
+	);
+	await validateDeletionVerificationBindings(profileRoot, profile, tombstones, audit);
 	return {
 		signals,
 		candidates,
@@ -352,6 +461,7 @@ export async function loadCanonicalMemoryState(
 		feedback,
 		receipts,
 		tombstones,
+		audit,
 		transferManifests,
 		counts: {
 			signals: signals.length,
@@ -360,6 +470,7 @@ export async function loadCanonicalMemoryState(
 			feedback: feedback.length,
 			receipts: receipts.length,
 			tombstones: tombstones.length,
+			audit: audit.length,
 			transferManifests: transferManifests.length,
 		},
 	};
@@ -661,17 +772,127 @@ function immutableRecordPath(record: ImmutableMemoryRecord): string {
 	}
 }
 
+function deletionHash(value: string | Uint8Array): `sha256:${string}` {
+	return `sha256:${hashBytes(value).value}`;
+}
+
+export function deletionFeedbackMatchesTombstone(
+	record: MemoryFeedbackV1,
+	tombstone: MemoryDeletionTombstoneV1,
+): boolean {
+	return (
+		record.action === "delete" &&
+		record.applicationStatus === "applied" &&
+		record.target.memoryId === tombstone.memoryId &&
+		record.target.revision + 1 === tombstone.terminalRevision &&
+		record.resultingRevision === tombstone.terminalRevision &&
+		record.transactionId === tombstone.transactionId &&
+		record.correction === null &&
+		record.exportExclusionVerifiedAt === null &&
+		record.reasonCode === tombstone.reasonCode &&
+		Date.parse(record.requestedAt) <= Date.parse(tombstone.deletedAt) &&
+		record.deactivatedAt === tombstone.deletedAt &&
+		record.cacheInvalidatedAt === tombstone.deletedAt
+	);
+}
+
+export function deletionRecordConflicts(
+	record: DeletionProtectedRecord,
+	path: string,
+	content: string,
+	tombstones: readonly MemoryDeletionTombstoneV1[],
+): boolean {
+	let identifier: string;
+	switch (record.format) {
+		case "doro-preference-signal":
+			identifier = `signal:${record.signalId}`;
+			break;
+		case "doro-memory-candidate-draft":
+			identifier = `candidate:${record.candidateId}`;
+			break;
+		case "doro-memory-item":
+			identifier = `memory:${record.memoryId}`;
+			break;
+		case "doro-memory-use-receipt":
+			identifier = `receipt:${record.receiptId}`;
+			break;
+		case "doro-memory-feedback":
+			identifier = `feedback:${record.feedbackId}`;
+			break;
+		case "doro-memory-snapshot":
+			identifier = `snapshot:${record.snapshotId}`;
+			break;
+	}
+	const pathHash = deletionHash(path);
+	const contentHash = deletionHash(content);
+	const identifierHash = deletionHash(identifier);
+	const sourceSignalHashes =
+		record.format === "doro-memory-candidate-draft" || record.format === "doro-memory-item"
+			? record.sourceSignalRefs.map(({ signalId }) => deletionHash(`signal:${signalId}`))
+			: [];
+	const feedbackRefHashes =
+		record.format === "doro-memory-use-receipt"
+			? record.feedbackRefs.map((feedbackId) => deletionHash(`feedback:${feedbackId}`))
+			: [];
+	const supersededMemoryHashes =
+		record.format === "doro-memory-item"
+			? record.supersedes.map(({ memoryId }) => deletionHash(`memory:${memoryId}`))
+			: [];
+	const safeRefHashes =
+		record.format === "doro-preference-signal"
+			? record.sourceRefs.map(({ locator }) => deletionHash(locator))
+			: record.format === "doro-memory-feedback"
+				? [deletionHash(record.sourceRef.locator)]
+				: record.format === "doro-memory-use-receipt"
+					? [record.sessionRef, record.taskRef, record.operationRef, record.artifactRef]
+							.filter((ref) => ref !== null)
+							.map(({ locator }) => deletionHash(locator))
+					: [];
+	const snapshotPathHashes =
+		record.format === "doro-memory-snapshot" ? record.files.map((file) => deletionHash(file.path)) : [];
+	const snapshotRecordHashes =
+		record.format === "doro-memory-snapshot" ? record.files.map(({ plaintextHash }) => plaintextHash) : [];
+	return tombstones.some(
+		(tombstone) =>
+			tombstone.deletedPathHashes.includes(pathHash) ||
+			tombstone.deletedRecordHashes.includes(contentHash) ||
+			tombstone.relatedIdentifierHashes.includes(identifierHash) ||
+			(record.format === "doro-memory-item" && record.memoryId === tombstone.memoryId) ||
+			(record.format === "doro-memory-feedback" &&
+				record.target.memoryId === tombstone.memoryId &&
+				!deletionFeedbackMatchesTombstone(record, tombstone)) ||
+			(record.format === "doro-memory-use-receipt" &&
+				record.itemRefs.some(({ memoryId }) => memoryId === tombstone.memoryId)) ||
+			(record.format === "doro-memory-item" &&
+				record.supersedes.some(({ memoryId }) => memoryId === tombstone.memoryId)) ||
+			sourceSignalHashes.some((hash) => tombstone.relatedIdentifierHashes.includes(hash)) ||
+			feedbackRefHashes.some((hash) => tombstone.relatedIdentifierHashes.includes(hash)) ||
+			supersededMemoryHashes.some((hash) => tombstone.relatedIdentifierHashes.includes(hash)) ||
+			safeRefHashes.some((hash) => tombstone.relatedIdentifierHashes.includes(hash)) ||
+			snapshotPathHashes.some((hash) => tombstone.deletedPathHashes.includes(hash)) ||
+			snapshotRecordHashes.some((hash) => tombstone.deletedRecordHashes.includes(hash)),
+	);
+}
+
 export async function appendMemoryRecord(
 	profileRoot: string,
 	recordInput: ImmutableMemoryRecord,
 	options: AppendMemoryOptions = {},
 ): Promise<{ transactionId: string; profile: ResearcherProfileV1; record: ImmutableMemoryRecord }> {
 	const record = validateImmutableRecord(recordInput);
+	if (
+		record.format === "doro-memory-feedback" &&
+		record.action === "delete" &&
+		record.applicationStatus === "applied"
+	) {
+		throw new Error("MEMORY_DELETE_ATOMIC_REQUIRED: applied delete feedback must use deletePersonalMemory");
+	}
 	const path = immutableRecordPath(record);
+	const content = `${canonicalStringify(record)}\n`;
 	const prepared = await runMemoryTransaction(
 		profileRoot,
 		options.expectedProfileRevision,
-		(profile, transactionId) => {
+		async (profile, transactionId) => {
 			if (record.profileId !== profile.profileId)
 				throw new TypeError("Memory record profile ID does not match profile.json");
 			if (
@@ -686,6 +907,17 @@ export async function appendMemoryRecord(
 			) {
 				throw new Error(`MEMORY_DATA_CLASS_DENIED: ${record.dataClass}`);
 			}
+			const tombstones = await scanRecords(
+				profileRoot,
+				profile.profileId,
+				"tombstones",
+				validateMemoryDeletionTombstoneV1,
+				(value) => value.memoryId,
+				(value) => `tombstones/${value.memoryId}.json`,
+			);
+			if (deletionRecordConflicts(record, path, content, tombstones)) {
+				throw new Error("MEMORY_DELETED_TERMINAL: deleted memory records cannot be reintroduced");
+			}
 			const nextProfile: ResearcherProfileV1 = {
 				...profile,
 				revision: profile.revision + 1,
@@ -694,7 +926,7 @@ export async function appendMemoryRecord(
 			};
 			return {
 				profile: nextProfile,
-				writes: [{ path, content: `${canonicalStringify(record)}\n` }],
+				writes: [{ path, content }],
 				result: record,
 			};
 		},
@@ -735,9 +967,6 @@ export async function appendMemoryItem(
 			}
 			// ponytail: scan canonical items here; add a validated item hash index only after profile-scale benchmarks require it.
 			const state = await loadCanonicalMemoryState(profileRoot, profile);
-			if (state.tombstones.some(({ memoryId }) => memoryId === itemInput.memoryId)) {
-				throw new Error("MEMORY_DELETED_TERMINAL: deleted memory IDs cannot be reused");
-			}
 			const revisions = state.items
 				.filter(({ memoryId }) => memoryId === itemInput.memoryId)
 				.sort((left, right) => left.revision - right.revision);
@@ -761,6 +990,11 @@ export async function appendMemoryItem(
 				}
 			}
 			const item = requireValid(validateMemoryItemV1({ ...itemInput, transactionId }), "MemoryItemV1");
+			const path = `items/${item.category}/${validateMemoryIdentifier(item.memoryId, "memoryId")}/${item.revision}.json`;
+			const content = `${canonicalStringify(item)}\n`;
+			if (deletionRecordConflicts(item, path, content, state.tombstones)) {
+				throw new Error("MEMORY_DELETED_TERMINAL: deleted memory records cannot be reintroduced");
+			}
 			const items = [...state.items, item];
 			const nextProfile: ResearcherProfileV1 = {
 				...profile,
@@ -770,10 +1004,9 @@ export async function appendMemoryItem(
 				updatedAt: new Date().toISOString(),
 				lastTransactionId: transactionId,
 			};
-			const path = `items/${item.category}/${validateMemoryIdentifier(item.memoryId, "memoryId")}/${item.revision}.json`;
 			return {
 				profile: nextProfile,
-				writes: [{ path, content: `${canonicalStringify(item)}\n` }],
+				writes: [{ path, content }],
 				result: item,
 			};
 		},

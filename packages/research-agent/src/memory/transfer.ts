@@ -34,6 +34,7 @@ import {
 import {
 	appendMemoryRecord,
 	type CanonicalMemoryState,
+	deletionFeedbackMatchesTombstone,
 	loadCanonicalMemoryState,
 	memoryItemRootHash,
 	openMemoryProfile,
@@ -399,9 +400,20 @@ function portableState(profile: ResearcherProfileV1, state: CanonicalMemoryState
 			scopeCandidate.level !== "project" &&
 			sourceRefs.every((ref) => ref.dataClass !== "restricted"),
 	);
-	const feedback = state.feedback.filter(
-		({ target, sourceRef }) => transferableMemoryIds.has(target.memoryId) && sourceRef.dataClass !== "restricted",
+	const portableDeletionFeedback = state.feedback.filter(
+		(record) =>
+			record.sourceRef.dataClass !== "restricted" &&
+			state.tombstones.some((tombstone) => deletionFeedbackMatchesTombstone(record, tombstone)),
 	);
+	const portableDeletionFeedbackIds = new Set(portableDeletionFeedback.map(({ feedbackId }) => feedbackId));
+	const feedback = state.feedback.filter(
+		({ feedbackId, target, sourceRef }) =>
+			portableDeletionFeedbackIds.has(feedbackId) ||
+			(transferableMemoryIds.has(target.memoryId) && sourceRef.dataClass !== "restricted"),
+	);
+	const portableDeletionMemoryIds = new Set(portableDeletionFeedback.map(({ target }) => target.memoryId));
+	const tombstones = state.tombstones.filter(({ memoryId }) => portableDeletionMemoryIds.has(memoryId));
+	if (tombstones.length !== state.tombstones.length) throw transferError("MEMORY_TRANSFER_INVALID_BUNDLE");
 	const receipts = state.receipts.filter(
 		({ itemRefs, sessionRef, taskRef, operationRef, artifactRef }) =>
 			itemRefs.every(({ memoryId }) => transferableMemoryIds.has(memoryId)) &&
@@ -445,7 +457,7 @@ function portableState(profile: ResearcherProfileV1, state: CanonicalMemoryState
 			dataClass: "internal",
 		});
 	}
-	for (const record of state.tombstones) {
+	for (const record of tombstones) {
 		files.push({
 			path: `tombstones/${record.memoryId}.json`,
 			bytes: recordBytes(record),
@@ -507,6 +519,19 @@ function snapshotFor(portable: PortableState, snapshotId: string, createdAt: str
 	const validation = validateMemorySnapshotManifestV1(snapshot);
 	if (!validation.ok) throw transferError("MEMORY_TRANSFER_INVALID_BUNDLE");
 	return validation.value;
+}
+
+export function dryRunMemoryTransferSnapshot(
+	profile: ResearcherProfileV1,
+	state: CanonicalMemoryState,
+	createdAt: string,
+): MemorySnapshotManifestV1 {
+	const portable = portableState(profile, state);
+	try {
+		return snapshotFor(portable, "snapshot_deletion_verification_preview", createdAt);
+	} finally {
+		clearBuffers(portable.files.map(({ bytes }) => bytes));
+	}
 }
 
 async function createBundle(
@@ -873,7 +898,7 @@ function isPortableMemoryPath(path: string): boolean {
 	}
 	return (
 		path === MEMORY_PROFILE_PATH ||
-		/^(?:signals|items|feedback|receipts|tombstones|audit)\/(?:[^/]+\/)*[^/]+\.json$/u.test(path)
+		/^(?:signals|items|feedback|receipts|tombstones)\/(?:[^/]+\/)*[^/]+\.json$/u.test(path)
 	);
 }
 
@@ -1332,6 +1357,21 @@ async function mergePreservedLocalState(
 ): Promise<void> {
 	const localPortable = filesByPath(local.portable.files);
 	const incomingPortable = new Map([...decrypted.files].filter(([path]) => path !== MEMORY_PROFILE_PATH));
+	const localRecords = new Map(local.records.map(({ path, bytes }) => [path, bytes]));
+	for (const tombstone of local.state.tombstones) {
+		const feedback = local.state.feedback.find((record) => deletionFeedbackMatchesTombstone(record, tombstone));
+		if (feedback === undefined) throw transferError("MEMORY_TRANSFER_CONFLICT");
+		for (const path of [
+			`tombstones/${tombstone.memoryId}.json`,
+			`feedback/${memoryMonthPath(feedback.requestedAt)}/${feedback.feedbackId}.json`,
+		]) {
+			const localBytes = localRecords.get(path);
+			const incomingBytes = incomingPortable.get(path);
+			if (localBytes === undefined || incomingBytes === undefined || !incomingBytes.equals(localBytes)) {
+				throw transferError("MEMORY_TRANSFER_CONFLICT");
+			}
+		}
+	}
 	for (const [path, bytes] of localPortable) {
 		const incomingBytes = incomingPortable.get(path);
 		if (incomingBytes?.equals(bytes)) continue;
@@ -1429,6 +1469,7 @@ async function exchangeDecryptedTransfer(
 						profileRevision: local.profile.revision,
 					};
 				}
+				if (local.state.audit.length > 0) throw transferError("MEMORY_TRANSFER_CONFLICT");
 				if (decrypted.profile.revision <= local.profile.revision) throw transferError("MEMORY_TRANSFER_CONFLICT");
 				await mergePreservedLocalState(paths.staging, incoming, decrypted, local);
 			}

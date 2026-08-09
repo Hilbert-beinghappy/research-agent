@@ -4,12 +4,15 @@ import { Compile, type Validator } from "typebox/compile";
 import { canonicalizeJson } from "./canonical-json.ts";
 import {
 	type DataClass,
+	MEMORY_DELETION_CHECKED_CLASSES,
 	MEMORY_KEY_ALLOWLIST,
 	type MemoryCandidateDraftV1,
 	MemoryCandidateDraftV1Schema,
 	type MemoryCategory,
 	type MemoryDeletionTombstoneV1,
 	MemoryDeletionTombstoneV1Schema,
+	type MemoryDeletionVerificationV1,
+	MemoryDeletionVerificationV1Schema,
 	type MemoryEffect,
 	type MemoryFeedbackV1,
 	MemoryFeedbackV1Schema,
@@ -49,6 +52,7 @@ const itemValidator = Compile(MemoryItemV1Schema);
 const receiptValidator = Compile(MemoryUseReceiptV1Schema);
 const feedbackValidator = Compile(MemoryFeedbackV1Schema);
 const deletionTombstoneValidator = Compile(MemoryDeletionTombstoneV1Schema);
+const deletionVerificationValidator = Compile(MemoryDeletionVerificationV1Schema);
 const snapshotValidator = Compile(MemorySnapshotManifestV1Schema);
 const transferValidator = Compile(EncryptedTransferEnvelopeV1Schema);
 
@@ -526,15 +530,6 @@ function feedbackIssues(feedback: MemoryFeedbackV1): MemoryContractIssue[] {
 				issue("deactivatedAt", "feedback.deactivation_missing", "feedback must record old-revision deactivation"),
 			);
 		}
-		if (feedback.action === "delete" && feedback.exportExclusionVerifiedAt === null) {
-			issues.push(
-				issue(
-					"exportExclusionVerifiedAt",
-					"feedback.delete_export_unverified",
-					"applied deletion requires export exclusion verification",
-				),
-			);
-		}
 	}
 	return issues;
 }
@@ -549,6 +544,68 @@ function deletionTombstoneIssues(tombstone: MemoryDeletionTombstoneV1): MemoryCo
 		if (hashes.some((value, index) => index > 0 && value <= (hashes[index - 1] as string))) {
 			issues.push(issue(path, "deletion.hash_order", "deletion hashes must be unique and sorted"));
 		}
+	}
+	return issues;
+}
+
+function deletionVerificationIssues(verification: MemoryDeletionVerificationV1): MemoryContractIssue[] {
+	const issues = timestampIssues([["checkedAt", verification.checkedAt]]);
+	if (
+		verification.checkedClasses.some(
+			(value, index) =>
+				index > 0 &&
+				MEMORY_DELETION_CHECKED_CLASSES.indexOf(value) <=
+					MEMORY_DELETION_CHECKED_CLASSES.indexOf(verification.checkedClasses[index - 1] as typeof value),
+		)
+	) {
+		issues.push(
+			issue(
+				"checkedClasses",
+				"deletion.checked_classes_order",
+				"deletion verification checked classes must be a canonical-order subset",
+			),
+		);
+	}
+	if (
+		verification.residueCodes.some(
+			(value, index) => index > 0 && value <= (verification.residueCodes[index - 1] as string),
+		)
+	) {
+		issues.push(issue("residueCodes", "deletion.residue_order", "deletion residue codes must be unique and sorted"));
+	}
+	if (
+		verification.status === "verified" &&
+		(verification.checkedClasses.length !== MEMORY_DELETION_CHECKED_CLASSES.length ||
+			verification.checkedClasses.some((value, index) => value !== MEMORY_DELETION_CHECKED_CLASSES[index]))
+	) {
+		issues.push(
+			issue(
+				"checkedClasses",
+				"deletion.checked_classes_incomplete",
+				"verified deletion requires every checked class in canonical order",
+			),
+		);
+	}
+	if (
+		(verification.status === "verified" && verification.residueCodes.length > 0) ||
+		(verification.status === "failed" && verification.residueCodes.length === 0)
+	) {
+		issues.push(
+			issue(
+				"status",
+				"deletion.verification_status_mismatch",
+				"verified deletion requires no residue codes and failed deletion requires at least one",
+			),
+		);
+	}
+	if (verification.transactionId === verification.deletionTransactionId) {
+		issues.push(
+			issue(
+				"transactionId",
+				"deletion.verification_transaction_reuse",
+				"deletion verification must be committed by a transaction distinct from deletion",
+			),
+		);
 	}
 	return issues;
 }
@@ -620,6 +677,12 @@ export function validateMemoryFeedbackV1(value: unknown): MemoryContractValidati
 
 export function validateMemoryDeletionTombstoneV1(value: unknown): MemoryContractValidation<MemoryDeletionTombstoneV1> {
 	return validateWith(value, deletionTombstoneValidator, deletionTombstoneIssues);
+}
+
+export function validateMemoryDeletionVerificationV1(
+	value: unknown,
+): MemoryContractValidation<MemoryDeletionVerificationV1> {
+	return validateWith(value, deletionVerificationValidator, deletionVerificationIssues);
 }
 
 export function validateMemorySnapshotManifestV1(value: unknown): MemoryContractValidation<MemorySnapshotManifestV1> {

@@ -7,7 +7,7 @@ import type { Static } from "typebox";
 import { canonicalStringify } from "../../contracts/canonical-json.ts";
 import type { JsonValue, ResearchResult } from "../../contracts/schemas.ts";
 import { hashBytes } from "../../kernel/integrity.ts";
-import { failureResult, successResult } from "../../kernel/results.ts";
+import { failureResult, partialSuccessResult, successResult } from "../../kernel/results.ts";
 import { deletePersonalMemory } from "../../memory/deletion.ts";
 import { applyMemoryFeedback } from "../../memory/feedback.ts";
 import { loadCanonicalMemoryState, openMemoryProfile } from "../../memory/store.ts";
@@ -345,17 +345,40 @@ async function feedbackMemory(
 			requestedAt,
 			reasonCode: "user_requested",
 		});
-		return ok({
+		const value = jsonValue({
 			action: params.action,
+			committed: deleted.committed,
 			confirmation: { kind: "memory_feedback", feedbackId, transactionId: deleted.transactionId },
 			memoryId: item.memoryId,
+			verificationTransactionId: deleted.verificationTransactionId,
+			attestationRecorded: deleted.attestationRecorded,
+			errorCode: deleted.errorCode,
 			verification: {
+				verificationId: deleted.verification.verificationId,
+				deletionTransactionId: deleted.verification.deletionTransactionId,
 				status: deleted.verification.status,
 				checkedClasses: deleted.verification.checkedClasses,
 				residueCodes: deleted.verification.residueCodes,
 				physicalDeletionLimitation: deleted.verification.physicalDeletionLimitation,
 			},
 		});
+		if (deleted.errorCode !== null) {
+			const verificationFailed = deleted.errorCode === "MEMORY_DELETE_VERIFICATION_FAILED";
+			return partialSuccessResult(
+				value,
+				deleted.errorCode,
+				verificationFailed ? "integrity" : "runtime",
+				deleted.errorCode,
+				null,
+				verificationFailed
+					? jsonValue({
+							checkedClasses: deleted.verification.checkedClasses,
+							residueCodes: deleted.verification.residueCodes,
+						})
+					: jsonValue({ memoryId: item.memoryId, transactionId: deleted.transactionId }),
+			);
+		}
+		return successResult(value, null);
 	}
 	const applied = await applyMemoryFeedback(opened.root, {
 		feedbackId,

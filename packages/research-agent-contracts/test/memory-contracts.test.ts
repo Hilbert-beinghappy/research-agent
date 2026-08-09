@@ -10,6 +10,8 @@ import {
 	MemoryCandidateDraftV1Schema,
 	type MemoryDeletionTombstoneV1,
 	MemoryDeletionTombstoneV1Schema,
+	type MemoryDeletionVerificationV1,
+	MemoryDeletionVerificationV1Schema,
 	type MemoryFeedbackV1,
 	MemoryFeedbackV1Schema,
 	type MemoryItemV1,
@@ -25,6 +27,7 @@ import {
 	validateEncryptedTransferEnvelopeV1,
 	validateMemoryCandidateDraftV1,
 	validateMemoryDeletionTombstoneV1,
+	validateMemoryDeletionVerificationV1,
 	validateMemoryFeedbackV1,
 	validateMemoryItemV1,
 	validateMemorySnapshotManifestV1,
@@ -41,6 +44,7 @@ interface GoldenMemoryContracts {
 	memoryUseReceipt: MemoryUseReceiptV1;
 	memoryFeedback: MemoryFeedbackV1;
 	memoryDeletionTombstone: MemoryDeletionTombstoneV1;
+	memoryDeletionVerification: MemoryDeletionVerificationV1;
 	memorySnapshotManifest: MemorySnapshotManifestV1;
 	encryptedTransferEnvelope: EncryptedTransferEnvelopeV1;
 }
@@ -98,6 +102,13 @@ const contracts = [
 		MemoryDeletionTombstoneV1Schema,
 		golden.memoryDeletionTombstone,
 		(value: unknown) => validateMemoryDeletionTombstoneV1(value),
+	],
+	[
+		"memory-deletion-verification",
+		"Doro Memory Deletion Verification v1",
+		MemoryDeletionVerificationV1Schema,
+		golden.memoryDeletionVerification,
+		(value: unknown) => validateMemoryDeletionVerificationV1(value),
 	],
 	[
 		"memory-snapshot-manifest",
@@ -198,6 +209,47 @@ describe("Personal Memory contracts", () => {
 			validateMemoryDeletionTombstoneV1({
 				...golden.memoryDeletionTombstone,
 				deletedPathHashes: [...golden.memoryDeletionTombstone.deletedPathHashes].reverse(),
+			}).ok,
+		).toBe(false);
+		expect(
+			validateMemoryFeedbackV1({
+				...golden.memoryFeedback,
+				action: "delete",
+				deactivatedAt: golden.memoryFeedback.requestedAt,
+				cacheInvalidatedAt: golden.memoryFeedback.requestedAt,
+				exportExclusionVerifiedAt: null,
+			}).ok,
+		).toBe(true);
+		expect(
+			validateMemoryDeletionVerificationV1({
+				...golden.memoryDeletionVerification,
+				originalValue: "must-not-persist",
+			}).ok,
+		).toBe(false);
+		expect(
+			validateMemoryDeletionVerificationV1({
+				...golden.memoryDeletionVerification,
+				status: "failed",
+			}).ok,
+		).toBe(false);
+		expect(
+			validateMemoryDeletionVerificationV1({
+				...golden.memoryDeletionVerification,
+				status: "failed",
+				checkedClasses: [],
+				residueCodes: ["verification_unavailable"],
+			}).ok,
+		).toBe(true);
+		expect(
+			validateMemoryDeletionVerificationV1({
+				...golden.memoryDeletionVerification,
+				checkedClasses: ["profile"],
+			}).ok,
+		).toBe(false);
+		expect(
+			validateMemoryDeletionVerificationV1({
+				...golden.memoryDeletionVerification,
+				transactionId: golden.memoryDeletionVerification.deletionTransactionId,
 			}).ok,
 		).toBe(false);
 		expect(

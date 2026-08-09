@@ -84,6 +84,7 @@ const canonicalRecordPrefixes = [
 	"feedback/",
 	"receipts/",
 	"tombstones/",
+	"audit/",
 	"transfer-manifests/",
 ] as const;
 const derivedCachePaths = new Set([
@@ -212,8 +213,12 @@ export async function listPendingMemoryTransactions(profileRoot: string): Promis
 	return listPendingMemoryTransactionsAtRoot(await validateMemoryLayout(profileRoot));
 }
 
-async function readJournal(profileRoot: string, transactionId: string): Promise<MemoryTransactionJournal> {
-	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
+async function readJournalAt(
+	profileRoot: string,
+	statusDirectory: typeof PENDING_DIRECTORY | typeof COMMITTED_DIRECTORY,
+	transactionId: string,
+): Promise<MemoryTransactionJournal> {
+	const directory = transactionDirectory(statusDirectory, transactionId);
 	const text = await readFile(await resolveMemoryPath(profileRoot, `${directory}/transaction.json`), "utf8");
 	const raw = canonicalizeJson(JSON.parse(text));
 	if (text !== `${canonicalStringify(raw)}\n`)
@@ -293,6 +298,46 @@ async function readJournal(profileRoot: string, transactionId: string): Promise<
 		profileNewHash: raw.profileNewHash,
 		entries,
 	};
+}
+
+async function readJournal(profileRoot: string, transactionId: string): Promise<MemoryTransactionJournal> {
+	return readJournalAt(profileRoot, PENDING_DIRECTORY, transactionId);
+}
+
+export async function assertCommittedMemoryRecords(
+	profileRoot: string,
+	binding: {
+		transactionId: string;
+		profileId: string;
+		expectedRevision?: number;
+		exactEntryCount?: number;
+		records: readonly { path: string; content: string }[];
+	},
+): Promise<void> {
+	const records = binding.records.map(({ path: inputPath, content }) => {
+		const path = validateRecordPath(inputPath);
+		const parsed = canonicalizeJson(JSON.parse(content));
+		if (content !== `${canonicalStringify(parsed)}\n`) {
+			throw new TypeError(`Committed memory record is not canonical: ${path}`);
+		}
+		return { path, hash: hashBytes(content).value };
+	});
+	validatePortablePathSet(records.map(({ path }) => path));
+	const journal = await readJournalAt(profileRoot, COMMITTED_DIRECTORY, binding.transactionId);
+	if (
+		journal.version !== 2 ||
+		journal.profileId !== binding.profileId ||
+		(binding.expectedRevision !== undefined && journal.expectedRevision !== binding.expectedRevision) ||
+		(binding.exactEntryCount !== undefined && journal.entries.length !== binding.exactEntryCount) ||
+		records.some(({ path, hash }) => {
+			const matches = journal.entries.filter(
+				(entry) => entry.path === path && entry.oldHash === null && entry.newHash === hash,
+			);
+			return matches.length !== 1;
+		})
+	) {
+		throw new TypeError(`Committed memory records do not match transaction journal: ${binding.transactionId}`);
+	}
 }
 
 async function moveTransaction(profileRoot: string, transactionId: string, destination: string): Promise<void> {

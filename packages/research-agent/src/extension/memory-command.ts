@@ -7,8 +7,8 @@ import type { SafeRef } from "@research-agent/contracts/memory";
 import { canonicalizeJson } from "../contracts/canonical-json.ts";
 import type { JsonValue, ResearchResult } from "../contracts/schemas.ts";
 import { hashBytes } from "../kernel/integrity.ts";
-import { failureResult, successResult } from "../kernel/results.ts";
-import { deletePersonalMemory, verifyMemoryDeletion } from "../memory/deletion.ts";
+import { failureResult, partialSuccessResult, successResult } from "../kernel/results.ts";
+import { deletePersonalMemory, verifyAndRecordMemoryDeletion } from "../memory/deletion.ts";
 import { applyMemoryFeedback } from "../memory/feedback.ts";
 import { memoryProfileRoot as resolveMemoryProfileRoot } from "../memory/layout.ts";
 import {
@@ -292,12 +292,33 @@ async function remove(memoryIdInput: string, ctx: ExtensionCommandContext): Prom
 		requestedAt: new Date().toISOString(),
 		reasonCode: "user_requested",
 	});
-	return ok({
+	const value = canonicalizeJson({
+		committed: deleted.committed,
 		transactionId: deleted.transactionId,
+		verificationTransactionId: deleted.verificationTransactionId,
+		attestationRecorded: deleted.attestationRecorded,
+		errorCode: deleted.errorCode,
 		memoryId: deleted.tombstone.memoryId,
 		terminalRevision: deleted.tombstone.terminalRevision,
 		verification: deleted.verification,
 	});
+	if (deleted.errorCode !== null) {
+		const verificationFailed = deleted.errorCode === "MEMORY_DELETE_VERIFICATION_FAILED";
+		return partialSuccessResult(
+			value,
+			deleted.errorCode,
+			verificationFailed ? "integrity" : "runtime",
+			deleted.errorCode,
+			null,
+			verificationFailed
+				? canonicalizeJson({
+						checkedClasses: deleted.verification.checkedClasses,
+						residueCodes: deleted.verification.residueCodes,
+					})
+				: canonicalizeJson({ memoryId: deleted.tombstone.memoryId, transactionId: deleted.transactionId }),
+		);
+	}
+	return successResult(value, null);
 }
 
 async function setStatus(action: "pause" | "resume", ctx: ExtensionCommandContext): Promise<CommandResult> {
@@ -413,13 +434,38 @@ export async function runMemoryCommand(args: string, ctx: ExtensionCommandContex
 			return exportMemory(parsed.rest, ctx);
 		case "import":
 			return importMemory(parsed.rest, ctx);
-		case "verify-delete":
-			return ok(
-				await verifyMemoryDeletion(
-					await profileRoot(),
-					exactArgument(parsed.rest, "Usage: /memory verify-delete <memory-id>"),
-				),
+		case "verify-delete": {
+			const recorded = await verifyAndRecordMemoryDeletion(
+				await profileRoot(),
+				exactArgument(parsed.rest, "Usage: /memory verify-delete <memory-id>"),
 			);
+			const value = canonicalizeJson({
+				...recorded.verification,
+				attestationRecorded: recorded.attestationRecorded,
+				verificationTransactionId: recorded.verificationTransactionId,
+				errorCode: recorded.errorCode,
+			});
+			if (recorded.errorCode !== null) {
+				const verificationFailed = recorded.errorCode === "MEMORY_DELETE_VERIFICATION_FAILED";
+				return partialSuccessResult(
+					value,
+					recorded.errorCode,
+					verificationFailed ? "integrity" : "runtime",
+					recorded.errorCode,
+					null,
+					verificationFailed
+						? canonicalizeJson({
+								checkedClasses: recorded.verification.checkedClasses,
+								residueCodes: recorded.verification.residueCodes,
+							})
+						: canonicalizeJson({
+								deletionTransactionId: recorded.verification.deletionTransactionId,
+								memoryId: recorded.verification.memoryId,
+							}),
+				);
+			}
+			return successResult(value, null);
+		}
 		default:
 			throw new TypeError(`Unknown /memory action: ${parsed.action}`);
 	}

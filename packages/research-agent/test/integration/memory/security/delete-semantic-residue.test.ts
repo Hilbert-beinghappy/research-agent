@@ -1,22 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { access, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MemoryCandidateDraftV1, PreferenceSignalV1 } from "@research-agent/contracts/memory";
+import { MEMORY_DELETION_CHECKED_CLASSES } from "@research-agent/contracts";
+import type {
+	MemoryCandidateDraftV1,
+	MemoryFeedbackV1,
+	MemoryUseReceiptV1,
+	PreferenceSignalV1,
+} from "@research-agent/contracts/memory";
 import type { MemorySnapshotManifestV1 } from "@research-agent/contracts/memory-transfer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { canonicalStringify } from "../../../../src/contracts/canonical-json.ts";
 import { hashBytes } from "../../../../src/contracts/integrity.ts";
-import { deletePersonalMemory, verifyMemoryDeletion } from "../../../../src/memory/deletion.ts";
+import {
+	deletePersonalMemory,
+	verifyAndRecordMemoryDeletion,
+	verifyMemoryDeletion,
+} from "../../../../src/memory/deletion.ts";
 import { applyMemoryFeedback } from "../../../../src/memory/feedback.ts";
-import { MEMORY_RETRIEVAL_INDEX_HASH_PATH, MEMORY_RETRIEVAL_INDEX_PATH } from "../../../../src/memory/layout.ts";
+import {
+	MEMORY_RETRIEVAL_INDEX_HASH_PATH,
+	MEMORY_RETRIEVAL_INDEX_PATH,
+	memoryMonthPath,
+} from "../../../../src/memory/layout.ts";
 import { retrievePersonalMemoryForUse } from "../../../../src/memory/receipts.ts";
 import { retrievePersonalMemory } from "../../../../src/memory/retrieval.ts";
 import {
 	appendMemoryItem,
 	appendMemoryRecord,
 	createMemoryProfile,
+	loadCanonicalMemoryState,
 	openMemoryProfile,
 } from "../../../../src/memory/store.ts";
 import {
@@ -80,6 +95,21 @@ function candidate(profileId: string, candidateId: string, signalId: string, val
 		generatedBy: { type: "rule", version: "delete-test-v1", outputSchemaHash: hash("candidate") },
 		createdAt: "2026-08-08T10:00:01.000Z",
 	};
+}
+
+async function seedDeletableItem(memoryId: string): Promise<void> {
+	const created = await createMemoryProfile(profileRoot, { profileId: "profile-1" });
+	if (created.mode !== "read-write") throw new Error("expected writable profile");
+	await appendMemoryItem(
+		profileRoot,
+		itemDraft(created.profile.profileId, memoryId, {
+			category: "writing",
+			key: "language",
+			value: "en-US",
+			allowedEffects: ["formatting"],
+		}),
+		{ expectedProfileRevision: 0 },
+	);
 }
 
 async function allFileText(root: string): Promise<string> {
@@ -181,6 +211,32 @@ describe("Personal Memory semantic deletion", () => {
 		expect(await readFile(join(profileRoot, ...MEMORY_RETRIEVAL_INDEX_HASH_PATH.split("/")), "utf8")).toMatch(
 			/^sha256:/u,
 		);
+		for (const [feedbackId, sourceRef] of [
+			[
+				"feedback-delete-from-receipt",
+				{ kind: "receipt", locator: "receipt:receipt-delete-language", dataClass: "public" },
+			],
+			["feedback-delete-from-signal", { kind: "signal", locator: `signal:${signalId}`, dataClass: "public" }],
+		] as const) {
+			await expect(
+				deletePersonalMemory(
+					profileRoot,
+					{
+						feedbackId,
+						target: { memoryId, revision: reinforced.item.revision },
+						sourceRef,
+						requestedAt: "2026-08-08T10:00:05.000Z",
+						reasonCode: "privacy_request",
+					},
+					{ expectedProfileRevision: 6 },
+				),
+			).rejects.toThrow("MEMORY_DELETED_TERMINAL");
+		}
+		await expect(openMemoryProfile(profileRoot, { rebuildCache: false })).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 6 },
+			counts: { items: 2, tombstones: 0 },
+		});
 
 		const deleted = await deletePersonalMemory(
 			profileRoot,
@@ -193,7 +249,15 @@ describe("Personal Memory semantic deletion", () => {
 			},
 			{ expectedProfileRevision: 6 },
 		);
-		expect(deleted.verification).toMatchObject({ status: "verified", residueCodes: [] });
+		expect(deleted).toMatchObject({
+			committed: true,
+			verification: { status: "verified", residueCodes: [] },
+		});
+		expect(deleted.verification.deletionTransactionId).toBe(deleted.transactionId);
+		expect(deleted.verification.transactionId).toBe(deleted.verificationTransactionId);
+		expect(deleted.verification.profileRevision).toBe(7);
+		expect(deleted.verification.checkedClasses).toEqual(MEMORY_DELETION_CHECKED_CLASSES);
+		expect(deleted.verificationTransactionId).not.toBe(deleted.transactionId);
 		expect(deleted.tombstone).toMatchObject({
 			memoryId,
 			terminalRevision: 3,
@@ -202,7 +266,7 @@ describe("Personal Memory semantic deletion", () => {
 		const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
 		if (opened.mode !== "read-write") throw new Error("expected writable deleted profile");
 		expect(opened).toMatchObject({
-			profile: { revision: 7, preferenceRefs: {} },
+			profile: { revision: 8, preferenceRefs: {} },
 			activeItems: [],
 			counts: {
 				signals: 0,
@@ -211,9 +275,15 @@ describe("Personal Memory semantic deletion", () => {
 				feedback: 1,
 				receipts: 0,
 				tombstones: 1,
+				audit: 1,
 				transferManifests: 0,
 			},
 		});
+		const state = await loadCanonicalMemoryState(opened.root, opened.profile);
+		expect(state.feedback).toHaveLength(1);
+		expect(state.feedback[0]).toMatchObject({ action: "delete", exportExclusionVerifiedAt: null });
+		expect(state.audit).toEqual([deleted.verification]);
+		expect(JSON.stringify(state.audit)).not.toMatch(/(?:value|path|zz-Private)/iu);
 		const tombstoneText = await readFile(join(profileRoot, "tombstones", `${memoryId}.json`), "utf8");
 		expect(tombstoneText).not.toContain(semantic);
 		expect(tombstoneText).not.toMatch(/(?:value|excerpt|prompt|credential|project title|host path)/iu);
@@ -239,7 +309,7 @@ describe("Personal Memory semantic deletion", () => {
 					reasonCode: "restore-deleted",
 					requestedAt: "2026-08-08T10:00:06.000Z",
 				},
-				{ expectedProfileRevision: 7 },
+				{ expectedProfileRevision: 8 },
 			),
 		).rejects.toThrow("MEMORY_DELETED_TERMINAL");
 		await expect(
@@ -251,9 +321,373 @@ describe("Personal Memory semantic deletion", () => {
 					value: "en-US",
 					allowedEffects: ["formatting"],
 				}),
-				{ expectedProfileRevision: 7 },
+				{ expectedProfileRevision: 8 },
 			),
 		).rejects.toThrow("MEMORY_DELETED_TERMINAL");
+		const independent = await appendMemoryItem(
+			profileRoot,
+			itemDraft(created.profile.profileId, "memory-independent-language", {
+				category: "writing",
+				key: "language",
+				value: "en-US",
+				allowedEffects: ["formatting"],
+			}),
+			{ expectedProfileRevision: 8 },
+		);
+		await expect(
+			applyMemoryFeedback(
+				profileRoot,
+				{
+					feedbackId: "feedback-replay-deleted-receipt",
+					target: { memoryId: independent.item.memoryId, revision: 1 },
+					action: "reinforce",
+					correction: null,
+					sourceRef: {
+						kind: "receipt",
+						locator: "receipt:receipt-delete-language",
+						dataClass: "public",
+					},
+					reasonCode: "replayed-deleted-receipt",
+					requestedAt: "2026-08-08T10:00:07.000Z",
+				},
+				{ expectedProfileRevision: 9 },
+			),
+		).rejects.toThrow("MEMORY_DELETED_TERMINAL");
+	});
+
+	it("returns a committed deletion with a persisted failed verification attestation", async () => {
+		const memoryId = "memory-verification-failure";
+		await seedDeletableItem(memoryId);
+		const deleted = await deletePersonalMemory(
+			profileRoot,
+			{
+				feedbackId: "feedback-verification-failure",
+				target: { memoryId, revision: 1 },
+				sourceRef: { kind: "session", locator: "session:verification-failure", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:05.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 1, faultAfterDeletionCommit: "verification" },
+		);
+		expect(deleted).toMatchObject({
+			committed: true,
+			verification: {
+				status: "failed",
+				profileRevision: 2,
+				checkedClasses: [],
+				residueCodes: ["verification_unavailable"],
+			},
+		});
+		expect(deleted.verification.transactionId).toBe(deleted.verificationTransactionId);
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 3 },
+			counts: { items: 0, tombstones: 1, audit: 1 },
+		});
+	});
+
+	it("returns committed partial evidence when the attestation transaction cannot start", async () => {
+		const memoryId = "memory-attestation-crash";
+		await seedDeletableItem(memoryId);
+		await expect(
+			deletePersonalMemory(
+				profileRoot,
+				{
+					feedbackId: "feedback-attestation-crash",
+					target: { memoryId, revision: 1 },
+					sourceRef: { kind: "session", locator: "session:attestation-crash", dataClass: "public" },
+					requestedAt: "2026-08-08T10:00:05.000Z",
+					reasonCode: "user_requested",
+				},
+				{ expectedProfileRevision: 1, faultAfterDeletionCommit: "attestation" },
+			),
+		).resolves.toMatchObject({
+			committed: true,
+			attestationRecorded: false,
+			verificationTransactionId: null,
+			errorCode: "MEMORY_DELETE_COMMITTED_UNVERIFIED",
+			verification: { status: "verified", verificationId: null, transactionId: null },
+		});
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 2 },
+			counts: { items: 0, feedback: 1, tombstones: 1, audit: 0 },
+		});
+		await expect(verifyAndRecordMemoryDeletion(profileRoot, memoryId)).resolves.toMatchObject({
+			attestationRecorded: true,
+			verification: { status: "verified", residueCodes: [] },
+		});
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 3 },
+			counts: { audit: 1 },
+		});
+		await expect(
+			verifyAndRecordMemoryDeletion(profileRoot, memoryId, { faultDuringVerification: true }),
+		).resolves.toMatchObject({
+			attestationRecorded: true,
+			verification: {
+				status: "failed",
+				checkedClasses: [],
+				residueCodes: ["verification_unavailable"],
+			},
+		});
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-write",
+			profile: { revision: 4 },
+			counts: { audit: 2 },
+		});
+	});
+
+	it("fails closed when an audit record forges its deletion transaction binding", async () => {
+		const memoryId = "memory-forged-attestation";
+		await seedDeletableItem(memoryId);
+		const deleted = await deletePersonalMemory(
+			profileRoot,
+			{
+				feedbackId: "feedback-forged-attestation",
+				target: { memoryId, revision: 1 },
+				sourceRef: { kind: "session", locator: "session:forged-attestation", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:05.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 1 },
+		);
+		const auditPath = join(
+			profileRoot,
+			"audit",
+			...memoryMonthPath(deleted.verification.checkedAt).split("/"),
+			`${deleted.verification.verificationId}.json`,
+		);
+		const audit = JSON.parse(await readFile(auditPath, "utf8")) as Record<string, unknown>;
+		await writeFile(
+			auditPath,
+			`${canonicalStringify({ ...audit, deletionTransactionId: "forged-deletion-transaction" })}\n`,
+		);
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-only",
+			issues: [{ code: "memory.canonical_invalid" }],
+		});
+	});
+
+	it("fails closed when an audit record claims verification before deletion", async () => {
+		const memoryId = "memory-predated-attestation";
+		await seedDeletableItem(memoryId);
+		const deleted = await deletePersonalMemory(
+			profileRoot,
+			{
+				feedbackId: "feedback-predated-attestation",
+				target: { memoryId, revision: 1 },
+				sourceRef: { kind: "session", locator: "session:predated-attestation", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:05.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 1 },
+		);
+		const auditPath = join(
+			profileRoot,
+			"audit",
+			...memoryMonthPath(deleted.verification.checkedAt).split("/"),
+			`${deleted.verification.verificationId}.json`,
+		);
+		const audit = JSON.parse(await readFile(auditPath, "utf8")) as Record<string, unknown>;
+		await writeFile(auditPath, `${canonicalStringify({ ...audit, checkedAt: "2026-08-08T09:59:59.000Z" })}\n`);
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-only",
+			issues: [{ code: "memory.canonical_invalid" }],
+		});
+	});
+
+	it("fails closed when a tombstone loses its applied delete feedback", async () => {
+		const memoryId = "memory-missing-delete-feedback";
+		await seedDeletableItem(memoryId);
+		await deletePersonalMemory(
+			profileRoot,
+			{
+				feedbackId: "feedback-missing-delete-feedback",
+				target: { memoryId, revision: 1 },
+				sourceRef: { kind: "session", locator: "session:missing-delete-feedback", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:05.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 1 },
+		);
+		await rm(
+			join(
+				profileRoot,
+				"feedback",
+				...memoryMonthPath("2026-08-08T10:00:05.000Z").split("/"),
+				"feedback-missing-delete-feedback.json",
+			),
+		);
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-only",
+			issues: [{ code: "memory.canonical_invalid" }],
+		});
+	});
+
+	it("fails closed and blocks ID reuse when applied delete feedback loses its tombstone", async () => {
+		const memoryId = "memory-missing-tombstone";
+		await seedDeletableItem(memoryId);
+		await expect(
+			deletePersonalMemory(
+				profileRoot,
+				{
+					feedbackId: "feedback-missing-tombstone",
+					target: { memoryId, revision: 1 },
+					sourceRef: { kind: "session", locator: "session:missing-tombstone", dataClass: "public" },
+					requestedAt: "2026-08-08T10:00:05.000Z",
+					reasonCode: "user_requested",
+				},
+				{ expectedProfileRevision: 1, faultAfterDeletionCommit: "attestation" },
+			),
+		).resolves.toMatchObject({
+			committed: true,
+			attestationRecorded: false,
+			errorCode: "MEMORY_DELETE_COMMITTED_UNVERIFIED",
+		});
+		await rm(join(profileRoot, "tombstones", `${memoryId}.json`));
+		await expect(openMemoryProfile(profileRoot)).resolves.toMatchObject({
+			mode: "read-only",
+			issues: [{ code: "memory.canonical_invalid" }],
+		});
+		await expect(
+			appendMemoryItem(
+				profileRoot,
+				itemDraft("profile-1", memoryId, {
+					category: "writing",
+					key: "language",
+					value: "en-US",
+					allowedEffects: ["formatting"],
+				}),
+				{ expectedProfileRevision: 2 },
+			),
+		).rejects.toThrow("Applied deletion feedback does not match a tombstone");
+	});
+
+	it("rejects post-delete records through writers and canonical import boundaries", async () => {
+		const memoryId = "memory-terminal-records";
+		await seedDeletableItem(memoryId);
+		const beforeDelete = await openMemoryProfile(profileRoot, { rebuildCache: false });
+		if (beforeDelete.mode !== "read-write") throw new Error("expected writable seeded profile");
+		const deletedItem = beforeDelete.items[0];
+		if (deletedItem === undefined) throw new Error("expected seeded item");
+		const deleted = await deletePersonalMemory(
+			profileRoot,
+			{
+				feedbackId: "feedback-terminal-delete",
+				target: { memoryId, revision: 1 },
+				sourceRef: { kind: "session", locator: "session:terminal-delete", dataClass: "public" },
+				requestedAt: "2026-08-08T10:00:05.000Z",
+				reasonCode: "user_requested",
+			},
+			{ expectedProfileRevision: 1, faultAfterDeletionCommit: "attestation" },
+		);
+		expect(deleted).toMatchObject({ committed: true, attestationRecorded: false });
+		const correction: MemoryFeedbackV1 = {
+			format: "doro-memory-feedback",
+			schemaVersion: "1.0.0",
+			feedbackId: "feedback-terminal-correction",
+			profileId: "profile-1",
+			target: { memoryId, revision: 1 },
+			action: "correct",
+			correction: { key: "language", value: "fr-FR" },
+			actor: "user",
+			sourceRef: { kind: "session", locator: "session:terminal-correction", dataClass: "public" },
+			reasonCode: "user_corrected",
+			requestedAt: "2026-08-08T10:00:06.000Z",
+			applicationStatus: "pending",
+			resultingRevision: null,
+			deactivatedAt: null,
+			cacheInvalidatedAt: null,
+			exportExclusionVerifiedAt: null,
+			transactionId: null,
+			errorCode: null,
+		};
+		await expect(appendMemoryRecord(profileRoot, correction, { expectedProfileRevision: 2 })).rejects.toThrow(
+			"MEMORY_DELETED_TERMINAL",
+		);
+		await expect(appendMemoryRecord(profileRoot, deleted.feedback, { expectedProfileRevision: 2 })).rejects.toThrow(
+			"MEMORY_DELETE_ATOMIC_REQUIRED",
+		);
+		const forgedReceipt: MemoryUseReceiptV1 = {
+			format: "doro-memory-use-receipt",
+			schemaVersion: "1.0.0",
+			receiptId: "receipt-terminal-forged",
+			profileId: "profile-1",
+			sessionRef: { kind: "session", locator: "session:terminal-forged", dataClass: "public" },
+			taskRef: { kind: "task", locator: "task:terminal-forged", dataClass: "public" },
+			operationRef: null,
+			artifactRef: null,
+			itemRefs: [{ memoryId, revision: 1, provenanceHash: deletedItem.provenanceHash }],
+			effect: "formatting",
+			decisionCodeBefore: "default",
+			decisionCodeAfter: "deleted",
+			explanationCodes: ["forged"],
+			criticalResearchDecisionTouched: false,
+			approvalRequired: false,
+			appliedAt: "2026-08-08T10:00:07.000Z",
+			retrievalLatencyMs: 1,
+			addedContextTokens: 1,
+			estimatedCostUsd: 0,
+			outcome: "applied",
+			feedbackRefs: [],
+			contextDigest: hash("forged-receipt"),
+		};
+		await expect(appendMemoryRecord(profileRoot, forgedReceipt, { expectedProfileRevision: 2 })).rejects.toThrow(
+			"MEMORY_DELETED_TERMINAL",
+		);
+		const successorDraft = {
+			...itemDraft("profile-1", "memory-terminal-successor", {
+				category: "writing",
+				key: "language",
+				value: "en-US",
+				allowedEffects: ["formatting"],
+			}),
+			supersedes: [{ memoryId, revision: 1 }],
+		};
+		await expect(appendMemoryItem(profileRoot, successorDraft, { expectedProfileRevision: 2 })).rejects.toThrow(
+			"MEMORY_DELETED_TERMINAL",
+		);
+		const clean = await openMemoryProfile(profileRoot, { rebuildCache: false });
+		if (clean.mode !== "read-write") throw new Error("expected clean deleted profile");
+		const forgedItemPath = join(profileRoot, "items", deletedItem.category, memoryId, `${deletedItem.revision}.json`);
+		await mkdir(join(profileRoot, "items", deletedItem.category, memoryId), { recursive: true });
+		await writeFile(forgedItemPath, `${canonicalStringify(deletedItem)}\n`);
+		await expect(loadCanonicalMemoryState(profileRoot, clean.profile)).rejects.toThrow(
+			"Canonical record conflicts with deletion tombstone",
+		);
+		await rm(forgedItemPath);
+		const successorPath = join(profileRoot, "items", "writing", "memory-terminal-successor", "1.json");
+		await mkdir(join(profileRoot, "items", "writing", "memory-terminal-successor"), { recursive: true });
+		await writeFile(
+			successorPath,
+			`${canonicalStringify({ ...successorDraft, transactionId: "transaction-forged-successor" })}\n`,
+		);
+		await expect(loadCanonicalMemoryState(profileRoot, clean.profile)).rejects.toThrow(
+			"Canonical record conflicts with deletion tombstone",
+		);
+		await rm(successorPath);
+		const correctionPath = join(
+			profileRoot,
+			"feedback",
+			...memoryMonthPath(correction.requestedAt).split("/"),
+			`${correction.feedbackId}.json`,
+		);
+		await writeFile(correctionPath, `${canonicalStringify(correction)}\n`);
+		await expect(loadCanonicalMemoryState(profileRoot, clean.profile)).rejects.toThrow(
+			"Memory deletion tombstone does not match applied feedback",
+		);
+		await rm(correctionPath);
+		const receiptDirectory = join(profileRoot, "receipts", ...memoryMonthPath(forgedReceipt.appliedAt).split("/"));
+		await mkdir(receiptDirectory, { recursive: true });
+		await writeFile(
+			join(receiptDirectory, `${forgedReceipt.receiptId}.json`),
+			`${canonicalStringify(forgedReceipt)}\n`,
+		);
+		await expect(loadCanonicalMemoryState(profileRoot, clean.profile)).rejects.toThrow(
+			"Canonical record conflicts with deletion tombstone",
+		);
 	});
 
 	it("restores a partial delete before profile commit and finalizes either committed crash state", async () => {

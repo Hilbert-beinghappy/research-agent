@@ -1,8 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { lstat, readFile } from "node:fs/promises";
-import type { MemoryDeletionTombstoneV1 } from "@research-agent/contracts";
-import { validateMemoryDeletionTombstoneV1 } from "@research-agent/contracts";
+import type {
+	MemoryDeletionResidueCode,
+	MemoryDeletionTombstoneV1,
+	MemoryDeletionVerificationV1,
+} from "@research-agent/contracts";
+import {
+	MEMORY_DELETION_CHECKED_CLASSES,
+	MEMORY_DELETION_PHYSICAL_LIMITATION,
+	validateMemoryDeletionTombstoneV1,
+	validateMemoryDeletionVerificationV1,
+} from "@research-agent/contracts";
 import type {
 	MemoryCandidateDraftV1,
 	MemoryCategory,
@@ -26,8 +35,15 @@ import {
 	validateMemoryIdentifier,
 } from "./layout.ts";
 import { clearPersonalMemoryRetrievalCache, retrievePersonalMemory } from "./retrieval.ts";
-import { type CanonicalMemoryState, loadCanonicalMemoryState, memoryItemRootHash, openMemoryProfile } from "./store.ts";
-import { runMemoryTransaction } from "./transactions.ts";
+import {
+	deletionFeedbackMatchesTombstone,
+	deletionRecordConflicts,
+	loadCanonicalMemoryState,
+	memoryItemRootHash,
+	openMemoryProfile,
+} from "./store.ts";
+import { assertCommittedMemoryRecords, runMemoryTransaction } from "./transactions.ts";
+import { dryRunMemoryTransferSnapshot } from "./transfer.ts";
 
 export interface DeletePersonalMemoryRequest {
 	feedbackId: string;
@@ -39,15 +55,23 @@ export interface DeletePersonalMemoryRequest {
 
 export interface DeletePersonalMemoryOptions {
 	expectedProfileRevision?: number;
+	/** Deterministic fault injection for post-commit verification regressions. */
+	faultAfterDeletionCommit?: "verification" | "attestation";
 }
 
 export interface MemoryDeletionVerification {
 	status: "verified" | "failed";
+	verificationId: null;
+	transactionId: null;
+	profileId: string | null;
 	memoryId: string;
-	checkedClasses: readonly string[];
+	deletionTransactionId: string | null;
+	checkedAt: string;
+	profileRevision: number | null;
+	checkedClasses: readonly (typeof MEMORY_DELETION_CHECKED_CLASSES)[number][];
 	tombstoneHash: string | null;
 	profileRootHash: string | null;
-	residueCodes: string[];
+	residueCodes: MemoryDeletionResidueCode[];
 	physicalDeletionLimitation: string;
 }
 
@@ -81,25 +105,6 @@ const cachePaths = [
 	MEMORY_RETRIEVAL_INDEX_PATH,
 	MEMORY_RETRIEVAL_INDEX_HASH_PATH,
 ] as const;
-const checkedClasses = [
-	"profile",
-	"items",
-	"signals",
-	"candidates",
-	"feedback",
-	"receipts",
-	"audit",
-	"transfer_manifests",
-	"active_index",
-	"retrieval_index",
-	"retrieval_context",
-	"plaintext_export_dry_run",
-	"encrypted_export_manifest_dry_run",
-	"pending_transactions",
-] as const;
-const physicalDeletionLimitation =
-	"Verified deletion covers Doro normative state, ordinary files, indexes, context, and exports; external backups, filesystem snapshots, and storage-media remanence are outside the application guarantee.";
-
 function sha256(value: string): `sha256:${string}` {
 	return `sha256:${hashBytes(value).value}`;
 }
@@ -154,108 +159,95 @@ async function existingCachePaths(profileRoot: string): Promise<string[]> {
 	return existing;
 }
 
-function exportablePaths(state: CanonicalMemoryState): string[] {
-	return [
-		...state.signals.map((record) => `signals/${memoryMonthPath(record.createdAt)}/${record.signalId}.json`),
-		...state.candidates.map((record) => `candidates/${record.candidateId}.json`),
-		...state.items.map(itemPath),
-		...state.feedback.map(feedbackPath),
-		...state.receipts.map((record) => `receipts/${memoryMonthPath(record.appliedAt)}/${record.receiptId}.json`),
-		...state.transferManifests.map((record) => `transfer-manifests/${record.snapshotId}.json`),
-	].sort();
-}
-
-function canonicalRecordHashes(state: CanonicalMemoryState): Set<string> {
-	return new Set(
-		[
-			...state.signals,
-			...state.candidates,
-			...state.items,
-			...state.feedback,
-			...state.receipts,
-			...state.transferManifests,
-		].map((record) => sha256(recordText(record))),
-	);
-}
-
-function identifierHashes(state: CanonicalMemoryState): Set<string> {
-	return new Set([
-		...state.items.map(({ memoryId }) => sha256(`memory:${memoryId}`)),
-		...state.signals.map(({ signalId }) => sha256(`signal:${signalId}`)),
-		...state.candidates.map(({ candidateId }) => sha256(`candidate:${candidateId}`)),
-		...state.feedback.map(({ feedbackId }) => sha256(`feedback:${feedbackId}`)),
-		...state.receipts.map(({ receiptId }) => sha256(`receipt:${receiptId}`)),
-		...state.transferManifests.map(({ snapshotId }) => sha256(`snapshot:${snapshotId}`)),
-	]);
-}
-
 export async function verifyMemoryDeletion(
 	profileRoot: string,
 	memoryIdInput: string,
 ): Promise<MemoryDeletionVerification> {
 	const memoryId = validateMemoryIdentifier(memoryIdInput, "memoryId");
-	const residueCodes = new Set<string>();
+	const checkedAt = new Date().toISOString();
+	const residueCodes = new Set<MemoryDeletionResidueCode>();
+	const checkedClasses = new Set<(typeof MEMORY_DELETION_CHECKED_CLASSES)[number]>();
 	const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
 	if (opened.mode !== "read-write") {
 		return {
 			status: "failed",
+			verificationId: null,
+			transactionId: null,
+			profileId: opened.profile?.profileId ?? null,
 			memoryId,
-			checkedClasses,
+			deletionTransactionId: null,
+			checkedAt,
+			profileRevision: opened.profile?.revision ?? null,
+			checkedClasses: ["profile"],
 			tombstoneHash: null,
 			profileRootHash: opened.profile?.currentItemRootHash ?? null,
 			residueCodes: ["canonical_state_unavailable"],
-			physicalDeletionLimitation,
+			physicalDeletionLimitation: MEMORY_DELETION_PHYSICAL_LIMITATION,
 		};
 	}
+	checkedClasses.add("profile");
+	checkedClasses.add("pending_transactions");
 	const tombstone = opened.tombstones.find((record) => record.memoryId === memoryId) ?? null;
 	if (tombstone === null) residueCodes.add("tombstone_missing");
 	const state = await loadCanonicalMemoryState(opened.root, opened.profile);
+	for (const checkedClass of [
+		"items",
+		"signals",
+		"candidates",
+		"feedback",
+		"receipts",
+		"audit",
+		"transfer_manifests",
+	] as const) {
+		checkedClasses.add(checkedClass);
+	}
 	if (state.items.some((item) => item.memoryId === memoryId)) residueCodes.add("item_residue");
 	if (
 		Object.values(opened.profile.preferenceRefs).some((refs) => (refs ?? []).some((ref) => ref.memoryId === memoryId))
 	) {
 		residueCodes.add("profile_ref_residue");
 	}
-	if (
-		state.feedback.some(
-			(feedback) =>
-				feedback.target.memoryId === memoryId &&
-				(tombstone === null ||
-					feedback.action !== "delete" ||
-					feedback.transactionId !== tombstone.transactionId ||
-					feedback.correction !== null),
-		)
-	) {
+	const targetFeedback = state.feedback.filter((feedback) => feedback.target.memoryId === memoryId);
+	const appliedDelete = targetFeedback[0];
+	const deletionBindingInvalid =
+		tombstone === null ||
+		targetFeedback.length !== 1 ||
+		appliedDelete === undefined ||
+		!deletionFeedbackMatchesTombstone(appliedDelete, tombstone);
+	if (deletionBindingInvalid) {
 		residueCodes.add("feedback_residue");
+	} else {
+		try {
+			await assertCommittedMemoryRecords(opened.root, {
+				transactionId: tombstone.transactionId,
+				profileId: opened.profile.profileId,
+				records: [
+					{ path: `tombstones/${tombstone.memoryId}.json`, content: recordText(tombstone) },
+					{ path: feedbackPath(appliedDelete), content: recordText(appliedDelete) },
+				],
+			});
+			checkedClasses.add("deletion_transaction");
+		} catch {
+			residueCodes.add("deletion_binding_mismatch");
+		}
 	}
 	if (state.receipts.some((receipt) => receipt.itemRefs.some((ref) => ref.memoryId === memoryId))) {
 		residueCodes.add("receipt_residue");
 	}
+	const exportPreview = dryRunMemoryTransferSnapshot(opened.profile, state, checkedAt);
+	checkedClasses.add("plaintext_export_dry_run");
+	checkedClasses.add("encrypted_export_manifest_dry_run");
 	if (tombstone !== null) {
-		const relatedHashes = identifierHashes(state);
-		if (tombstone.relatedIdentifierHashes.some((hash) => relatedHashes.has(hash))) {
-			residueCodes.add("related_identifier_residue");
-		}
-		const recordHashes = canonicalRecordHashes(state);
-		if (tombstone.deletedRecordHashes.some((hash) => recordHashes.has(hash))) {
-			residueCodes.add("canonical_record_residue");
-		}
-		const exportHashes = new Set<string>(exportablePaths(state).map(sha256));
-		if (tombstone.deletedPathHashes.some((hash) => exportHashes.has(hash))) {
+		const previewPathHashes = new Set<string>(exportPreview.files.map(({ path }) => sha256(path)));
+		const previewRecordHashes = new Set<string>(exportPreview.files.map(({ plaintextHash }) => plaintextHash));
+		if (tombstone.deletedPathHashes.some((hash) => previewPathHashes.has(hash))) {
 			residueCodes.add("export_path_residue");
 		}
-		if (
-			state.transferManifests.some((manifest) =>
-				manifest.files.some(
-					(file) =>
-						tombstone.deletedPathHashes.includes(sha256(file.path)) ||
-						tombstone.deletedRecordHashes.includes(file.plaintextHash),
-				),
-			)
-		) {
-			residueCodes.add("transfer_manifest_residue");
+		if (tombstone.deletedRecordHashes.some((hash) => previewRecordHashes.has(hash))) {
+			residueCodes.add("canonical_record_residue");
 		}
 	}
+	let retrievalContextChecked = true;
 	for (const effect of [
 		"routing",
 		"ranking",
@@ -274,27 +266,253 @@ export async function verifyMemoryDeletion(
 			requestedMaxTokens: 800,
 			now: new Date().toISOString(),
 		});
-		if (retrieval.items.some((item) => item.memoryId === memoryId)) residueCodes.add("retrieval_residue");
+		const statusAndCodeAgree =
+			(retrieval.status === "applied" && retrieval.code === "ok") ||
+			(retrieval.status === "empty" &&
+				(retrieval.code === "no_eligible_items" ||
+					retrieval.code === "budget_exhausted" ||
+					retrieval.code === "profile_paused"));
+		if (!statusAndCodeAgree) {
+			residueCodes.add("verification_unavailable");
+			retrievalContextChecked = false;
+		}
+		if (
+			retrieval.profileId !== opened.profile.profileId ||
+			retrieval.profileRevision !== opened.profile.revision ||
+			retrieval.profileRootHash !== opened.profile.currentItemRootHash
+		) {
+			residueCodes.add("deletion_binding_mismatch");
+			retrievalContextChecked = false;
+		}
+		if (retrieval.items.some((item) => item.memoryId === memoryId) || retrieval.context.includes(memoryId)) {
+			residueCodes.add("retrieval_residue");
+			retrievalContextChecked = false;
+		}
 	}
-	for (const path of cachePaths) {
+	if (retrievalContextChecked) checkedClasses.add("retrieval_context");
+	let activeIndexChecked = true;
+	let retrievalIndexChecked = true;
+	for (const [path, indexClass] of [
+		[MEMORY_ACTIVE_ITEMS_CACHE_PATH, "active_index"],
+		[MEMORY_RETRIEVAL_INDEX_PATH, "retrieval_index"],
+		[MEMORY_RETRIEVAL_INDEX_HASH_PATH, "retrieval_index"],
+	] as const) {
 		try {
 			if ((await readFile(await resolveMemoryPath(profileRoot, path), "utf8")).includes(memoryId)) {
 				residueCodes.add("cache_residue");
 			}
 		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT") residueCodes.add("cache_unreadable");
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+				residueCodes.add("cache_unreadable");
+				if (indexClass === "active_index") activeIndexChecked = false;
+				else retrievalIndexChecked = false;
+			}
 		}
 	}
+	if (activeIndexChecked) checkedClasses.add("active_index");
+	if (retrievalIndexChecked) checkedClasses.add("retrieval_index");
 	const residues = [...residueCodes].sort();
 	return {
 		status: residues.length === 0 ? "verified" : "failed",
+		verificationId: null,
+		transactionId: null,
+		profileId: opened.profile.profileId,
 		memoryId,
-		checkedClasses,
+		deletionTransactionId: tombstone?.transactionId ?? null,
+		checkedAt,
+		profileRevision: opened.profile.revision,
+		checkedClasses: MEMORY_DELETION_CHECKED_CLASSES.filter((checkedClass) => checkedClasses.has(checkedClass)),
 		tombstoneHash: tombstone === null ? null : sha256(recordText(tombstone)),
 		profileRootHash: opened.profile.currentItemRootHash,
 		residueCodes: residues,
-		physicalDeletionLimitation,
+		physicalDeletionLimitation: MEMORY_DELETION_PHYSICAL_LIMITATION,
 	};
+}
+
+interface DeletionVerificationBinding {
+	profileId: string;
+	memoryId: string;
+	deletionTransactionId: string;
+	profileRevision: number;
+	tombstoneHash: `sha256:${string}`;
+	profileRootHash: string;
+}
+
+async function currentDeletionVerificationBinding(
+	profileRoot: string,
+	memoryId: string,
+): Promise<DeletionVerificationBinding | null> {
+	const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
+	if (opened.mode !== "read-write") return null;
+	const tombstone = opened.tombstones.find((record) => record.memoryId === memoryId);
+	if (tombstone === undefined) return null;
+	return {
+		profileId: opened.profile.profileId,
+		memoryId,
+		deletionTransactionId: tombstone.transactionId,
+		profileRevision: opened.profile.revision,
+		tombstoneHash: sha256(recordText(tombstone)),
+		profileRootHash: opened.profile.currentItemRootHash,
+	};
+}
+
+function unavailableVerification(binding: DeletionVerificationBinding): MemoryDeletionVerification {
+	return {
+		status: "failed",
+		verificationId: null,
+		transactionId: null,
+		profileId: binding.profileId,
+		memoryId: binding.memoryId,
+		deletionTransactionId: binding.deletionTransactionId,
+		checkedAt: new Date().toISOString(),
+		profileRevision: binding.profileRevision,
+		checkedClasses: [],
+		tombstoneHash: binding.tombstoneHash,
+		profileRootHash: binding.profileRootHash,
+		residueCodes: ["verification_unavailable"],
+		physicalDeletionLimitation: MEMORY_DELETION_PHYSICAL_LIMITATION,
+	};
+}
+
+function bindPostCommitVerification(
+	verification: MemoryDeletionVerification,
+	binding: DeletionVerificationBinding,
+): MemoryDeletionVerification {
+	const residueCodes = new Set(verification.residueCodes);
+	if (
+		verification.profileId !== binding.profileId ||
+		verification.memoryId !== binding.memoryId ||
+		verification.deletionTransactionId !== binding.deletionTransactionId ||
+		verification.profileRevision !== binding.profileRevision ||
+		verification.tombstoneHash !== binding.tombstoneHash ||
+		verification.profileRootHash !== binding.profileRootHash
+	) {
+		residueCodes.add("deletion_binding_mismatch");
+	}
+	const residues = [...residueCodes].sort();
+	return {
+		...verification,
+		status: residues.length === 0 ? "verified" : "failed",
+		profileId: binding.profileId,
+		memoryId: binding.memoryId,
+		deletionTransactionId: binding.deletionTransactionId,
+		profileRevision: binding.profileRevision,
+		tombstoneHash: binding.tombstoneHash,
+		profileRootHash: binding.profileRootHash,
+		residueCodes: residues,
+	};
+}
+
+function deletionVerificationAttestation(
+	verification: MemoryDeletionVerification,
+	transactionId: string,
+): MemoryDeletionVerificationV1 | null {
+	if (
+		verification.profileId === null ||
+		verification.deletionTransactionId === null ||
+		verification.profileRevision === null ||
+		verification.tombstoneHash === null ||
+		verification.profileRootHash === null
+	) {
+		return null;
+	}
+	return requireValid(
+		validateMemoryDeletionVerificationV1({
+			format: "doro-memory-deletion-verification",
+			schemaVersion: "1.0.0",
+			verificationId: `deletion_verification_${transactionId}`,
+			profileId: verification.profileId,
+			memoryId: verification.memoryId,
+			deletionTransactionId: verification.deletionTransactionId,
+			transactionId,
+			checkedAt: verification.checkedAt,
+			profileRevision: verification.profileRevision,
+			status: verification.status,
+			checkedClasses: [...verification.checkedClasses],
+			tombstoneHash: verification.tombstoneHash,
+			profileRootHash: verification.profileRootHash,
+			residueCodes: verification.residueCodes,
+			physicalDeletionLimitation: MEMORY_DELETION_PHYSICAL_LIMITATION,
+		}),
+		"MemoryDeletionVerificationV1",
+	);
+}
+
+async function persistDeletionVerification(
+	profileRoot: string,
+	verification: MemoryDeletionVerification,
+): Promise<{ transactionId: string; verification: MemoryDeletionVerificationV1 } | null> {
+	if (verification.profileRevision === null || verification.profileId === null) return null;
+	const persisted = await runMemoryTransaction(profileRoot, verification.profileRevision, (profile, transactionId) => {
+		if (profile.profileId !== verification.profileId) {
+			throw new TypeError("Memory deletion verification profile ID does not match profile.json");
+		}
+		const attestation = deletionVerificationAttestation(verification, transactionId);
+		if (attestation === null) throw new TypeError("Incomplete MemoryDeletionVerificationV1 binding");
+		return {
+			profile: {
+				...profile,
+				revision: profile.revision + 1,
+				updatedAt: new Date().toISOString(),
+				lastTransactionId: transactionId,
+			},
+			writes: [
+				{
+					path: `audit/${memoryMonthPath(attestation.checkedAt)}/${attestation.verificationId}.json`,
+					content: recordText(attestation),
+				},
+			],
+			result: attestation,
+		};
+	});
+	return { transactionId: persisted.transactionId, verification: persisted.result };
+}
+
+export async function verifyAndRecordMemoryDeletion(
+	profileRoot: string,
+	memoryId: string,
+	options: { faultDuringVerification?: boolean } = {},
+): Promise<{
+	attestationRecorded: boolean;
+	verificationTransactionId: string | null;
+	verification: MemoryDeletionVerification | MemoryDeletionVerificationV1;
+	errorCode: "MEMORY_DELETE_COMMITTED_UNVERIFIED" | "MEMORY_DELETE_VERIFICATION_FAILED" | null;
+}> {
+	const validatedMemoryId = validateMemoryIdentifier(memoryId, "memoryId");
+	const binding = await currentDeletionVerificationBinding(profileRoot, validatedMemoryId);
+	if (binding === null) {
+		const checked = await verifyMemoryDeletion(profileRoot, validatedMemoryId);
+		return {
+			attestationRecorded: false,
+			verificationTransactionId: null,
+			verification: checked,
+			errorCode: "MEMORY_DELETE_VERIFICATION_FAILED",
+		};
+	}
+	let checked: MemoryDeletionVerification;
+	try {
+		if (options.faultDuringVerification === true) throw new Error("injected verification failure");
+		checked = bindPostCommitVerification(await verifyMemoryDeletion(profileRoot, validatedMemoryId), binding);
+	} catch {
+		checked = unavailableVerification(binding);
+	}
+	try {
+		const persisted = await persistDeletionVerification(profileRoot, checked);
+		if (persisted === null) throw new TypeError("Incomplete MemoryDeletionVerificationV1 binding");
+		return {
+			attestationRecorded: true,
+			verificationTransactionId: persisted.transactionId,
+			verification: persisted.verification,
+			errorCode: persisted.verification.status === "failed" ? "MEMORY_DELETE_VERIFICATION_FAILED" : null,
+		};
+	} catch {
+		return {
+			attestationRecorded: false,
+			verificationTransactionId: null,
+			verification: checked,
+			errorCode: "MEMORY_DELETE_COMMITTED_UNVERIFIED",
+		};
+	}
 }
 
 export async function deletePersonalMemory(
@@ -302,10 +520,14 @@ export async function deletePersonalMemory(
 	request: DeletePersonalMemoryRequest,
 	options: DeletePersonalMemoryOptions = {},
 ): Promise<{
+	committed: true;
 	transactionId: string;
+	verificationTransactionId: string | null;
+	attestationRecorded: boolean;
 	tombstone: MemoryDeletionTombstoneV1;
 	feedback: MemoryFeedbackV1;
-	verification: MemoryDeletionVerification;
+	verification: MemoryDeletionVerification | MemoryDeletionVerificationV1;
+	errorCode: "MEMORY_DELETE_COMMITTED_UNVERIFIED" | "MEMORY_DELETE_VERIFICATION_FAILED" | null;
 }> {
 	validateMemoryIdentifier(request.feedbackId, "feedbackId");
 	validateMemoryIdentifier(request.target.memoryId, "memoryId");
@@ -465,12 +687,22 @@ export async function deletePersonalMemory(
 					resultingRevision: latest.revision + 1,
 					deactivatedAt: deletedAt,
 					cacheInvalidatedAt: deletedAt,
-					exportExclusionVerifiedAt: deletedAt,
+					exportExclusionVerifiedAt: null,
 					transactionId,
 					errorCode: null,
 				}),
 				"MemoryFeedbackV1",
 			);
+			const deletionFeedbackPath = `feedback/${memoryMonthPath(request.requestedAt)}/${request.feedbackId}.json`;
+			const deletionFeedbackContent = recordText(deletionFeedback);
+			if (
+				deletionRecordConflicts(deletionFeedback, deletionFeedbackPath, deletionFeedbackContent, [
+					...state.tombstones,
+					tombstone,
+				])
+			) {
+				throw new Error("MEMORY_DELETED_TERMINAL: deletion feedback references deleted records");
+			}
 			const remainingItems = state.items.filter(({ memoryId }) => memoryId !== request.target.memoryId);
 			const nextProfile = {
 				...profile,
@@ -490,18 +722,52 @@ export async function deletePersonalMemory(
 						content: recordText(tombstone),
 					},
 					{
-						path: `feedback/${memoryMonthPath(request.requestedAt)}/${request.feedbackId}.json`,
-						content: recordText(deletionFeedback),
+						path: deletionFeedbackPath,
+						content: deletionFeedbackContent,
 					},
 				],
 				result: { tombstone, feedback: deletionFeedback },
 			};
 		},
 	);
-	await clearPersonalMemoryRetrievalCache(profileRoot);
-	const verification = await verifyMemoryDeletion(profileRoot, request.target.memoryId);
-	if (verification.status !== "verified") {
-		throw new Error(`MEMORY_DELETE_VERIFICATION_FAILED: ${verification.residueCodes.join(",")}`);
+	const binding: DeletionVerificationBinding = {
+		profileId: prepared.profile.profileId,
+		memoryId: prepared.result.tombstone.memoryId,
+		deletionTransactionId: prepared.transactionId,
+		profileRevision: prepared.profile.revision,
+		tombstoneHash: sha256(recordText(prepared.result.tombstone)),
+		profileRootHash: prepared.profile.currentItemRootHash,
+	};
+	let checked: MemoryDeletionVerification;
+	try {
+		await clearPersonalMemoryRetrievalCache(profileRoot);
+		if (options.faultAfterDeletionCommit === "verification") throw new Error("injected verification failure");
+		checked = bindPostCommitVerification(await verifyMemoryDeletion(profileRoot, request.target.memoryId), binding);
+	} catch {
+		checked = unavailableVerification(binding);
 	}
-	return { transactionId: prepared.transactionId, ...prepared.result, verification };
+	try {
+		if (options.faultAfterDeletionCommit === "attestation") throw new Error("injected attestation failure");
+		const persisted = await persistDeletionVerification(profileRoot, checked);
+		if (persisted === null) throw new TypeError("Incomplete MemoryDeletionVerificationV1 binding");
+		return {
+			committed: true,
+			transactionId: prepared.transactionId,
+			verificationTransactionId: persisted.transactionId,
+			attestationRecorded: true,
+			...prepared.result,
+			verification: persisted.verification,
+			errorCode: persisted.verification.status === "failed" ? "MEMORY_DELETE_VERIFICATION_FAILED" : null,
+		};
+	} catch {
+		return {
+			committed: true,
+			transactionId: prepared.transactionId,
+			verificationTransactionId: null,
+			attestationRecorded: false,
+			...prepared.result,
+			verification: checked,
+			errorCode: "MEMORY_DELETE_COMMITTED_UNVERIFIED",
+		};
+	}
 }

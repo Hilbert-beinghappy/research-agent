@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRecordedHttpTransport, type RecordedHttpExchange } from "../../src/adapters/http/transport.ts";
 import { registerResearchCommands } from "../../src/extension/commands.ts";
 import { RESEARCH_TOOL_NAMES, type RegisterResearchToolsOptions } from "../../src/extension/tools.ts";
+import { deletePersonalMemory } from "../../src/memory/deletion.ts";
 import { memoryProfileRoot } from "../../src/memory/layout.ts";
 import { retrievePersonalMemoryForUse } from "../../src/memory/receipts.ts";
 import {
@@ -443,6 +444,25 @@ describe("research tools", () => {
 			approvalRequired: false,
 			appliedAt: "2026-08-08T12:00:00.000Z",
 		});
+		const beforeBlocker = await openMemoryProfile(profileRoot, { rebuildCache: false });
+		if (beforeBlocker.mode !== "read-write") throw new Error("Expected writable memory profile");
+		await appendMemoryItem(
+			profileRoot,
+			itemDraft("profile-tools", "memory-verification-blocker", {
+				category: "writing",
+				key: "tone",
+				value: "conservative",
+				allowedEffects: ["formatting"],
+			}),
+			{ expectedProfileRevision: beforeBlocker.profile.revision },
+		);
+		await deletePersonalMemory(profileRoot, {
+			feedbackId: "feedback-verification-blocker",
+			target: { memoryId: "memory-verification-blocker", revision: 1 },
+			sourceRef: { kind: "session", locator: "session:verification-blocker", dataClass: "restricted" },
+			requestedAt: "2026-08-08T12:00:01.000Z",
+			reasonCode: "privacy_request",
+		});
 		vi.stubEnv("DORO_HOME", doroHome);
 		const operationsBefore = await listProjectRecordIds(project.root, project.manifest, "operation");
 
@@ -585,7 +605,13 @@ describe("research tools", () => {
 		);
 		expect(deleted).toMatchObject({
 			ok: true,
-			value: { confirmation: { kind: "memory_feedback" }, verification: { status: "verified" } },
+			status: "PARTIAL_SUCCESS",
+			errors: [{ code: "MEMORY_DELETE_VERIFICATION_FAILED", category: "integrity" }],
+			value: {
+				confirmation: { kind: "memory_feedback" },
+				attestationRecorded: true,
+				verification: { status: "failed", residueCodes: ["verification_unavailable"] },
+			},
 		});
 		expect(JSON.stringify(deleted)).not.toContain("conservative");
 		expect(JSON.stringify(deleted)).not.toContain("sha256:");
@@ -593,7 +619,7 @@ describe("research tools", () => {
 		const opened = await openMemoryProfile(profileRoot);
 		if (opened.mode !== "read-write") throw new Error("Expected writable memory profile");
 		const state = await loadCanonicalMemoryState(profileRoot, opened.profile);
-		expect(state.feedback).toHaveLength(3);
+		expect(state.feedback).toHaveLength(4);
 		expect(state.feedback.map(({ action, actor }) => ({ action, actor }))).toEqual(
 			expect.arrayContaining([
 				{ action: "correct", actor: "user" },
@@ -601,11 +627,14 @@ describe("research tools", () => {
 				{ action: "delete", actor: "user" },
 			]),
 		);
-		expect(state.feedback.map(({ sourceRef }) => sourceRef.locator)).toEqual([
-			expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
-			expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
-			expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
-		]);
+		expect(state.feedback.map(({ sourceRef }) => sourceRef.locator)).toEqual(
+			expect.arrayContaining([
+				"session:verification-blocker",
+				expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
+				expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
+				expect.stringMatching(/^session:turn-[a-f0-9]{64}$/u),
+			]),
+		);
 		expect(JSON.stringify(state.feedback)).not.toContain("research-tools-session");
 		expect(
 			state.items.find(({ memoryId, revision }) => memoryId === "memory-language" && revision === 3),

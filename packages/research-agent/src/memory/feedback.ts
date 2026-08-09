@@ -11,7 +11,7 @@ import { validateMemoryFeedbackV1, validateMemoryItemV1 } from "@research-agent/
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import { hashCanonicalJson } from "../contracts/integrity.ts";
 import { validateMemoryIdentifier } from "./layout.ts";
-import { memoryItemRootHash, openMemoryProfile } from "./store.ts";
+import { deletionRecordConflicts, memoryItemRootHash, openMemoryProfile } from "./store.ts";
 import { runMemoryTransaction } from "./transactions.ts";
 
 export type MemoryFeedbackRequest = Pick<
@@ -282,6 +282,16 @@ export async function applyMemoryFeedback(
 				}),
 				"MemoryFeedbackV1",
 			);
+			const itemPath = `items/${item.category}/${item.memoryId}/${item.revision}.json`;
+			const itemContent = `${canonicalStringify(item)}\n`;
+			const feedbackPath = `feedback/${request.requestedAt.slice(0, 4)}/${request.requestedAt.slice(5, 7)}/${request.feedbackId}.json`;
+			const feedbackContent = `${canonicalStringify(feedback)}\n`;
+			if (
+				deletionRecordConflicts(item, itemPath, itemContent, opened.tombstones) ||
+				deletionRecordConflicts(feedback, feedbackPath, feedbackContent, opened.tombstones)
+			) {
+				throw new Error("MEMORY_DELETED_TERMINAL: deleted memory records cannot be reintroduced");
+			}
 			const items = [...opened.items, item];
 			const nextProfile = {
 				...profile,
@@ -295,12 +305,12 @@ export async function applyMemoryFeedback(
 				profile: nextProfile,
 				writes: [
 					{
-						path: `items/${item.category}/${item.memoryId}/${item.revision}.json`,
-						content: `${canonicalStringify(item)}\n`,
+						path: itemPath,
+						content: itemContent,
 					},
 					{
-						path: `feedback/${request.requestedAt.slice(0, 4)}/${request.requestedAt.slice(5, 7)}/${request.feedbackId}.json`,
-						content: `${canonicalStringify(feedback)}\n`,
+						path: feedbackPath,
+						content: feedbackContent,
 					},
 				],
 				result: { item, feedback },

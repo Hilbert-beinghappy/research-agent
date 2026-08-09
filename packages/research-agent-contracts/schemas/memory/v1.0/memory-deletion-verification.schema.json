@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Doro Memory Deletion Verification v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "verificationId",
+    "profileId",
+    "memoryId",
+    "deletionTransactionId",
+    "transactionId",
+    "checkedAt",
+    "profileRevision",
+    "status",
+    "checkedClasses",
+    "tombstoneHash",
+    "profileRootHash",
+    "residueCodes",
+    "physicalDeletionLimitation"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "doro-memory-deletion-verification"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "verificationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "memoryId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "deletionTransactionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "transactionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "checkedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "profileRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "verified"
+        },
+        {
+          "type": "string",
+          "const": "failed"
+        }
+      ]
+    },
+    "checkedClasses": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "profile"
+          },
+          {
+            "type": "string",
+            "const": "items"
+          },
+          {
+            "type": "string",
+            "const": "signals"
+          },
+          {
+            "type": "string",
+            "const": "candidates"
+          },
+          {
+            "type": "string",
+            "const": "feedback"
+          },
+          {
+            "type": "string",
+            "const": "receipts"
+          },
+          {
+            "type": "string",
+            "const": "audit"
+          },
+          {
+            "type": "string",
+            "const": "transfer_manifests"
+          },
+          {
+            "type": "string",
+            "const": "active_index"
+          },
+          {
+            "type": "string",
+            "const": "retrieval_index"
+          },
+          {
+            "type": "string",
+            "const": "retrieval_context"
+          },
+          {
+            "type": "string",
+            "const": "plaintext_export_dry_run"
+          },
+          {
+            "type": "string",
+            "const": "encrypted_export_manifest_dry_run"
+          },
+          {
+            "type": "string",
+            "const": "pending_transactions"
+          },
+          {
+            "type": "string",
+            "const": "deletion_transaction"
+          }
+        ]
+      },
+      "uniqueItems": true
+    },
+    "tombstoneHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "profileRootHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "residueCodes": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "cache_residue"
+          },
+          {
+            "type": "string",
+            "const": "cache_unreadable"
+          },
+          {
+            "type": "string",
+            "const": "canonical_record_residue"
+          },
+          {
+            "type": "string",
+            "const": "canonical_state_unavailable"
+          },
+          {
+            "type": "string",
+            "const": "deletion_binding_mismatch"
+          },
+          {
+            "type": "string",
+            "const": "export_path_residue"
+          },
+          {
+            "type": "string",
+            "const": "feedback_residue"
+          },
+          {
+            "type": "string",
+            "const": "item_residue"
+          },
+          {
+            "type": "string",
+            "const": "profile_ref_residue"
+          },
+          {
+            "type": "string",
+            "const": "receipt_residue"
+          },
+          {
+            "type": "string",
+            "const": "retrieval_residue"
+          },
+          {
+            "type": "string",
+            "const": "tombstone_missing"
+          },
+          {
+            "type": "string",
+            "const": "verification_unavailable"
+          }
+        ]
+      },
+      "uniqueItems": true
+    },
+    "physicalDeletionLimitation": {
+      "type": "string",
+      "const": "Verified deletion covers current Doro normative state, ordinary files, indexes, context, and future export previews; previously exported bundles or copies, external backups, filesystem snapshots, and storage-media remanence are outside the application guarantee."
+    }
+  },
+  "additionalProperties": false
+}

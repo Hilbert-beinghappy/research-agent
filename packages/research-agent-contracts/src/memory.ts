@@ -380,3 +380,62 @@ export const MemoryDeletionTombstoneV1Schema = StrictObject({
 	transactionId: IdentifierSchema,
 });
 export type MemoryDeletionTombstoneV1 = Static<typeof MemoryDeletionTombstoneV1Schema>;
+
+export const MEMORY_DELETION_CHECKED_CLASSES = [
+	"profile",
+	"items",
+	"signals",
+	"candidates",
+	"feedback",
+	"receipts",
+	"audit",
+	"transfer_manifests",
+	"active_index",
+	"retrieval_index",
+	"retrieval_context",
+	"plaintext_export_dry_run",
+	"encrypted_export_manifest_dry_run",
+	"pending_transactions",
+	"deletion_transaction",
+] as const;
+
+export const MEMORY_DELETION_PHYSICAL_LIMITATION =
+	"Verified deletion covers current Doro normative state, ordinary files, indexes, context, and future export previews; previously exported bundles or copies, external backups, filesystem snapshots, and storage-media remanence are outside the application guarantee." as const;
+
+export const MemoryDeletionResidueCodeSchema = Type.Union([
+	Type.Literal("cache_residue"),
+	Type.Literal("cache_unreadable"),
+	Type.Literal("canonical_record_residue"),
+	Type.Literal("canonical_state_unavailable"),
+	Type.Literal("deletion_binding_mismatch"),
+	Type.Literal("export_path_residue"),
+	Type.Literal("feedback_residue"),
+	Type.Literal("item_residue"),
+	Type.Literal("profile_ref_residue"),
+	Type.Literal("receipt_residue"),
+	Type.Literal("retrieval_residue"),
+	Type.Literal("tombstone_missing"),
+	Type.Literal("verification_unavailable"),
+]);
+export type MemoryDeletionResidueCode = Static<typeof MemoryDeletionResidueCodeSchema>;
+
+export const MemoryDeletionVerificationV1Schema = StrictObject({
+	format: Type.Literal("doro-memory-deletion-verification"),
+	schemaVersion: Type.Literal(MEMORY_SCHEMA_VERSION),
+	verificationId: IdentifierSchema,
+	profileId: IdentifierSchema,
+	memoryId: IdentifierSchema,
+	deletionTransactionId: IdentifierSchema,
+	transactionId: IdentifierSchema,
+	checkedAt: IsoDateTimeSchema,
+	profileRevision: Type.Integer({ minimum: 0 }),
+	status: Type.Union([Type.Literal("verified"), Type.Literal("failed")]),
+	checkedClasses: Type.Array(Type.Union(MEMORY_DELETION_CHECKED_CLASSES.map((value) => Type.Literal(value))), {
+		uniqueItems: true,
+	}),
+	tombstoneHash: Sha256Schema,
+	profileRootHash: Sha256Schema,
+	residueCodes: Type.Array(MemoryDeletionResidueCodeSchema, { uniqueItems: true }),
+	physicalDeletionLimitation: Type.Literal(MEMORY_DELETION_PHYSICAL_LIMITATION),
+});
+export type MemoryDeletionVerificationV1 = Static<typeof MemoryDeletionVerificationV1Schema>;
