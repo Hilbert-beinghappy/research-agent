@@ -4,6 +4,14 @@ import { describe, expect, it } from "vitest";
 import { evaluateMemoryStudyEvidence, type MemoryStudyEvidenceV1 } from "../../src/memory/study-evidence.ts";
 
 const start = Date.parse("2026-01-01T00:00:00.000Z");
+const releaseBlockerCodes = [
+	"STUDY_EVIDENCE_V1_NOT_RELEASE_QUALIFYING",
+	"CANDIDATE_COMMIT_UNBOUND",
+	"EXACT_RECEIPTS_UNBOUND",
+	"FIELD_JUDGMENTS_UNBOUND",
+	"QUALITY_GATES_UNBOUND",
+	"CONFIGURATION_HASHES_UNBOUND",
+];
 
 function hmac(value: number): string {
 	return `hmac-sha256:${value.toString(16).padStart(64, "0")}`;
@@ -79,29 +87,35 @@ function evidence(participantCount: number, status: "ongoing" | "complete"): Mem
 }
 
 describe("Personal Memory real-study evidence", () => {
-	it("reports a governed 10-participant ongoing pilot without exposing refs or timestamps", () => {
+	it("reports 10-participant exposure without claiming that a real pilot started", () => {
 		const report = evaluateMemoryStudyEvidence(evidence(10, "ongoing"));
 		expect(report).toMatchObject({
 			status: "ongoing",
-			candidateCommit: "a".repeat(40),
+			reportedCandidateCommit: "a".repeat(40),
 			counts: { enrolledParticipants: 10, completedParticipants: 0, tasks: 20 },
-			betaPilotStarted: true,
+			betaExposureComplete: true,
+			stableExposureComplete: false,
+			betaPilotStarted: false,
 			stableStudyEligible: false,
+			releaseBlockerCodes,
 		});
 		const serialized = JSON.stringify(report);
 		expect(serialized).not.toContain("hmac-sha256:");
 		expect(serialized).not.toContain("2026-");
 	});
 
-	it("binds the validated candidate commit into the aggregate report", () => {
+	it("labels the submitted candidate commit as reported and unbound", () => {
 		const first = evidence(10, "ongoing");
 		const second = evidence(10, "ongoing");
 		second.governance.candidateCommit = "b".repeat(40);
-		expect(evaluateMemoryStudyEvidence(first).candidateCommit).toBe("a".repeat(40));
-		expect(evaluateMemoryStudyEvidence(second).candidateCommit).toBe("b".repeat(40));
+		expect(evaluateMemoryStudyEvidence(first)).toMatchObject({
+			reportedCandidateCommit: "a".repeat(40),
+			releaseBlockerCodes: expect.arrayContaining(["CANDIDATE_COMMIT_UNBOUND"]),
+		});
+		expect(evaluateMemoryStudyEvidence(second).reportedCandidateCommit).toBe("b".repeat(40));
 	});
 
-	it("qualifies 30 completed participants observed across 84 days", () => {
+	it("reports complete 30-participant exposure without stable eligibility", () => {
 		const complete = evidence(30, "complete");
 		if (complete.participants[0] === undefined) throw new Error("participant fixture missing");
 		complete.participants[0].memoryDeletionRequested = true;
@@ -119,9 +133,29 @@ describe("Personal Memory real-study evidence", () => {
 			},
 			balancedFirstConditionPerParticipant: true,
 			eligiblePairBlindScoringCoverage: 1,
-			betaPilotStarted: true,
-			stableStudyEligible: true,
+			betaExposureComplete: true,
+			stableExposureComplete: true,
+			betaPilotStarted: false,
+			stableStudyEligible: false,
+			releaseBlockerCodes,
 		});
+	});
+
+	it("fails closed for a structurally valid forged-real v1 file", () => {
+		const forged = evidence(30, "complete");
+		forged.governance.candidateCommit = "f".repeat(40);
+		const report = evaluateMemoryStudyEvidence(forged);
+		expect(report).toMatchObject({
+			reportedCandidateCommit: "f".repeat(40),
+			betaExposureComplete: true,
+			stableExposureComplete: true,
+			betaPilotStarted: false,
+			stableStudyEligible: false,
+			releaseBlockerCodes,
+		});
+		const serialized = JSON.stringify(report);
+		expect(serialized).not.toContain("hmac-sha256:");
+		expect(serialized).not.toContain("2026-");
 	});
 
 	it("rejects self-reported aggregate fields and every extra field", () => {
@@ -179,25 +213,28 @@ describe("Personal Memory real-study evidence", () => {
 	it("requires active pilot participants with eligible pairs and independent reviewers", () => {
 		const withdrawn = evidence(10, "ongoing");
 		for (const participant of withdrawn.participants) participant.disposition = "withdrawn";
-		expect(evaluateMemoryStudyEvidence(withdrawn).betaPilotStarted).toBe(false);
+		expect(evaluateMemoryStudyEvidence(withdrawn).betaExposureComplete).toBe(false);
 
 		const withoutTasks = evidence(10, "ongoing");
 		withoutTasks.tasks = [];
-		expect(evaluateMemoryStudyEvidence(withoutTasks).betaPilotStarted).toBe(false);
+		expect(evaluateMemoryStudyEvidence(withoutTasks).betaExposureComplete).toBe(false);
 
 		const ineligibleParticipant = evidence(10, "ongoing");
 		const participantRef = ineligibleParticipant.participants[0]?.participantRef;
 		for (const task of ineligibleParticipant.tasks) {
 			if (task.participantRef === participantRef) task.eligible = false;
 		}
-		expect(evaluateMemoryStudyEvidence(ineligibleParticipant).betaPilotStarted).toBe(false);
+		expect(evaluateMemoryStudyEvidence(ineligibleParticipant).betaExposureComplete).toBe(false);
 
 		const tenStartedOfEleven = evidence(11, "ongoing");
 		const pendingParticipantRef = tenStartedOfEleven.participants[0]?.participantRef;
 		for (const task of tenStartedOfEleven.tasks) {
 			if (task.participantRef === pendingParticipantRef) task.eligible = false;
 		}
-		expect(evaluateMemoryStudyEvidence(tenStartedOfEleven).betaPilotStarted).toBe(true);
+		expect(evaluateMemoryStudyEvidence(tenStartedOfEleven)).toMatchObject({
+			betaExposureComplete: true,
+			betaPilotStarted: false,
+		});
 
 		const participantReviewer = evidence(10, "ongoing");
 		const pairRef = participantReviewer.tasks[0]?.pairRef;
@@ -217,7 +254,7 @@ describe("Personal Memory real-study evidence", () => {
 		}
 		expect(evaluateMemoryStudyEvidence(missingWeeks)).toMatchObject({
 			minimumsPerCompletedParticipant: { distinctWeeks: 1 },
-			stableStudyEligible: false,
+			stableExposureComplete: false,
 		});
 
 		const imbalanced = evidence(30, "complete");
@@ -228,7 +265,7 @@ describe("Personal Memory real-study evidence", () => {
 		}
 		expect(evaluateMemoryStudyEvidence(imbalanced)).toMatchObject({
 			balancedFirstConditionPerParticipant: false,
-			stableStudyEligible: false,
+			stableExposureComplete: false,
 		});
 
 		const unverifiedDeletion = evidence(10, "ongoing");
@@ -243,7 +280,7 @@ describe("Personal Memory real-study evidence", () => {
 		}
 		expect(evaluateMemoryStudyEvidence(unscored)).toMatchObject({
 			eligiblePairBlindScoringCoverage: 0.998333,
-			stableStudyEligible: false,
+			stableExposureComplete: false,
 		});
 	});
 
@@ -266,7 +303,7 @@ describe("Personal Memory real-study evidence", () => {
 		}
 		expect(evaluateMemoryStudyEvidence(extended)).toMatchObject({
 			minimumsPerCompletedParticipant: { distinctWeeks: 11 },
-			stableStudyEligible: false,
+			stableExposureComplete: false,
 		});
 	});
 });

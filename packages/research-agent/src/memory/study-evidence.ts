@@ -2,6 +2,14 @@
 
 export type MemoryStudyStatus = "not_started" | "ongoing" | "complete";
 
+export type MemoryStudyReleaseBlockerCode =
+	| "STUDY_EVIDENCE_V1_NOT_RELEASE_QUALIFYING"
+	| "CANDIDATE_COMMIT_UNBOUND"
+	| "EXACT_RECEIPTS_UNBOUND"
+	| "FIELD_JUDGMENTS_UNBOUND"
+	| "QUALITY_GATES_UNBOUND"
+	| "CONFIGURATION_HASHES_UNBOUND";
+
 export interface MemoryStudyEvidenceV1 {
 	format: "doro-memory-study-evidence";
 	version: 1;
@@ -46,7 +54,7 @@ export interface MemoryStudyEvidenceReportV1 {
 	format: "doro-memory-study-evidence-report";
 	version: 1;
 	status: MemoryStudyStatus;
-	candidateCommit: string;
+	reportedCandidateCommit: string;
 	counts: {
 		enrolledParticipants: number;
 		completedParticipants: number;
@@ -62,8 +70,11 @@ export interface MemoryStudyEvidenceReportV1 {
 	};
 	balancedFirstConditionPerParticipant: boolean;
 	eligiblePairBlindScoringCoverage: number | null;
-	betaPilotStarted: boolean;
-	stableStudyEligible: boolean;
+	betaExposureComplete: boolean;
+	stableExposureComplete: boolean;
+	betaPilotStarted: false;
+	stableStudyEligible: false;
+	releaseBlockerCodes: MemoryStudyReleaseBlockerCode[];
 }
 
 const dayMilliseconds = 86_400_000;
@@ -71,6 +82,14 @@ const weekMilliseconds = 7 * dayMilliseconds;
 const commitPattern = /^[a-f0-9]{40}$/u;
 const sha256RefPattern = /^sha256:[a-f0-9]{64}$/u;
 const hmacRefPattern = /^hmac-sha256:[a-f0-9]{64}$/u;
+const releaseBlockerCodes: readonly MemoryStudyReleaseBlockerCode[] = [
+	"STUDY_EVIDENCE_V1_NOT_RELEASE_QUALIFYING",
+	"CANDIDATE_COMMIT_UNBOUND",
+	"EXACT_RECEIPTS_UNBOUND",
+	"FIELD_JUDGMENTS_UNBOUND",
+	"QUALITY_GATES_UNBOUND",
+	"CONFIGURATION_HASHES_UNBOUND",
+];
 const rootKeys = new Set([
 	"format",
 	"version",
@@ -402,7 +421,7 @@ export function evaluateMemoryStudyEvidence(input: unknown): MemoryStudyEvidence
 	const betaPilotParticipantCount = participants.filter(
 		({ participantRef, disposition }) => disposition !== "withdrawn" && eligiblePairParticipants.has(participantRef),
 	).length;
-	const stableStudyEligible =
+	const stableExposureComplete =
 		root.status === "complete" &&
 		completedAt !== null &&
 		completedAt.milliseconds - startedAt.milliseconds >= 84 * dayMilliseconds &&
@@ -420,7 +439,7 @@ export function evaluateMemoryStudyEvidence(input: unknown): MemoryStudyEvidence
 		format: "doro-memory-study-evidence-report",
 		version: 1,
 		status: root.status,
-		candidateCommit,
+		reportedCandidateCommit: candidateCommit,
 		counts: {
 			enrolledParticipants: participants.length,
 			completedParticipants: completedParticipants.length,
@@ -429,7 +448,10 @@ export function evaluateMemoryStudyEvidence(input: unknown): MemoryStudyEvidence
 		minimumsPerCompletedParticipant,
 		balancedFirstConditionPerParticipant,
 		eligiblePairBlindScoringCoverage,
-		betaPilotStarted: root.status !== "not_started" && betaPilotParticipantCount >= 10,
-		stableStudyEligible,
+		betaExposureComplete: root.status !== "not_started" && betaPilotParticipantCount >= 10,
+		stableExposureComplete,
+		betaPilotStarted: false,
+		stableStudyEligible: false,
+		releaseBlockerCodes: [...releaseBlockerCodes],
 	};
 }

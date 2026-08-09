@@ -4,6 +4,8 @@
 
 The bundled v1 dataset and `eval:memory:v3` evaluator are synthetic technical preflight only. They validate metric calculation, deterministic hard-gate accounting, privacy-minimized aggregation, and the on/off runtime path. Version 1 fails closed for every real-pilot or stable-v3 claim: changing `synthetic`, `realTrialStatus`, or self-reported study minima is not real-study evidence.
 
+The separate `eval:memory:study` v1 format also remains descriptive only. It can recompute `betaExposureComplete` and `stableExposureComplete` from structurally valid pseudonymous rows, but it always reports `betaPilotStarted: false` and `stableStudyEligible: false` with fixed blocker codes. A submitted `candidateCommit` is reported as unbound; v1 does not bind it to the evaluator checkout or an authorized signature.
+
 The first pilot cohort is 10 opt-in researchers. Longitudinal eligibility for stable v3 requires 30 researchers in management, public administration, or adjacent fields, observed for 12 weeks, with at least 24 Sessions, 3 Projects, and 40 eligible preference opportunities per participant. Each participant must include one simulated or real restricted Project and two discoverable incorrect inferred candidates. Research Project records remain independent of participation and withdrawal; release qualification has additional fixed-SHA gates outside this evaluator.
 
 ## On/off design
@@ -32,7 +34,9 @@ Evaluate a local real-study evidence file with:
 npm run eval:memory:study -w packages/research-agent -- --input /absolute/path/to/local-study-evidence.json
 ```
 
-The strict evidence format binds the candidate commit SHA and the approved or exempt ethics decision. Governance records contain hashes of the ethics decision, protocol, consent form, randomization plan, and full-profile exit procedure, plus a pseudonymous data-controller reference. Each participant has a distinct consent-receipt reference. Each task records `observedAt`, participant, task, Session, Project, randomized pair, reviewer, condition, sequence, restricted-Project status, optional correction reference, eligibility, and blind result. Participant counts, 12 contiguous observed weeks, distinct Sessions and Projects, restricted Projects, correction opportunities, eligible tasks, balanced pair order, and blind-review coverage are derived from these records; submitted aggregate minima are rejected.
+The strict v1 format validates the shape of a submitted candidate commit SHA and approved or exempt ethics decision; it does not authenticate either one. Governance records contain self-reported hashes of the ethics decision, protocol, consent form, randomization plan, and full-profile exit procedure, plus a pseudonymous data-controller reference. Each participant has a distinct consent-receipt reference. Each task records `observedAt`, participant, task, Session, Project, randomized pair, reviewer, condition, sequence, restricted-Project status, optional correction reference, eligibility, and blind result. Participant counts, 12 contiguous observed weeks, distinct Sessions and Projects, restricted Projects, correction opportunities, eligible tasks, balanced pair order, and blind-review coverage are derived from these records; submitted aggregate minima are rejected. These derived values describe exposure only and are not field judgments or release evidence.
+
+No v1 input can remove `STUDY_EVIDENCE_V1_NOT_RELEASE_QUALIFYING`, `CANDIDATE_COMMIT_UNBOUND`, `EXACT_RECEIPTS_UNBOUND`, `FIELD_JUDGMENTS_UNBOUND`, `QUALITY_GATES_UNBOUND`, or `CONFIGURATION_HASHES_UNBOUND`. A future evidence version must bind the candidate to the evaluated checkout and authorized signature; bind exact-revision Memory use receipts and off-condition absence; include authenticated field judgments; carry citation, evidence, submission, personalization, false-memory, and interruption quality gates; and hash the evaluator, protocol, rubrics, randomization, model, Tool, and runtime configuration before it may compute real release claims.
 
 Generate every participant, task, Session, Project, pair, reviewer, consent, correction, and data-controller reference with HMAC-SHA-256 using a fresh random secret for that study and a distinct domain, for example `HMAC(studySecret, domain || 0x00 || canonicalValue)`. Never use a bare SHA-256 of an email address, name, path, raw identifier, or other guessable value. The secret must not enter the dataset, repository, report, or release artifact.
 
@@ -52,7 +56,7 @@ The deterministic preflight requires all of the following:
 - added context P95 no greater than 800 tokens and maximum no greater than 5% of available context;
 - no critical citation, evidence, or submission gate regression, and aggregate quality decrease no greater than 2 percentage points.
 
-Stable v3 additionally requires personalization success at least 75%, false-memory application no greater than 1%, interruption no greater than 5%, and the full recomputed real-study exposure above. Synthetic data is preflight evidence only.
+Stable v3 additionally requires personalization success at least 75%, false-memory application no greater than 1%, interruption no greater than 5%, and the full recomputed real-study exposure above. Synthetic data and v1 self-reported study rows are preflight evidence only.
 
 ## Withdrawal and deletion
 
