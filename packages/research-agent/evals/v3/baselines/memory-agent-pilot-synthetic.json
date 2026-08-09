@@ -1,0 +1,61 @@
+{
+  "format": "doro-memory-agent-pilot-report",
+  "version": 1,
+  "synthetic": true,
+  "platform": "darwin",
+  "candidateCommit": "24d94622fd0a82dc8156c188a3e6b5f062722829",
+  "randomizationSeedHash": "sha256:a42ccf0fbbe455529a812c6abf3843daf61020ad9a0bcae2a446194794ce8df6",
+  "participantResultRootHash": "sha256:003c8106eb4f7ce470714981a0ab42bf97190c3bf774094a4e442b51adb6c855",
+  "counts": {
+    "agents": 10,
+    "pairs": 10,
+    "tasks": 20,
+    "sessions": 20,
+    "isolatedHomes": 10,
+    "isolatedProfiles": 10,
+    "restrictedProjects": 10,
+    "memoryOnApplied": 10,
+    "memoryOnReceipts": 10,
+    "memoryOffApplications": 0,
+    "memoryOffReceipts": 0,
+    "siblingReadBlocked": 10,
+    "restrictedSignalLeakage": 0
+  },
+  "firstCondition": {
+    "memoryOn": 5,
+    "memoryOff": 5
+  },
+  "lifecycle": {
+    "correct": {
+      "attempted": 4,
+      "passed": 4
+    },
+    "forget": {
+      "attempted": 3,
+      "passed": 3
+    },
+    "delete": {
+      "attempted": 3,
+      "passed": 3
+    }
+  },
+  "gates": {
+    "exactReportSchema": true,
+    "identityBinding": true,
+    "uniqueCanaryIsolation": true,
+    "strongSandboxProbe": true,
+    "allParticipantsPassed": true
+  },
+  "claims": {
+    "betaPilotStarted": false,
+    "stableStudyEligible": false,
+    "realUserEvidence": false,
+    "longitudinal12WeekEvidence": false
+  },
+  "limitations": [
+    "Synthetic Agents are not human participants.",
+    "One paired smoke per Agent does not satisfy longitudinal exposure minima.",
+    "This run qualifies macOS memory isolation and lifecycle behavior only.",
+    "Citation, evidence, submission, and blinded research-quality gates were not evaluated."
+  ]
+}
