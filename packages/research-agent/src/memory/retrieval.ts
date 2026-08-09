@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import type {
 	DataClass,
 	MemoryCategory,
@@ -165,7 +165,17 @@ interface CachedProfile {
 interface CachedRetrievalIndex {
 	contentHash: string;
 	profileIndexBindingHash: string;
+	basedOnProfileRevision: number;
+	indexFingerprint: FileFingerprint;
 	items: RetrievalIndexEntry[];
+}
+
+interface FileFingerprint {
+	dev: bigint;
+	ino: bigint;
+	size: bigint;
+	mtimeNs: bigint;
+	ctimeNs: bigint;
 }
 
 const profileCache = new Map<string, CachedProfile>();
@@ -426,6 +436,7 @@ async function readProfileSnapshot(root: string): Promise<CachedProfile> {
 		contentHash,
 		indexBindingHash: `sha256:${
 			hashCanonicalJson({
+				revision: profile.revision,
 				currentItemRootHash: profile.currentItemRootHash,
 				preferenceRefs: profile.preferenceRefs,
 			}).value
@@ -434,6 +445,27 @@ async function readProfileSnapshot(root: string): Promise<CachedProfile> {
 	};
 	remember(profileCache, root, snapshot);
 	return snapshot;
+}
+
+async function fileFingerprint(path: string): Promise<FileFingerprint> {
+	const stats = await stat(path, { bigint: true });
+	return {
+		dev: stats.dev,
+		ino: stats.ino,
+		size: stats.size,
+		mtimeNs: stats.mtimeNs,
+		ctimeNs: stats.ctimeNs,
+	};
+}
+
+function sameFileFingerprint(left: FileFingerprint, right: FileFingerprint): boolean {
+	return (
+		left.dev === right.dev &&
+		left.ino === right.ino &&
+		left.size === right.size &&
+		left.mtimeNs === right.mtimeNs &&
+		left.ctimeNs === right.ctimeNs
+	);
 }
 
 async function readRetrievalIndex(
@@ -445,24 +477,42 @@ async function readRetrievalIndex(
 		resolveMemoryPath(root, MEMORY_RETRIEVAL_INDEX_PATH, { allowMissing: true }),
 		resolveMemoryPath(root, MEMORY_RETRIEVAL_INDEX_HASH_PATH, { allowMissing: true }),
 	]);
-	const [text, expectedHash] = await Promise.all([readFile(indexPath, "utf8"), readFile(hashPath, "utf8")]);
-	const contentHash = `sha256:${hashBytes(text).value}`;
-	if (expectedHash !== `${contentHash}\n`) return null;
+	const [expectedHash, before] = await Promise.all([readFile(hashPath, "utf8"), fileFingerprint(indexPath)]);
 	const cached = retrievalIndexCache.get(root);
-	if (cached?.contentHash === contentHash && cached.profileIndexBindingHash === profileIndexBindingHash) {
+	if (
+		cached !== undefined &&
+		expectedHash === `${cached.contentHash}\n` &&
+		cached.profileIndexBindingHash === profileIndexBindingHash &&
+		cached.basedOnProfileRevision === profile.revision &&
+		sameFileFingerprint(cached.indexFingerprint, before)
+	) {
 		return cached.items;
 	}
+	const text = await readFile(indexPath, "utf8");
+	const after = await fileFingerprint(indexPath);
+	if (!sameFileFingerprint(before, after)) return null;
+	const contentHash = `sha256:${hashBytes(text).value}`;
+	if (expectedHash !== `${contentHash}\n`) return null;
 	const parsed: unknown = JSON.parse(text);
 	if (
 		!isObject(parsed) ||
 		parsed.format !== "doro-memory-retrieval-index" ||
 		parsed.version !== 1 ||
+		parsed.basedOnProfileRevision !== profile.revision ||
 		parsed.currentItemRootHash !== profile.currentItemRootHash
 	) {
 		return null;
 	}
 	const items = indexItems(parsed.items, profile);
-	if (items !== null) remember(retrievalIndexCache, root, { contentHash, profileIndexBindingHash, items });
+	if (items !== null) {
+		remember(retrievalIndexCache, root, {
+			contentHash,
+			profileIndexBindingHash,
+			basedOnProfileRevision: profile.revision,
+			indexFingerprint: after,
+			items,
+		});
+	}
 	return items;
 }
 

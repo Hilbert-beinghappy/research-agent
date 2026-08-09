@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DataClass, MemoryItemV1 } from "@research-agent/contracts/memory";
@@ -75,16 +75,26 @@ describe("Personal Memory restricted cross-project isolation", () => {
 		expect(first.context).not.toContain("project-a-secret-format");
 
 		const indexPath = join(profileRoot, ...MEMORY_RETRIEVAL_INDEX_PATH.split("/"));
+		const fixedTime = new Date("2026-08-08T12:00:00.000Z");
+		await utimes(indexPath, fixedTime, fixedTime);
+		const cached = await retrievePersonalMemory(profileRoot, retrievalQuery({ projectId: "project-b" }));
+		expect(cached).toMatchObject({ status: "applied", cacheStatus: "valid" });
+		const beforeTamper = await stat(indexPath, { bigint: true });
 		const index = JSON.parse(await readFile(indexPath, "utf8")) as { items: Array<Record<string, unknown>> };
 		const projectB = index.items.find(({ memoryId }) => memoryId === "memory-project-b");
 		if (projectB === undefined) throw new Error("missing project B cache entry");
-		projectB.value = "project-a-secret-format";
+		projectB.value = "project-a-evil-format";
 		await writeFile(indexPath, `${canonicalStringify(index)}\n`);
+		await utimes(indexPath, fixedTime, fixedTime);
+		const afterTamper = await stat(indexPath, { bigint: true });
+		expect(afterTamper.size).toBe(beforeTamper.size);
+		expect(afterTamper.mtimeNs).toBe(beforeTamper.mtimeNs);
+		expect(afterTamper.ctimeNs).not.toBe(beforeTamper.ctimeNs);
 
 		const rebuilt = await retrievePersonalMemory(profileRoot, retrievalQuery({ projectId: "project-b" }));
 		expect(rebuilt).toMatchObject({ status: "applied", cacheStatus: "rebuilt" });
 		expect(rebuilt.context).toContain("project-b-safe-format");
-		expect(rebuilt.context).not.toContain("project-a-secret-format");
+		expect(rebuilt.context).not.toContain("project-a-evil-format");
 
 		const maliciousIndex = JSON.parse(await readFile(indexPath, "utf8")) as {
 			items: Array<Record<string, unknown>>;
