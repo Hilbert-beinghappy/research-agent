@@ -373,6 +373,16 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 	);
 
 	const manifestIndex = journal.entries.length - 1;
+	const stagedPaths = await traceProjectTransactionPhase("staged_verify", traceContext, () =>
+		mapWithConcurrency(journal.entries, async (entry, index): Promise<string | null> => {
+			if (states[index] === "new" || entry.newHash === null) return null;
+			const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+			if ((await hashFile(staged)).value !== entry.newHash.value) {
+				throw new Error(`Staged hash mismatch: ${entry.path}`);
+			}
+			return staged;
+		}),
+	);
 	await traceProjectTransactionPhase("data_commit", traceContext, async () => {
 		await mapWithConcurrency(journal.entries.slice(0, manifestIndex), async (entry, index) => {
 			if (states[index] === "new") return;
@@ -382,14 +392,21 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 				await syncParentDirectory(target);
 				return;
 			}
-			const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
-			if ((await hashFile(staged)).value !== entry.newHash.value) {
-				throw new Error(`Staged hash mismatch: ${entry.path}`);
-			}
+			const staged = stagedPaths[index];
+			if (staged === null || staged === undefined) throw new Error(`Verified staged file missing: ${entry.path}`);
 			if (entry.oldHash === null) {
+				if ((await hashFile(staged)).value !== entry.newHash.value) {
+					throw new Error(`Staged hash mismatch: ${entry.path}`);
+				}
 				await rename(staged, target);
 				await syncParentDirectory(target);
-			} else await atomicWriteFile(target, await readFile(staged));
+			} else {
+				const content = await readFile(staged);
+				if (hashBytes(content).value !== entry.newHash.value) {
+					throw new Error(`Staged hash mismatch: ${entry.path}`);
+				}
+				await atomicWriteFile(target, content);
+			}
 		});
 	});
 	const manifestEntry = journal.entries[manifestIndex];
@@ -400,11 +417,15 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 				throw new Error(`Transaction manifest cannot be deleted: ${transactionId}`);
 			}
 			const target = await resolveTransactionPath(manifestEntry.path);
-			const staged = await resolveTransactionPath(`${directory}/staged/${manifestIndex}.bin`);
-			if ((await hashFile(staged)).value !== manifestEntry.newHash.value) {
+			const staged = stagedPaths[manifestIndex];
+			if (staged === null || staged === undefined) {
+				throw new Error(`Verified staged file missing: ${manifestEntry.path}`);
+			}
+			const content = await readFile(staged);
+			if (hashBytes(content).value !== manifestEntry.newHash.value) {
 				throw new Error(`Staged hash mismatch: ${manifestEntry.path}`);
 			}
-			await atomicWriteFile(target, await readFile(staged));
+			await atomicWriteFile(target, content);
 		}
 	});
 	await traceProjectTransactionPhase("post_commit_verify", traceContext, async () => {

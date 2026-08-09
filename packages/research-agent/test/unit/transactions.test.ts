@@ -220,19 +220,24 @@ describe("project transactions", () => {
 
 	it("rejects a changed staged file before touching canonical state", async () => {
 		const { root, manifest } = await createProject("tampered-stage");
-		const recordPath = ".research/records/sources/src_fixture.json";
+		const recordPaths = [
+			".research/records/sources/src_fixture_first.json",
+			".research/records/sources/src_fixture_second.json",
+		];
 		const transactionId = await prepareProjectTransaction(root, {
 			expectedRevision: 0,
-			writes: [{ path: recordPath, content: "new" }],
+			writes: recordPaths.map((path, index) => ({ path, content: `new-${index}` })),
 			manifest: nextManifest(manifest),
 		});
 		await atomicWriteFile(
-			join(root, ".research", "transactions", "pending", transactionId, "staged", "0.bin"),
+			join(root, ".research", "transactions", "pending", transactionId, "staged", "1.bin"),
 			"tampered",
 		);
 
 		await expect(commitPreparedTransaction(root, transactionId)).rejects.toThrow("Staged hash mismatch");
-		await expect(access(join(root, ...recordPath.split("/")))).rejects.toThrow();
+		for (const recordPath of recordPaths) {
+			await expect(access(join(root, ...recordPath.split("/")))).rejects.toThrow();
+		}
 		await expect(openProject(root, 0)).resolves.toMatchObject({ compatibility: "current" });
 	});
 
@@ -311,8 +316,14 @@ describe("project transactions", () => {
 		const leaseReleased = records.findIndex(
 			({ phase, state }) => phase === "writer_lease_release" && state === "completed",
 		);
+		const stagedVerifyCompleted = records.findIndex(
+			({ phase, state }) => phase === "staged_verify" && state === "completed",
+		);
+		const dataCommitStarted = records.findIndex(({ phase, state }) => phase === "data_commit" && state === "started");
 		expect(leaseAcquired).toBeLessThan(recordHashStarted);
 		expect(recordHashStarted).toBeLessThan(leaseReleased);
+		expect(stagedVerifyCompleted).toBeGreaterThan(-1);
+		expect(stagedVerifyCompleted).toBeLessThan(dataCommitStarted);
 		expect(result.stderr).not.toContain(root);
 		expect(result.stderr).not.toContain(label);
 		for (const record of records) {

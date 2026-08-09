@@ -13,6 +13,7 @@ export type ProjectTransactionTracePhase =
 	| "record_index_hash"
 	| "transaction_preflight"
 	| "journal_prepare"
+	| "staged_verify"
 	| "data_commit"
 	| "manifest_commit"
 	| "post_commit_verify"
