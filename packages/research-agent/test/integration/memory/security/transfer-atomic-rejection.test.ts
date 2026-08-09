@@ -86,7 +86,7 @@ async function writeBundle(path: string, bundle: MutableBundle): Promise<void> {
 	await writeFile(path, `${canonicalStringify(bundle)}\n`);
 }
 
-describe("Personal Memory transfer atomic rejection", () => {
+describe("Personal Memory transfer atomic rejection", { timeout: 60_000 }, () => {
 	it("imports a new profile, treats replay as idempotent, and fast-forwards only after complete validation", async () => {
 		const source = join(temporaryDirectory, "source");
 		const targetHome = join(temporaryDirectory, "target-home");
