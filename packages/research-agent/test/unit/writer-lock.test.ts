@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type * as FileSystem from "node:fs/promises";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -11,6 +11,10 @@ const openFault = vi.hoisted(() => ({
 	attempts: 0,
 	remaining: 0,
 	lastError: null as NodeJS.ErrnoException | null,
+	readAttempts: 0,
+	readRemaining: 0,
+	readLastError: null as NodeJS.ErrnoException | null,
+	closeAttempts: 0,
 	contention: [] as { nonce: string | null; now: number }[],
 	contentionActive: false,
 	contentionNonce: null as string | null,
@@ -58,7 +62,28 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 				openFault.contentionNonce = null;
 				await actual.rm(args[0], { force: true });
 			}
-			return actual.open(...args);
+			const handle = await actual.open(...args);
+			const close = handle.close.bind(handle);
+			Object.defineProperty(handle, "close", {
+				configurable: true,
+				value: async (): Promise<void> => {
+					openFault.closeAttempts += 1;
+					await close();
+				},
+			});
+			return handle;
+		},
+		readFile: async (...args: Parameters<typeof actual.readFile>): ReturnType<typeof actual.readFile> => {
+			if (!String(args[0]).endsWith("writer.lock")) return actual.readFile(...args);
+			openFault.readAttempts += 1;
+			if (openFault.readRemaining > 0) {
+				openFault.readRemaining -= 1;
+				openFault.readLastError = Object.assign(new Error("simulated writer lock read failure"), {
+					code: "EPERM",
+				});
+				throw openFault.readLastError;
+			}
+			return actual.readFile(...args);
 		},
 	};
 });
@@ -75,6 +100,10 @@ beforeEach(async () => {
 	openFault.attempts = 0;
 	openFault.remaining = 0;
 	openFault.lastError = null;
+	openFault.readAttempts = 0;
+	openFault.readRemaining = 0;
+	openFault.readLastError = null;
+	openFault.closeAttempts = 0;
 	openFault.contention = [];
 	openFault.contentionActive = false;
 	openFault.contentionNonce = null;
@@ -131,7 +160,69 @@ describe("writer lease acquisition", () => {
 		expect(openFault.attempts).toBe(1);
 	});
 
+	it("retries a transient Windows EPERM while reading a contended lease", async () => {
+		setPlatform("win32");
+		openFault.contention = [{ nonce: "lease-a", now: 0 }];
+		openFault.readRemaining = 1;
+
+		await expect(
+			withWriterLease(temporaryDirectory, "locks/writer.lock", "TEST", async () => "acquired"),
+		).resolves.toBe("acquired");
+		expect(openFault.readAttempts).toBe(3);
+	});
+
+	it("rejects the fifth persistent Windows lease-read EPERM without running the action", async () => {
+		setPlatform("win32");
+		openFault.contention = [{ nonce: "lease-a", now: 0 }];
+		openFault.readRemaining = 5;
+		let actionRan = false;
+		let thrown: unknown = null;
+
+		try {
+			await withWriterLease(temporaryDirectory, "locks/writer.lock", "TEST", async () => {
+				actionRan = true;
+			});
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(openFault.readAttempts).toBe(5);
+		expect(thrown).toBe(openFault.readLastError);
+		expect(actionRan).toBe(false);
+	});
+
+	it("rejects a non-Windows lease-read EPERM immediately", async () => {
+		setPlatform("darwin");
+		openFault.contention = [{ nonce: "lease-a", now: 0 }];
+		openFault.readRemaining = 1;
+
+		await expect(
+			withWriterLease(temporaryDirectory, "locks/writer.lock", "TEST", async () => undefined),
+		).rejects.toMatchObject({ code: "EPERM" });
+		expect(openFault.readAttempts).toBe(1);
+	});
+
+	it("preserves a persistent Windows release-read EPERM without unlinking the lease", async () => {
+		setPlatform("win32");
+		let thrown: unknown = null;
+
+		try {
+			await withWriterLease(temporaryDirectory, "locks/writer.lock", "TEST", async () => {
+				openFault.readRemaining = 5;
+			});
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(openFault.readAttempts).toBe(5);
+		expect(thrown).toBe(openFault.readLastError);
+		expect(openFault.closeAttempts).toBe(1);
+		await expect(stat(join(temporaryDirectory, "locks/writer.lock"))).resolves.toBeDefined();
+	});
+
 	it("resets the no-progress deadline when a later valid lease has a new nonce", async () => {
+		setPlatform("win32");
+		openFault.readRemaining = 1;
 		openFault.contention = [
 			{ nonce: "lease-a", now: 29_000 },
 			{ nonce: "lease-b", now: 31_000 },
@@ -143,9 +234,12 @@ describe("writer lease acquisition", () => {
 			withWriterLease(temporaryDirectory, "locks/writer.lock", "TEST", async () => "acquired"),
 		).resolves.toBe("acquired");
 		expect(openFault.attempts).toBe(4);
+		expect(openFault.readAttempts).toBe(5);
 	});
 
 	it("rejects an unchanged valid lease after the original acquire deadline", async () => {
+		setPlatform("win32");
+		openFault.readRemaining = 1;
 		openFault.contention = [
 			{ nonce: "lease-a", now: 29_000 },
 			{ nonce: "lease-a", now: 30_001 },
@@ -160,6 +254,7 @@ describe("writer lease acquisition", () => {
 		).rejects.toThrow("TEST_WRITER_LOCKED: another process holds the writer lease");
 		expect(actionRan).toBe(false);
 		expect(openFault.attempts).toBe(2);
+		expect(openFault.readAttempts).toBe(3);
 	});
 
 	it("does not treat an invalid replacement lease as progress", async () => {

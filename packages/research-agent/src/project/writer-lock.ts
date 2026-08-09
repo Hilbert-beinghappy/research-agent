@@ -20,6 +20,8 @@ const PROJECT_WRITER_LOCK = ".research/locks/writer.lock";
 const LEASE_DURATION_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
 const ACQUIRE_TIMEOUT_MS = 30_000;
+const WINDOWS_EPERM_RETRY_LIMIT = 4;
+const WINDOWS_EPERM_RETRY_DELAY_MS = 25;
 
 interface WriterLease {
 	version: 1;
@@ -61,8 +63,25 @@ export async function assertProjectWriterLeaseHeld(projectRoot: string): Promise
 }
 
 async function readLease(path: string): Promise<WriterLease | null> {
+	let windowsEpermRetries = 0;
+	let content = "";
+	while (true) {
+		try {
+			content = await readFile(path, "utf8");
+			break;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException).code;
+			if (process.platform === "win32" && code === "EPERM" && windowsEpermRetries < WINDOWS_EPERM_RETRY_LIMIT) {
+				windowsEpermRetries += 1;
+				await delay(WINDOWS_EPERM_RETRY_DELAY_MS);
+				continue;
+			}
+			if (code === "ENOENT") return null;
+			throw error;
+		}
+	}
 	try {
-		const raw = canonicalizeJson(JSON.parse(await readFile(path, "utf8")));
+		const raw = canonicalizeJson(JSON.parse(content));
 		if (
 			raw === null ||
 			typeof raw !== "object" ||
@@ -88,7 +107,7 @@ async function readLease(path: string): Promise<WriterLease | null> {
 			expiresAt: raw.expiresAt,
 		};
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT" || error instanceof SyntaxError) return null;
+		if (error instanceof SyntaxError) return null;
 		throw error;
 	}
 }
@@ -145,9 +164,9 @@ export async function withWriterLease<Value>(
 				handle = await open(path, "wx+");
 			} catch (error) {
 				const code = (error as NodeJS.ErrnoException).code;
-				if (process.platform === "win32" && code === "EPERM" && windowsEpermRetries < 4) {
+				if (process.platform === "win32" && code === "EPERM" && windowsEpermRetries < WINDOWS_EPERM_RETRY_LIMIT) {
 					windowsEpermRetries += 1;
-					await delay(25);
+					await delay(WINDOWS_EPERM_RETRY_DELAY_MS);
 					continue;
 				}
 				if (code !== "EEXIST") throw error;
@@ -241,8 +260,12 @@ export async function withWriterLease<Value>(
 	clearInterval(timer);
 	await traceProjectTransactionPhase("writer_lease_release", { ...traceContext, renewalCount }, async () => {
 		await renewal;
-		const current = await readLease(path);
-		await handle.close();
+		let current: WriterLease | null;
+		try {
+			current = await readLease(path);
+		} finally {
+			await handle.close();
+		}
 		if (renewalError !== null || current?.nonce !== nonce) {
 			throw new Error(`${errorNamespace}_WRITER_LEASE_LOST: writer ownership changed during the transaction`, {
 				cause: renewalError,
