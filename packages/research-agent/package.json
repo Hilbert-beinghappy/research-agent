@@ -82,6 +82,7 @@
 		"eval:v1.1": "node scripts/evaluate-v1.1.ts",
 		"eval:v1.5": "node scripts/evaluate-v1.5.ts",
 		"eval:v2.0": "node scripts/evaluate-v2.0.ts",
+		"eval:memory:study": "node scripts/evaluate-memory-study.ts",
 		"eval:memory:v3": "node scripts/evaluate-memory-v3.ts",
 		"qualify:isolation:v1.5": "node scripts/qualify-v1.5-isolation.ts",
 		"qualify:memory-store:v3": "node scripts/qualify-memory-store.ts",
