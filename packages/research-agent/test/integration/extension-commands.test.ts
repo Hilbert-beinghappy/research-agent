@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHarness as createPiHarness, fauxModel } from "../../../coding-agent/test/test-harness.ts";
+import { createTestExtensionsResult, createTestResourceLoader } from "../../../coding-agent/test/utilities.ts";
 import researchExtension from "../../extensions/research.ts";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
 import {
@@ -24,7 +26,7 @@ import { PROJECT_MANIFEST_PATH } from "../../src/project/layout.ts";
 import { openProject } from "../../src/project/open.ts";
 import { calculateRecordSetIndex, listProjectRecordIds, projectRecordPath } from "../../src/project/record-index.ts";
 import { readRecord } from "../../src/project/records.ts";
-import { prepareProjectTransaction } from "../../src/project/transactions.ts";
+import { commitProjectTransaction, prepareProjectTransaction } from "../../src/project/transactions.ts";
 import { validateProject } from "../../src/project/validate.ts";
 import { RESEARCH_AGENT_PACKAGE_VERSION } from "../../src/version.ts";
 import { itemDraft, retrievalQuery } from "./memory/security/retrieval-fixtures.ts";
@@ -160,6 +162,105 @@ afterEach(async () => {
 });
 
 describe("research extension commands", () => {
+	it("restores governed project state after a real Pi compaction and extension reload", async () => {
+		const compactionEntryIds: string[] = [];
+		let researchExtensionLoads = 0;
+		const extensionFactories = [
+			{
+				path: "<research-agent-compaction-reload>",
+				factory: (pi: ExtensionAPI) => {
+					researchExtensionLoads += 1;
+					researchExtension(pi);
+				},
+			},
+			{
+				path: "<deterministic-compaction-fixture>",
+				factory: (pi: ExtensionAPI) => {
+					pi.on("session_before_compact", (event) => ({
+						compaction: {
+							summary: "Deterministic compaction fixture summary",
+							firstKeptEntryId: event.preparation.firstKeptEntryId,
+							tokensBefore: event.preparation.tokensBefore,
+						},
+					}));
+					pi.on("session_compact", (event) => {
+						compactionEntryIds.push(event.compactionEntry.id);
+					});
+				},
+			},
+		];
+		const loadExtensions = () => createTestExtensionsResult(extensionFactories);
+		let extensionsResult = await loadExtensions();
+		const baseResourceLoader = createTestResourceLoader();
+		const resourceLoader = {
+			...baseResourceLoader,
+			getExtensions: () => extensionsResult,
+			reload: async () => {
+				extensionsResult = await loadExtensions();
+			},
+		};
+		const harness = await createPiHarness({
+			model: {
+				...fauxModel,
+				id: "remote-compaction-fixture",
+				provider: "remote-compaction-fixture",
+				baseUrl: "https://remote-model.invalid/v1",
+			},
+			responses: ["first fixture response", "second fixture response"],
+			resourceLoader,
+			settings: { compaction: { keepRecentTokens: 1 } },
+		});
+
+		try {
+			const projectRoot = join(harness.tempDir, "project");
+			const initialized = await initializeProject(projectRoot, { title: "Compaction reload fixture" });
+			if (initialized.compatibility !== "current") throw new Error("expected current project");
+			await commitProjectTransaction(projectRoot, {
+				expectedRevision: initialized.manifest.revision,
+				writes: [],
+				manifest: {
+					...initialized.manifest,
+					policy: { ...initialized.manifest.policy, modelEgressAllowed: false },
+					revision: initialized.manifest.revision + 1,
+					updatedAt: new Date().toISOString(),
+				},
+			});
+
+			await harness.session.bindExtensions({ shutdownHandler: () => {} });
+			await harness.session.prompt(`/research-open "${projectRoot}"`);
+			expect(harness.session.getActiveToolNames()).toEqual([]);
+
+			await harness.session.prompt("first compactable fixture turn");
+			await harness.session.prompt("second compactable fixture turn");
+			await harness.session.compact();
+
+			const compactionEntry = harness.sessionManager
+				.getEntries()
+				.reverse()
+				.find((entry) => entry.type === "compaction");
+			expect(compactionEntry).toMatchObject({
+				type: "compaction",
+				summary: "Deterministic compaction fixture summary",
+				fromHook: true,
+			});
+			expect(compactionEntryIds).toEqual([compactionEntry?.id]);
+
+			await harness.session.reload();
+
+			expect(researchExtensionLoads).toBe(2);
+			expect(harness.session.getAllTools().map(({ name }) => name)).toContain("research_query_corpus");
+			expect(harness.session.getActiveToolNames()).toEqual([]);
+			const restored = await harness.session.extensionRunner.emitBeforeAgentStart("continue", undefined, "base", {
+				cwd: harness.tempDir,
+			});
+			expect(restored?.systemPrompt).toContain("Governed research mode is active");
+			expect(restored?.systemPrompt).toContain(initialized.manifest.projectId);
+			expect(restored?.systemPrompt).toContain('"modelEgressAllowed":false');
+		} finally {
+			harness.cleanup();
+		}
+	});
+
 	it("runs the M0 project, recovery, session, governance, and policy slice", async () => {
 		temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-commands-"));
 		const projectRoot = join(temporaryDirectory, "fixture project");
