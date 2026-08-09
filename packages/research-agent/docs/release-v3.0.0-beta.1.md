@@ -30,6 +30,7 @@ The machine report `research-agent-v3-beta-qualification.json` records the check
 ## Known limitations and no-claims
 
 - No real pilot outcome, personalization-benefit estimate, false-memory field rate, or stable-v3 result exists.
+- Inferred consolidation and promotion logic is not wired into production runtime triggers; production currently captures and applies only allowlisted explicit writing/output formatting preferences at task start.
 - The trial-wide consent, data-controller, randomization schedule, and full-profile exit procedure are external prerequisites, not repository evidence.
 - Windows runs protocol and application tests but has no strong third-party process-isolation profile.
 - Python/R qualification is platform-dependent; Stata remains an unqualified user-owned commercial runtime.
