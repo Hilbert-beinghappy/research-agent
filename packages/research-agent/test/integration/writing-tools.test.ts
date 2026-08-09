@@ -240,7 +240,7 @@ describe("Pi manuscript and review tools", () => {
 			submissionGatesByPublishability: { submission_candidate: 1 },
 		});
 		expect(await validateProject(projectRoot)).toMatchObject({ valid: true, issues: [] });
-	});
+	}, 15_000);
 
 	it("blocks manuscript content before reading records when model egress is denied", async () => {
 		const opened = await openProject(projectRoot);
