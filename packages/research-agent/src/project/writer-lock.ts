@@ -137,12 +137,19 @@ export async function withWriterLease<Value>(
 		throw error;
 	}
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
+	let windowsEpermRetries = 0;
 	try {
 		while (handle === null) {
 			try {
 				handle = await open(path, "wx+");
 			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+				const code = (error as NodeJS.ErrnoException).code;
+				if (process.platform === "win32" && code === "EPERM" && windowsEpermRetries < 4) {
+					windowsEpermRetries += 1;
+					await delay(25);
+					continue;
+				}
+				if (code !== "EEXIST") throw error;
 				const lease = await readLease(path);
 				const sameHostProcessEnded = lease !== null && lease.hostname === host && !processIsAlive(lease.pid);
 				const expiredRemoteLease =
