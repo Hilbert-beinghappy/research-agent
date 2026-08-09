@@ -95,11 +95,39 @@ jobs:
       - name: Qualify v3 beta technical boundary
         run: npm run qualify:v3-beta -w packages/research-agent -- --output ../../research-agent-v3-beta-qualification.json
 
-      - name: Benchmark v0.1 through v2.0
+      - name: Benchmark v0.1 and v0.2
         run: |
           node packages/research-agent/scripts/benchmark-v0.1.ts --output research-agent-benchmark-v0.1.json
           node packages/research-agent/scripts/benchmark-v0.2.ts --output research-agent-benchmark-v0.2.json
-          node packages/research-agent/scripts/benchmark-v0.3.ts --output research-agent-benchmark-v0.3.json
+
+      - name: Benchmark v0.3
+        id: benchmark_v03
+        run: node packages/research-agent/scripts/benchmark-v0.3.ts --output research-agent-benchmark-v0.3.json
+
+      - name: Trace failed Windows v0.3 transactions
+        if: always() && runner.os == 'Windows' && steps.benchmark_v03.outcome == 'failure'
+        timeout-minutes: 10
+        env:
+          RESEARCH_TX_TRACE: "1"
+        run: |
+          status=0
+          node packages/research-agent/scripts/benchmark-v0.3.ts --output research-agent-benchmark-v0.3-trace.json 2>research-agent-v0.3-transaction-trace.log || status=$?
+          test -s research-agent-benchmark-v0.3-trace.json
+          test -s research-agent-v0.3-transaction-trace.log
+          mkdir research-agent-v0.3-transaction-trace
+          mv research-agent-benchmark-v0.3-trace.json research-agent-v0.3-transaction-trace.log research-agent-v0.3-transaction-trace/
+          exit "$status"
+
+      - name: Upload failed Windows v0.3 transaction trace
+        if: always() && runner.os == 'Windows' && steps.benchmark_v03.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: research-agent-v0.3-transaction-trace-windows-${{ github.sha }}
+          path: research-agent-v0.3-transaction-trace/
+          if-no-files-found: error
+
+      - name: Benchmark v0.4 through v2.0
+        run: |
           node packages/research-agent/scripts/benchmark-v0.4.ts --output research-agent-benchmark-v0.4.json
           node packages/research-agent/scripts/benchmark-v0.5.ts --output research-agent-benchmark-v0.5.json
           node packages/research-agent/scripts/benchmark-v1.0.ts --output research-agent-benchmark-v1.0.json
