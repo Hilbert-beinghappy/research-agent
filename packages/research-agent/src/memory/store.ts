@@ -702,7 +702,7 @@ export async function appendMemoryRecord(
 	return { transactionId: prepared.transactionId, profile: prepared.profile, record: prepared.result };
 }
 
-function nextPreferenceRefs(profile: ResearcherProfileV1, item: MemoryItemV1): MemoryPreferenceRefs {
+export function nextMemoryPreferenceRefs(profile: ResearcherProfileV1, item: MemoryItemV1): MemoryPreferenceRefs {
 	return Object.fromEntries(
 		memoryCategories.flatMap((category) => {
 			const refs = (profile.preferenceRefs[category] ?? []).filter(({ memoryId }) => memoryId !== item.memoryId);
@@ -765,7 +765,7 @@ export async function appendMemoryItem(
 			const nextProfile: ResearcherProfileV1 = {
 				...profile,
 				revision: profile.revision + 1,
-				preferenceRefs: nextPreferenceRefs(profile, item),
+				preferenceRefs: nextMemoryPreferenceRefs(profile, item),
 				currentItemRootHash: memoryItemRootHash(items),
 				updatedAt: new Date().toISOString(),
 				lastTransactionId: transactionId,

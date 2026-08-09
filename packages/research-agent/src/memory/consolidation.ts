@@ -12,11 +12,12 @@ import type {
 	SignalContentRef,
 } from "@research-agent/contracts/memory";
 import { MEMORY_LOGICAL_LOCATOR_PATTERN } from "@research-agent/contracts/memory";
-import { validateMemoryCandidateDraftV1 } from "@research-agent/contracts/memory-validators";
+import { validateMemoryCandidateDraftV1, validateMemoryItemV1 } from "@research-agent/contracts/memory-validators";
 import { canonicalStringify } from "../contracts/canonical-json.ts";
 import { hashBytes, hashCanonicalJson } from "../contracts/integrity.ts";
 import { readCanonicalPreferenceSignals } from "./signals.ts";
-import { appendMemoryRecord, openMemoryProfile } from "./store.ts";
+import { loadCanonicalMemoryState, memoryItemRootHash, nextMemoryPreferenceRefs, openMemoryProfile } from "./store.ts";
+import { runMemoryTransaction } from "./transactions.ts";
 
 export const CONSOLIDATION_RATIONALE_CODES = [
 	"consistent-delivery-choice",
@@ -151,6 +152,7 @@ export type ConsolidationResult =
 			transactionId: string;
 			candidate: MemoryCandidateDraftV1;
 			promotion: PromotionEvaluation;
+			item: MemoryItemV1 | null;
 			costUsd: number;
 	  };
 
@@ -159,6 +161,17 @@ const lowRiskCategories = new Set<PreferenceSignalV1["category"]>(["writing", "w
 const researchCategories = new Set<PreferenceSignalV1["category"]>(["domain", "theory", "method", "evidence"]);
 const consolidationTriggers = new Set<ConsolidationInput["trigger"]>(["session_end", "explicit", "signal_threshold"]);
 const dataClasses = new Set<DataClass>(["public", "internal", "restricted"]);
+const criticalDecisionPolicies: Record<MemoryItemV1["category"], MemoryItemV1["criticalDecisionPolicy"]> = {
+	domain: "rank_only",
+	theory: "rank_only",
+	method: "rank_only",
+	evidence: "rank_only",
+	writing: "format_only",
+	workflow: "not_applicable",
+	tool: "not_applicable",
+	output: "format_only",
+};
+const inferredItemSchemaHash = `sha256:${hashCanonicalJson("MemoryItemV1:host-consolidation-promotion-v1").value}`;
 const hashPattern = /^sha256:[a-f0-9]{64}$/u;
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
 const logicalLocatorPattern = new RegExp(MEMORY_LOGICAL_LOCATOR_PATTERN, "u");
@@ -360,6 +373,280 @@ export function evaluateCandidatePromotion(
 		confidence,
 		reasonCodes,
 	};
+}
+
+function finalPromotion(
+	promotion: PromotionEvaluation,
+	disposition: PromotionEvaluation["disposition"],
+	reasonCode: string,
+): PromotionEvaluation {
+	return {
+		...promotion,
+		disposition,
+		reasonCodes: [...new Set([...promotion.reasonCodes, reasonCode])],
+	};
+}
+
+function inferredMemoryId(candidate: MemoryCandidateDraftV1): string {
+	return `memory_${hash({
+		profileId: candidate.profileId,
+		category: candidate.category,
+		key: candidate.key,
+		scope: candidate.proposedScope,
+	}).slice("sha256:".length)}`;
+}
+
+function currentCandidateSources(
+	candidate: MemoryCandidateDraftV1,
+	signals: readonly PreferenceSignalV1[],
+	profile: ResearcherProfileV1,
+): PreferenceSignalV1[] | null {
+	const byId = new Map(signals.map((signal) => [signal.signalId, signal]));
+	const sources: PreferenceSignalV1[] = [];
+	for (const ref of candidate.sourceSignalRefs) {
+		const signal = byId.get(ref.signalId);
+		if (
+			signal === undefined ||
+			signalRef(signal).contentHash !== ref.contentHash ||
+			!usableSignal(signal, profile) ||
+			signal.category !== candidate.category ||
+			signal.normalizedKey !== candidate.key ||
+			!same(signal.scopeCandidate, candidate.proposedScope)
+		) {
+			return null;
+		}
+		sources.push(signal);
+	}
+	return sources.some((signal) => signal.signalType !== "reject" && same(signal.normalizedValue, candidate.value))
+		? sources
+		: null;
+}
+
+function inferredItem(
+	candidate: MemoryCandidateDraftV1,
+	promotion: PromotionEvaluation,
+	evidence: readonly PreferenceSignalV1[],
+	previous: MemoryItemV1 | null,
+	transactionId: string,
+	createdAt: string,
+	status: "active" | "quarantined",
+): MemoryItemV1 {
+	const memoryId = previous?.memoryId ?? inferredMemoryId(candidate);
+	const revision = (previous?.revision ?? 0) + 1;
+	const value = status === "quarantined" && previous !== null ? previous.value : candidate.value;
+	const evidenceCandidate = same(value, candidate.value) ? candidate : { ...candidate, value };
+	const { support, contradictions } = supportingSignals(evidenceCandidate, evidence);
+	const currentSignalRefs = evidence.map(signalRef);
+	const sourceSignalRefs = [
+		...new Map(
+			[...(status === "quarantined" ? (previous?.sourceSignalRefs ?? []) : []), ...currentSignalRefs].map(
+				(ref) => [ref.signalId, ref] as const,
+			),
+		).values(),
+	].sort((left, right) => left.signalId.localeCompare(right.signalId));
+	const contradictionSignalRefs = contradictions
+		.map(signalRef)
+		.sort((left, right) => left.signalId.localeCompare(right.signalId));
+	const dataClass =
+		previous?.dataClass === "internal" || evidence.some(({ dataClass: sourceClass }) => sourceClass === "internal")
+			? "internal"
+			: "public";
+	const allowedEffects =
+		status === "quarantined" ? [] : [...candidate.proposedEffects].sort((left, right) => left.localeCompare(right));
+	const supersedes = previous === null ? [] : [{ memoryId, revision: previous.revision }];
+	const generator = {
+		type: "rule",
+		version: "host-consolidation-promotion-v1",
+		schemaHash: inferredItemSchemaHash,
+	} as const;
+	const provenanceHash = hash({
+		previousProvenanceHash: previous?.provenanceHash ?? null,
+		candidateHash: hash(candidate),
+		contradictionSignalRefs,
+		memoryId,
+		revision,
+		value,
+		scope: candidate.proposedScope,
+		dataClass,
+		allowedEffects,
+		sourceSignalRefs,
+		generator,
+	});
+	const validation = validateMemoryItemV1({
+		format: "doro-memory-item",
+		schemaVersion: "1.0.0",
+		profileId: candidate.profileId,
+		memoryId,
+		revision,
+		previousRevision: previous?.revision ?? null,
+		status,
+		category: candidate.category,
+		key: candidate.key,
+		value,
+		origin: "inferred",
+		scope: candidate.proposedScope,
+		confidence: promotion.confidence,
+		supportCount:
+			status === "quarantined"
+				? Math.max(previous?.supportCount ?? 0, promotion.supportCount)
+				: promotion.supportCount,
+		independentSupportCount:
+			status === "quarantined"
+				? Math.max(previous?.independentSupportCount ?? 0, promotion.independentSupportCount)
+				: promotion.independentSupportCount,
+		contradictionCount: promotion.contradictionCount,
+		dataClass,
+		allowedEffects,
+		criticalDecisionPolicy: criticalDecisionPolicies[candidate.category],
+		sourceSignalRefs,
+		supersedes,
+		generator,
+		provenanceHash,
+		validFrom: createdAt,
+		validUntil: null,
+		lastSupportedAt:
+			support
+				.map(({ observedAt }) => observedAt)
+				.sort((left, right) => Date.parse(left) - Date.parse(right))
+				.at(-1) ??
+			previous?.lastSupportedAt ??
+			createdAt,
+		lastUsedAt: status === "quarantined" ? (previous?.lastUsedAt ?? null) : null,
+		decay: { halfLifeDays: researchCategories.has(candidate.category) ? 365 : 180 },
+		createdAt,
+		transactionId,
+	});
+	if (!validation.ok) {
+		throw new TypeError(
+			`Invalid inferred MemoryItemV1: ${validation.issues.map(({ code, path }) => `${path}:${code}`).join(", ")}`,
+		);
+	}
+	return validation.value;
+}
+
+async function appendCandidate(
+	profileRoot: string,
+	candidate: MemoryCandidateDraftV1,
+): Promise<{
+	transactionId: string;
+	candidate: MemoryCandidateDraftV1;
+	promotion: PromotionEvaluation;
+	item: MemoryItemV1 | null;
+}> {
+	const prepared = await runMemoryTransaction(profileRoot, undefined, async (profile, transactionId) => {
+		if (candidate.profileId !== profile.profileId) {
+			throw new TypeError("Memory candidate profile ID does not match profile.json");
+		}
+		if (profile.status !== "active" || profile.learningPolicy.mode !== "active") {
+			throw new Error("MEMORY_PROFILE_PAUSED: paused profiles do not capture candidates or activate items");
+		}
+		const state = await loadCanonicalMemoryState(profileRoot, profile);
+		if (currentCandidateSources(candidate, state.signals, profile) === null) {
+			throw new Error("MEMORY_CONSOLIDATION_PROVENANCE_CHANGED");
+		}
+		const usableSignals = state.signals.filter((signal) => usableSignal(signal, profile));
+		const updatedAt = new Date(Math.max(Date.now(), Date.parse(profile.updatedAt))).toISOString();
+		let promotion = evaluateCandidatePromotion(candidate, usableSignals, state.activeItems, profile.learningPolicy);
+		let item: MemoryItemV1 | null = null;
+		const matchingActive = state.activeItems.filter(
+			(existing) =>
+				existing.category === candidate.category &&
+				existing.key === candidate.key &&
+				same(existing.scope, candidate.proposedScope),
+		);
+		const explicit = matchingActive.find(({ origin }) => origin === "explicit");
+		const matchingInferredActive = matchingActive.filter(({ origin }) => origin === "inferred");
+		if (matchingInferredActive.length > 1) {
+			throw new Error("MEMORY_CONSOLIDATION_AMBIGUOUS_INFERRED_LINEAGE");
+		}
+		const inferredActive = matchingInferredActive[0] ?? null;
+		const previous = inferredActive !== null && same(inferredActive.value, candidate.value) ? inferredActive : null;
+		if (promotion.disposition === "eligible" && inferredActive !== null && previous === null) {
+			promotion = finalPromotion(promotion, "quarantined", "inferred_item_conflict");
+		}
+		if (promotion.disposition === "eligible" && explicit !== undefined && same(explicit.value, candidate.value)) {
+			promotion = finalPromotion(promotion, "candidate", "explicit_item_already_active");
+		}
+		if (promotion.disposition === "quarantined" && inferredActive !== null) {
+			const targetCandidate = same(inferredActive.value, candidate.value)
+				? candidate
+				: { ...candidate, value: inferredActive.value };
+			const targetPromotion = evaluateCandidatePromotion(
+				targetCandidate,
+				usableSignals,
+				state.activeItems,
+				profile.learningPolicy,
+			);
+			const evidence = supportingSignals(targetCandidate, usableSignals);
+			item = inferredItem(
+				candidate,
+				targetPromotion,
+				[...evidence.support, ...evidence.contradictions],
+				inferredActive,
+				transactionId,
+				updatedAt,
+				"quarantined",
+			);
+		} else if (promotion.disposition === "eligible") {
+			if (explicit === undefined || !same(explicit.value, candidate.value)) {
+				const memoryId = previous?.memoryId ?? inferredMemoryId(candidate);
+				if (
+					state.tombstones.some((tombstone) => tombstone.memoryId === memoryId) ||
+					(previous === null && state.items.some((existing) => existing.memoryId === memoryId))
+				) {
+					promotion = finalPromotion(promotion, "candidate", "inactive_lineage_requires_user_action");
+				} else {
+					const support = supportingSignals(candidate, usableSignals).support;
+					if (support.some(({ dataClass }) => dataClass === "restricted")) {
+						promotion = finalPromotion(promotion, "candidate", "restricted_data_not_activated");
+					} else {
+						const proposedItem = inferredItem(
+							candidate,
+							promotion,
+							support,
+							previous,
+							transactionId,
+							updatedAt,
+							"active",
+						);
+						if (!profile.sensitivityPolicy.allowedDataClasses.includes(proposedItem.dataClass)) {
+							promotion = finalPromotion(promotion, "candidate", "data_class_not_activated");
+						} else {
+							item = proposedItem;
+						}
+					}
+				}
+			}
+		}
+		const items = item === null ? state.items : [...state.items, item];
+		const nextProfile: ResearcherProfileV1 = {
+			...profile,
+			revision: profile.revision + 1,
+			preferenceRefs: item === null ? profile.preferenceRefs : nextMemoryPreferenceRefs(profile, item),
+			currentItemRootHash: item === null ? profile.currentItemRootHash : memoryItemRootHash(items),
+			updatedAt,
+			lastTransactionId: transactionId,
+		};
+		return {
+			profile: nextProfile,
+			writes: [
+				{
+					path: `candidates/${candidate.candidateId}.json`,
+					content: `${canonicalStringify(candidate)}\n`,
+				},
+				...(item === null
+					? []
+					: [
+							{
+								path: `items/${item.category}/${item.memoryId}/${item.revision}.json`,
+								content: `${canonicalStringify(item)}\n`,
+							},
+						]),
+			],
+			result: { candidate, promotion, item },
+		};
+	});
+	return { transactionId: prepared.transactionId, ...prepared.result };
 }
 
 function strictCandidate(
@@ -602,26 +889,30 @@ export async function consolidateMemorySignals(input: ConsolidationInput): Promi
 	}
 	const parsed = strictCandidate(invocation.result.text, request, resolvedSignals);
 	if (typeof parsed === "string") return failure("rejected", parsed, attemptId, outputHash);
-	const promotion = evaluateCandidatePromotion(
-		parsed.candidate,
-		allSignals.filter((signal) => usableSignal(signal, opened.profile)),
-		opened.activeItems,
-		opened.profile.learningPolicy,
-	);
 	try {
-		const appended = await appendMemoryRecord(opened.root, parsed.candidate);
+		const appended = await appendCandidate(opened.root, parsed.candidate);
 		return {
 			outcome: "persisted",
 			attemptId,
 			transactionId: appended.transactionId,
-			candidate: appended.record as MemoryCandidateDraftV1,
-			promotion,
+			candidate: appended.candidate,
+			promotion: appended.promotion,
+			item: appended.item,
 			costUsd: invocation.result.costUsd,
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		if (message.startsWith("DATA_CONFLICT: immutable memory target already exists: candidates/")) {
 			return failure("skipped", "candidate_exists", attemptId, outputHash);
+		}
+		if (message.startsWith("MEMORY_PROFILE_PAUSED:")) {
+			return failure("skipped", "profile_paused", attemptId, outputHash);
+		}
+		if (message === "MEMORY_CONSOLIDATION_PROVENANCE_CHANGED") {
+			return failure("rejected", "provenance_missing", attemptId, outputHash);
+		}
+		if (message === "MEMORY_CONSOLIDATION_AMBIGUOUS_INFERRED_LINEAGE") {
+			return failure("failed", "memory_unavailable", attemptId, outputHash);
 		}
 		throw error;
 	}
