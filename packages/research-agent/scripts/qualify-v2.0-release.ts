@@ -2,7 +2,8 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -66,6 +67,10 @@ async function qualifyPackage(root: string, first: string, second: string) {
 		entryCount: left.entryCount,
 		entryManifestHash: hashCanonicalJson(leftEntries).value,
 		entryManifestMatches: canonicalStringify(leftEntries) === canonicalStringify(rightEntries),
+		tarballs: {
+			first: { filename: left.filename, sha256: leftHash },
+			second: { filename: right.filename, sha256: rightHash },
+		},
 		tarballBytesMatch: leftHash === rightHash,
 	};
 }
@@ -83,6 +88,27 @@ try {
 		agent.tarballBytesMatch &&
 		contracts.entryManifestMatches &&
 		contracts.tarballBytesMatch;
+	const artifactDirectoryIndex = process.argv.indexOf("--artifact-directory");
+	if (artifactDirectoryIndex >= 0) {
+		const artifactDirectory = process.argv[artifactDirectoryIndex + 1];
+		if (artifactDirectory === undefined) throw new TypeError("--artifact-directory requires a path");
+		if (passed) {
+			const absoluteDirectory = resolve(process.cwd(), artifactDirectory);
+			await mkdir(absoluteDirectory);
+			await Promise.all([
+				copyFile(
+					join(directories[0]!, agent.tarballs.first.filename),
+					join(absoluteDirectory, agent.tarballs.first.filename),
+					constants.COPYFILE_EXCL,
+				),
+				copyFile(
+					join(directories[2]!, contracts.tarballs.first.filename),
+					join(absoluteDirectory, contracts.tarballs.first.filename),
+					constants.COPYFILE_EXCL,
+				),
+			]);
+		}
+	}
 	const report = {
 		qualification: `pi-research-agent-v${agentManifest.version}-release`,
 		generatedAt: new Date().toISOString(),
