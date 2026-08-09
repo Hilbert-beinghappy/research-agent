@@ -42,6 +42,14 @@ function runtimeHarness(cwd: string) {
 	} as unknown as ExtensionContext;
 	return {
 		setStatus,
+		emitInput: async () => {
+			const event = {
+				type: "input",
+				text: "请记住我的长期偏好：默认用英文",
+				source: "interactive",
+			};
+			for (const handler of handlers.get("input") ?? []) await handler(event, context);
+		},
 		emit: async () => {
 			const event = {
 				type: "before_agent_start",
@@ -93,15 +101,20 @@ describe("no-memory runtime regression", () => {
 
 			vi.stubEnv("DORO_HOME", doroHome);
 			vi.stubEnv("DORO_MEMORY_MODE", "off");
+			await harness.emitInput();
 			const off = await harness.emit();
-			vi.stubEnv("DORO_MEMORY_MODE", "unexpected");
-			const invalid = await harness.emit();
+			const invalid = [];
+			for (const mode of ["unexpected", "ON", " on "]) {
+				vi.stubEnv("DORO_MEMORY_MODE", mode);
+				await harness.emitInput();
+				invalid.push(await harness.emit());
+			}
 			vi.stubEnv("DORO_HOME", join(temporaryDirectory, "absent-doro"));
 			vi.stubEnv("DORO_MEMORY_MODE", "on");
 			const absent = await harness.emit();
 
 			expect(off).toEqual([undefined]);
-			expect(invalid).toEqual(absent);
+			expect(invalid).toEqual([absent, absent, absent]);
 			expect(harness.setStatus).not.toHaveBeenCalled();
 			expect(canonicalStringify((await openProject(projectRoot)).manifest)).toBe(
 				canonicalStringify(projectBefore.manifest),

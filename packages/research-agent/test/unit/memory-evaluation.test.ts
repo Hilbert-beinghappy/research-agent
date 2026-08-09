@@ -74,6 +74,14 @@ describe("Personal Memory longitudinal evaluation", () => {
 		expect(() => evaluateMemoryLongitudinalDataset(duplicateControl)).toThrow("duplicates participantRef");
 	});
 
+	it("does not echo prohibited field names", () => {
+		const maliciousFieldName = cloneGolden();
+		Object.assign(maliciousFieldName.tasks[0] ?? {}, { "PII=p03@example.invalid": "synthetic" });
+		expect(() => evaluateMemoryLongitudinalDataset(maliciousFieldName)).toThrowError(
+			/^task 0 contains prohibited fields$/u,
+		);
+	});
+
 	it("fails hard gates when an attack class or deterministic correction coverage is missing", () => {
 		const missingAttackClass = cloneGolden();
 		missingAttackClass.securityChecks = missingAttackClass.securityChecks.filter(

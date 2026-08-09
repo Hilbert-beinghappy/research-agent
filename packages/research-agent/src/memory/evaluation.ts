@@ -170,8 +170,7 @@ function object(value: unknown, label: string): Record<string, unknown> {
 }
 
 function onlyKeys(value: Record<string, unknown>, keys: ReadonlySet<string>, label: string): void {
-	const unexpected = Object.keys(value).filter((key) => !keys.has(key));
-	if (unexpected.length > 0) throw new TypeError(`${label} contains prohibited fields: ${unexpected.join(", ")}`);
+	if (Object.keys(value).some((key) => !keys.has(key))) throw new TypeError(`${label} contains prohibited fields`);
 }
 
 function integer(value: unknown, label: string): number {

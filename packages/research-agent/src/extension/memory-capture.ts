@@ -117,9 +117,13 @@ function externalModelAllowed(ctx: ExtensionContext, hostContext: CaptureContext
 	);
 }
 
+function personalMemoryEnabled(): boolean {
+	return (process.env.DORO_MEMORY_MODE ?? "on") === "on";
+}
+
 async function applyPersonalMemory(event: { prompt: string; systemPrompt: string }, ctx: ExtensionContext) {
 	try {
-		if ((process.env.DORO_MEMORY_MODE?.trim().toLocaleLowerCase("en-US") ?? "on") !== "on") return;
+		if (!personalMemoryEnabled()) return;
 		const [profileRoot, hostContext] = await Promise.all([configuredProfileRoot(), captureContext(ctx.cwd)]);
 		if (profileRoot === null || hostContext === null || ctx.model === undefined) return;
 		const opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
@@ -203,6 +207,7 @@ async function applyPersonalMemory(event: { prompt: string; systemPrompt: string
 
 export function registerMemorySignalCapture(pi: ExtensionAPI): void {
 	pi.on("input", async (event, ctx) => {
+		if (!personalMemoryEnabled()) return;
 		if (parseExplicitPreferenceInput(event.text) === null) return;
 		try {
 			const [profileRoot, hostContext] = await Promise.all([configuredProfileRoot(), captureContext(ctx.cwd)]);
