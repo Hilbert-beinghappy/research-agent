@@ -10,7 +10,7 @@ const FILE_COUNT = 1_001;
 const REPETITIONS = 3;
 const CONCURRENCIES = [1, 4, 8, 16, 32, 64, 256, 512] as const;
 const ORDER_OFFSETS = [0, 3, 6] as const;
-const PREPARE_AND_VERIFY_CONCURRENCY = 64;
+const VERIFY_CONCURRENCY = 64;
 
 interface FileSpec {
 	content: string;
@@ -22,6 +22,8 @@ interface FileSpec {
 interface Measurement {
 	concurrency: number;
 	repetition: number;
+	stagedWriteAndSyncMs: number;
+	stagedHashesValid: boolean;
 	hashOnlyMs: number;
 	renameOnlyMs: number;
 	sourceCount: number;
@@ -119,16 +121,19 @@ async function run(): Promise<void> {
 					mkdir(sourceDirectory, { recursive: true }),
 					mkdir(targetDirectory, { recursive: true }),
 				]);
-				await mapWithConcurrency(files, PREPARE_AND_VERIFY_CONCURRENCY, (file) =>
+				const stagedWriteStarted = performance.now();
+				await mapWithConcurrency(files, concurrency, (file) =>
 					writeFsynced(join(sourceDirectory, file.sourceName), file.content),
 				);
+				const stagedWriteAndSyncMs = performance.now() - stagedWriteStarted;
 
 				const hashStarted = performance.now();
 				const stagedHashes = await mapWithConcurrency(files, concurrency, (file) =>
 					hashFile(join(sourceDirectory, file.sourceName)),
 				);
 				const hashOnlyMs = performance.now() - hashStarted;
-				if (stagedHashes.some((hash, index) => hash.value !== files[index]?.expectedHash)) {
+				const stagedHashesValid = stagedHashes.every((hash, index) => hash.value === files[index]?.expectedHash);
+				if (!stagedHashesValid) {
 					throw new Error("STAGED_HASH_MISMATCH: diagnostic preparation changed staged content");
 				}
 
@@ -141,7 +146,7 @@ async function run(): Promise<void> {
 					readdir(sourceDirectory),
 					readdir(targetDirectory),
 				]);
-				const finalHashes = await mapWithConcurrency(files, PREPARE_AND_VERIFY_CONCURRENCY, (file) =>
+				const finalHashes = await mapWithConcurrency(files, VERIFY_CONCURRENCY, (file) =>
 					hashFile(join(targetDirectory, file.targetName)),
 				);
 				const finalHashesValid = finalHashes.every((hash, index) => hash.value === files[index]?.expectedHash);
@@ -151,6 +156,8 @@ async function run(): Promise<void> {
 				measurements.push({
 					concurrency,
 					repetition,
+					stagedWriteAndSyncMs: Number(stagedWriteAndSyncMs.toFixed(3)),
+					stagedHashesValid,
 					hashOnlyMs: Number(hashOnlyMs.toFixed(3)),
 					renameOnlyMs: Number(renameOnlyMs.toFixed(3)),
 					sourceCount: sourceEntries.length,
@@ -163,6 +170,7 @@ async function run(): Promise<void> {
 			const matching = measurements.filter((measurement) => measurement.concurrency === concurrency);
 			return {
 				concurrency,
+				stagedWriteAndSync: distribution(matching.map(({ stagedWriteAndSyncMs }) => stagedWriteAndSyncMs)),
 				hashOnly: distribution(matching.map(({ hashOnlyMs }) => hashOnlyMs)),
 				renameOnly: distribution(matching.map(({ renameOnlyMs }) => renameOnlyMs)),
 			};

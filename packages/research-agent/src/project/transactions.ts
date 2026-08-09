@@ -61,6 +61,7 @@ function traceContextFromInput(input: ProjectTransactionInput): ProjectTransacti
 async function mapWithConcurrency<Input, Value>(
 	values: readonly Input[],
 	transform: (value: Input, index: number) => Promise<Value>,
+	concurrency = TRANSACTION_IO_BATCH_SIZE,
 ): Promise<Value[]> {
 	const transformed = new Array<Value>(values.length);
 	const queue = values.entries();
@@ -80,7 +81,7 @@ async function mapWithConcurrency<Input, Value>(
 			}
 		}
 	};
-	await Promise.all(Array.from({ length: Math.min(values.length, TRANSACTION_IO_BATCH_SIZE) }, () => worker()));
+	await Promise.all(Array.from({ length: Math.min(values.length, concurrency) }, () => worker()));
 	let failure: { index: number; error: unknown } | undefined;
 	for (const candidate of failures) {
 		if (failure === undefined || candidate.index < failure.index) failure = candidate;
@@ -384,30 +385,36 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 		}),
 	);
 	await traceProjectTransactionPhase("data_commit", traceContext, async () => {
-		await mapWithConcurrency(journal.entries.slice(0, manifestIndex), async (entry, index) => {
-			if (states[index] === "new") return;
-			const target = await resolveTransactionPath(entry.path);
-			if (entry.newHash === null) {
-				await rm(target, { force: true });
-				await syncParentDirectory(target);
-				return;
-			}
-			const staged = stagedPaths[index];
-			if (staged === null || staged === undefined) throw new Error(`Verified staged file missing: ${entry.path}`);
-			if (entry.oldHash === null) {
-				if ((await hashFile(staged)).value !== entry.newHash.value) {
-					throw new Error(`Staged hash mismatch: ${entry.path}`);
+		await mapWithConcurrency(
+			journal.entries.slice(0, manifestIndex),
+			async (entry, index) => {
+				if (states[index] === "new") return;
+				const target = await resolveTransactionPath(entry.path);
+				if (entry.newHash === null) {
+					await rm(target, { force: true });
+					await syncParentDirectory(target);
+					return;
 				}
-				await rename(staged, target);
-				await syncParentDirectory(target);
-			} else {
-				const content = await readFile(staged);
-				if (hashBytes(content).value !== entry.newHash.value) {
-					throw new Error(`Staged hash mismatch: ${entry.path}`);
+				const staged = stagedPaths[index];
+				if (staged === null || staged === undefined) {
+					throw new Error(`Verified staged file missing: ${entry.path}`);
 				}
-				await atomicWriteFile(target, content);
-			}
-		});
+				if (entry.oldHash === null) {
+					if ((await hashFile(staged)).value !== entry.newHash.value) {
+						throw new Error(`Staged hash mismatch: ${entry.path}`);
+					}
+					await rename(staged, target);
+					await syncParentDirectory(target);
+				} else {
+					const content = await readFile(staged);
+					if (hashBytes(content).value !== entry.newHash.value) {
+						throw new Error(`Staged hash mismatch: ${entry.path}`);
+					}
+					await atomicWriteFile(target, content);
+				}
+			},
+			process.platform === "win32" ? 1 : TRANSACTION_IO_BATCH_SIZE,
+		);
 	});
 	const manifestEntry = journal.entries[manifestIndex];
 	if (manifestEntry === undefined) throw new Error(`Transaction manifest is missing: ${transactionId}`);

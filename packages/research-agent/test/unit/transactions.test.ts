@@ -1,10 +1,11 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
+import type * as FileSystem from "node:fs/promises";
 import { access, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canonicalStringify } from "../../src/contracts/canonical-json.ts";
 import type { ResearchProjectManifest } from "../../src/contracts/schemas.ts";
 import { atomicWriteFile } from "../../src/project/atomic-write.ts";
@@ -20,15 +21,46 @@ import {
 } from "../../src/project/transactions.ts";
 import { validateProject } from "../../src/project/validate.ts";
 
+const canonicalPublishProbe = vi.hoisted(() => ({ active: 0, calls: 0, enabled: false, maxActive: 0 }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+	const actual = await importOriginal<typeof FileSystem>();
+	return {
+		...actual,
+		rename: async (...args: Parameters<typeof actual.rename>): ReturnType<typeof actual.rename> => {
+			const source = String(args[0]).replaceAll("\\", "/");
+			if (!canonicalPublishProbe.enabled || !source.includes("/staged/")) return actual.rename(...args);
+			canonicalPublishProbe.active += 1;
+			canonicalPublishProbe.calls += 1;
+			canonicalPublishProbe.maxActive = Math.max(canonicalPublishProbe.maxActive, canonicalPublishProbe.active);
+			try {
+				await new Promise<void>((resolve) => setImmediate(resolve));
+				return await actual.rename(...args);
+			} finally {
+				canonicalPublishProbe.active -= 1;
+			}
+		},
+	};
+});
+
+const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
+if (originalPlatform === undefined) throw new Error("process.platform descriptor is unavailable");
+
 let temporaryDirectory: string;
 const activeWriterChildren = new Map<ChildProcess, Promise<[number | null, NodeJS.Signals | null]>>();
 const writerWorker = join(import.meta.dirname, "..", "fixtures", "project-writer-worker.ts");
 
 beforeEach(async () => {
 	temporaryDirectory = await mkdtemp(join(tmpdir(), "pi-research-transactions-"));
+	canonicalPublishProbe.active = 0;
+	canonicalPublishProbe.calls = 0;
+	canonicalPublishProbe.enabled = false;
+	canonicalPublishProbe.maxActive = 0;
 });
 
 afterEach(async () => {
+	canonicalPublishProbe.enabled = false;
+	Object.defineProperty(process, "platform", originalPlatform);
 	for (const child of activeWriterChildren.keys()) {
 		if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
 	}
@@ -116,6 +148,25 @@ describe("project transactions", () => {
 		await expect(
 			access(join(root, ".research", "transactions", "committed", transactionId, "transaction.json")),
 		).resolves.toBeUndefined();
+	});
+
+	it("publishes canonical data files one at a time on Windows", async () => {
+		const { root, manifest } = await createProject("windows-publish-concurrency");
+		const transactionId = await prepareProjectTransaction(root, {
+			expectedRevision: 0,
+			writes: Array.from({ length: 3 }, (_, index) => ({
+				path: `notes/windows-publish-${index}.txt`,
+				content: `content-${index}`,
+			})),
+			manifest: nextManifest(manifest),
+		});
+		Object.defineProperty(process, "platform", { ...originalPlatform, value: "win32" });
+		canonicalPublishProbe.enabled = true;
+
+		await commitPreparedTransaction(root, transactionId);
+
+		expect(canonicalPublishProbe.calls).toBe(3);
+		expect(canonicalPublishProbe.maxActive).toBe(1);
 	});
 
 	it("continues every pre-manifest kill point to one complete new state", async () => {
