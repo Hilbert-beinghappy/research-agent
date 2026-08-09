@@ -2,7 +2,7 @@
 
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { access, chmod, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -365,6 +365,25 @@ describe("Personal Memory store", () => {
 	});
 
 	it.skipIf(process.platform === "win32")("rejects canonical symlinks and never follows a cache symlink", async () => {
+		const emptyTarget = join(temporaryDirectory, "empty-target");
+		const initializerAlias = join(temporaryDirectory, "initializer-alias");
+		await mkdir(emptyTarget);
+		await symlink(emptyTarget, initializerAlias, "dir");
+		await expect(createMemoryProfile(initializerAlias, { profileId: "must-not-exist" })).rejects.toThrow(
+			"symbolic link",
+		);
+		expect(await readdir(emptyTarget)).toEqual([]);
+
+		const realRoot = join(temporaryDirectory, "real-profile");
+		const aliasRoot = join(temporaryDirectory, "profile-alias");
+		await createMemoryProfile(realRoot, { profileId: "profile-alias-target" });
+		await symlink(realRoot, aliasRoot, "dir");
+		await expect(openMemoryProfile(aliasRoot)).resolves.toMatchObject({
+			mode: "read-only",
+			profile: null,
+			activeItems: [],
+		});
+
 		const profileRoot = join(temporaryDirectory, "profile-link");
 		await createMemoryProfile(profileRoot, { profileId: "profile-1" });
 		const profileText = await readFile(join(profileRoot, "profile.json"), "utf8");

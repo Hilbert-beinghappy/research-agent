@@ -42,8 +42,15 @@ export function memoryMonthPath(timestamp: string): string {
 	return `${timestamp.slice(0, 4)}/${timestamp.slice(5, 7)}`;
 }
 
+export async function canonicalMemoryProfileRoot(profileRoot: string): Promise<string> {
+	if ((await lstat(profileRoot)).isSymbolicLink()) {
+		throw new TypeError("Memory profile root must not be a symbolic link");
+	}
+	return realpath(profileRoot);
+}
+
 export async function validateMemoryLayout(profileRoot: string): Promise<string> {
-	const root = await realpath(profileRoot);
+	const root = await canonicalMemoryProfileRoot(profileRoot);
 	const rootStats = await lstat(root);
 	if (!rootStats.isDirectory() || (process.platform !== "win32" && (rootStats.mode & 0o077) !== 0)) {
 		throw new TypeError("Memory profile root must be a private user directory");
@@ -63,7 +70,7 @@ export async function resolveMemoryPath(
 	memoryPath: string,
 	options: { allowMissing?: boolean } = {},
 ): Promise<string> {
-	let current = await realpath(profileRoot);
+	let current = await canonicalMemoryProfileRoot(profileRoot);
 	let missing = false;
 	for (const segment of validateProjectRelativePath(memoryPath).split("/")) {
 		current = join(current, segment);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomUUID } from "node:crypto";
-import { chmod, lstat, mkdir, open as openFile, readdir, readFile, realpath } from "node:fs/promises";
+import { chmod, lstat, mkdir, open as openFile, readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { MemoryDeletionTombstoneV1 } from "@research-agent/contracts";
 import { validateMemoryDeletionTombstoneV1 } from "@research-agent/contracts";
@@ -30,6 +30,7 @@ import { hashCanonicalJson } from "../contracts/integrity.ts";
 import { resolveProjectPath, validatePortablePathSet } from "../kernel/paths.ts";
 import { atomicWriteFile, syncParentDirectory } from "../project/atomic-write.ts";
 import {
+	canonicalMemoryProfileRoot,
 	MEMORY_ACTIVE_ITEMS_CACHE_PATH,
 	MEMORY_LAYOUT_DIRECTORIES,
 	MEMORY_PROFILE_PATH,
@@ -406,6 +407,7 @@ export async function createMemoryProfile(
 	input: CreateMemoryProfileInput = {},
 ): Promise<OpenedMemoryProfile> {
 	await mkdir(profileRoot, { recursive: true, mode: 0o700 });
+	await canonicalMemoryProfileRoot(profileRoot);
 	const entries = (await readdir(profileRoot)).filter((entry) => !entry.startsWith("._") && entry !== ".DS_Store");
 	const profileExists = entries.includes(MEMORY_PROFILE_PATH);
 	if (!profileExists && entries.length > 0) {
@@ -478,7 +480,7 @@ export async function openMemoryProfile(
 ): Promise<OpenedMemoryProfile> {
 	let root = resolve(profileRoot);
 	try {
-		root = await realpath(profileRoot);
+		root = await canonicalMemoryProfileRoot(root);
 	} catch {
 		return {
 			mode: "read-only",
