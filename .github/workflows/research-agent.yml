@@ -58,6 +58,26 @@ jobs:
       - name: Record release identity
         run: npm run report:release-identity -w packages/research-agent -- --require-clean --output ../../research-agent-release-identity.json
 
+      - name: Qualify current upstream replay
+        if: runner.os == 'Linux' && github.event_name != 'pull_request'
+        run: |
+          upstream_ref=refs/doro-upstream-replay/pi-97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53
+          git update-ref -d "$upstream_ref"
+          fetch_status=0
+          git fetch --no-tags --depth=1 https://github.com/earendil-works/pi.git "97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53:$upstream_ref" || fetch_status=$?
+          replay_status=0
+          node packages/research-agent/scripts/qualify-upstream-replay.ts --upstream-ref "$upstream_ref" --output research-agent-upstream-replay.json || replay_status=$?
+          if [ "$fetch_status" -ne 0 ]; then exit "$fetch_status"; fi
+          exit "$replay_status"
+
+      - name: Upload upstream replay qualification
+        if: always() && runner.os == 'Linux' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: research-agent-upstream-replay-${{ github.sha }}
+          path: research-agent-upstream-replay.json
+          if-no-files-found: error
+
       - name: Hydrate Pi model data
         run: npm run hydrate:model-data
 
