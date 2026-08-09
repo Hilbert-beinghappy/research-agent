@@ -60,15 +60,7 @@ jobs:
 
       - name: Qualify current upstream replay
         if: runner.os == 'Linux' && github.event_name != 'pull_request'
-        run: |
-          upstream_ref=refs/doro-upstream-replay/pi-97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53
-          git update-ref -d "$upstream_ref"
-          fetch_status=0
-          git fetch --no-tags --depth=1 https://github.com/earendil-works/pi.git "97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53:$upstream_ref" || fetch_status=$?
-          replay_status=0
-          node packages/research-agent/scripts/qualify-upstream-replay.ts --upstream-ref "$upstream_ref" --output research-agent-upstream-replay.json || replay_status=$?
-          if [ "$fetch_status" -ne 0 ]; then exit "$fetch_status"; fi
-          exit "$replay_status"
+        run: node packages/research-agent/scripts/qualify-upstream-replay.ts --output research-agent-upstream-replay.json
 
       - name: Upload upstream replay qualification
         if: always() && runner.os == 'Linux' && github.event_name != 'pull_request'

@@ -32,22 +32,16 @@ function gitText(args: string[], cwd = repositoryRoot): string {
 }
 
 let outputPath: string | null = null;
-let upstreamRef: string | null = null;
 const args = process.argv.slice(2);
 for (let index = 0; index < args.length; index += 1) {
 	const flag = args[index];
 	const value = args[index + 1];
-	if ((flag === "--output" || flag === "--upstream-ref") && value !== undefined && !value.startsWith("--")) {
-		if (flag === "--output" && outputPath === null) outputPath = resolve(process.cwd(), value);
-		else if (flag === "--upstream-ref" && upstreamRef === null) upstreamRef = value;
-		else throw new TypeError(`Duplicate ${flag}`);
+	if (flag === "--output" && outputPath === null && value !== undefined && !value.startsWith("--")) {
+		outputPath = resolve(process.cwd(), value);
 		index += 1;
 		continue;
 	}
-	throw new TypeError("usage: qualify-upstream-replay.ts --upstream-ref <full-ref> [--output <path>]");
-}
-if (upstreamRef === null || !upstreamRef.startsWith("refs/")) {
-	throw new TypeError("--upstream-ref requires a full refs/... name");
+	throw new TypeError("usage: qualify-upstream-replay.ts [--output <path>]");
 }
 
 const sourceCandidateCommit = gitText(["rev-parse", "--verify", "HEAD^{commit}"]);
@@ -55,9 +49,9 @@ const sourceCandidateTree = gitText(["rev-parse", "HEAD^{tree}"]);
 const checks = {
 	candidateIsHead: false,
 	githubShaAbsentOrMatchesHead: false,
-	commitObjectsPresent: false,
-	upstreamRefMatchesTarget: false,
-	baselineTreesMatch: false,
+	sourceCommitObjectsPresent: false,
+	importedBaselineTreeMatches: false,
+	directOfficialFetchMatchesTarget: false,
 	linearPatchChain: false,
 	appliedPatchCountExact: false,
 	resultTreeMatchesCandidate: false,
@@ -65,6 +59,7 @@ const checks = {
 const patches: Array<{ id: string; parent: string; tree: string; subject: string }> = [];
 let sourcePatchCount = 0;
 let resolvedUpstreamCommit: string | null = null;
+let resolvedUpstreamTree: string | null = null;
 let result: { commit: string; tree: string } | null = null;
 let failure: { stage: string; message: string } | null = null;
 let stage = "validate_candidate_identity";
@@ -83,17 +78,11 @@ try {
 	for (const commit of [sourceBaselineCommit, sourceCandidateCommit]) {
 		check(gitText(["rev-parse", "--verify", `${commit}^{commit}`]) === commit, `Missing commit ${commit}`);
 	}
-	checks.commitObjectsPresent = true;
+	checks.sourceCommitObjectsPresent = true;
 
-	stage = "validate_upstream_ref";
-	resolvedUpstreamCommit = gitText(["rev-parse", "--verify", `${upstreamRef}^{commit}`]);
-	check(resolvedUpstreamCommit === targetCommit, `${upstreamRef} does not resolve to ${targetCommit}`);
-	checks.upstreamRefMatchesTarget = true;
-
-	stage = "validate_recorded_trees";
+	stage = "validate_imported_baseline_tree";
 	check(gitText(["rev-parse", `${sourceBaselineCommit}^{tree}`]) === baselineTree, "Imported baseline tree changed");
-	check(gitText(["rev-parse", `${upstreamRef}^{tree}`]) === baselineTree, "Upstream target tree changed");
-	checks.baselineTreesMatch = true;
+	checks.importedBaselineTreeMatches = true;
 
 	stage = "validate_patch_chain";
 	const chain = gitText(["rev-list", "--reverse", "--parents", `${sourceBaselineCommit}..${sourceCandidateCommit}`])
@@ -117,11 +106,17 @@ try {
 	check(expectedParent === sourceCandidateCommit, "Patch queue does not end at checked-out HEAD");
 	checks.linearPatchChain = true;
 
-	stage = "create_temporary_clone";
+	stage = "fetch_official_upstream_target";
 	temporaryDirectory = await mkdtemp(join(tmpdir(), "doro-upstream-replay-"));
 	const replayRoot = join(temporaryDirectory, "replay");
-	git(["clone", "--shared", "--no-checkout", repositoryRoot, replayRoot]);
-	git(["checkout", "--detach", targetCommit], replayRoot);
+	git(["init", "--quiet", replayRoot]);
+	git(["fetch", "--no-tags", "--depth=1", targetRepository, targetCommit], replayRoot);
+	resolvedUpstreamCommit = gitText(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], replayRoot);
+	resolvedUpstreamTree = gitText(["rev-parse", "FETCH_HEAD^{tree}"], replayRoot);
+	check(resolvedUpstreamCommit === targetCommit, "Official fetch did not resolve to the fixed upstream commit");
+	check(resolvedUpstreamTree === baselineTree, "Official fetch returned an unexpected upstream tree");
+	checks.directOfficialFetchMatchesTarget = true;
+	git(["checkout", "--quiet", "--detach", "FETCH_HEAD"], replayRoot);
 
 	stage = "apply_patch_queue";
 	const mailbox = git(["format-patch", "--stdout", `${sourceBaselineCommit}..${sourceCandidateCommit}`]);
@@ -162,7 +157,7 @@ try {
 			await rm(temporaryDirectory, { recursive: true, force: true });
 		} catch (error) {
 			failure = {
-				stage: "cleanup_temporary_clone",
+				stage: "cleanup_temporary_repository",
 				message: error instanceof Error ? error.message : String(error),
 			};
 		}
@@ -183,11 +178,11 @@ const report = {
 	},
 	target: {
 		repository: targetRepository,
-		ref: upstreamRef,
 		commit: targetCommit,
 		resolvedCommit: resolvedUpstreamCommit,
 		tree: baselineTree,
-		verification: "explicit-full-ref-resolves-to-exact-commit",
+		resolvedTree: resolvedUpstreamTree,
+		verification: "direct-official-fetch+FETCH_HEAD-exact-commit-and-tree",
 	},
 	replay: {
 		method: "git-format-patch+git-am-3way",

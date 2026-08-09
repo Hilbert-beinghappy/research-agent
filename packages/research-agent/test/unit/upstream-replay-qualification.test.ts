@@ -8,8 +8,13 @@ import { afterEach, describe, expect, it } from "vitest";
 
 interface ReplayReport {
 	qualification: string;
-	source: { candidate: { commit: string; tree: string } };
-	target: { ref: string; commit: string; resolvedCommit: string | null; verification: string };
+	source: { githubSha: string | null; candidate: { commit: string; tree: string } };
+	target: {
+		commit: string;
+		resolvedCommit: string | null;
+		resolvedTree: string | null;
+		verification: string;
+	};
 	replay: { patchCount: number; orderedPatchIds: string[] };
 	result: { commit: string; tree: string } | null;
 	checks: Record<string, boolean>;
@@ -27,24 +32,22 @@ afterEach(async () => {
 });
 
 describe("upstream replay qualification", () => {
-	it("writes a failed report when the required upstream ref is missing", async () => {
+	it("writes a failed report before fetching when GITHUB_SHA differs from HEAD", async () => {
 		temporaryDirectory = await mkdtemp(join(tmpdir(), "doro-upstream-replay-test-"));
 		const outputPath = join(temporaryDirectory, "report.json");
-		const missingRef = `refs/doro-upstream-replay-test/missing-${process.pid}`;
+		const mismatchedSha = "0000000000000000000000000000000000000000";
 		const executed = spawnSync(
 			process.execPath,
 			[
 				"--experimental-strip-types",
 				join(packageRoot, "scripts/qualify-upstream-replay.ts"),
-				"--upstream-ref",
-				missingRef,
 				"--output",
 				outputPath,
 			],
 			{
 				cwd: repositoryRoot,
 				encoding: "utf8",
-				env: { ...process.env, GITHUB_SHA: undefined },
+				env: { ...process.env, GITHUB_SHA: mismatchedSha },
 				maxBuffer: 64 * 1_024 * 1_024,
 			},
 		);
@@ -52,19 +55,21 @@ describe("upstream replay qualification", () => {
 		const report = JSON.parse(await readFile(outputPath, "utf8")) as ReplayReport;
 		expect(report).toMatchObject({
 			qualification: "doro-upstream-replay-v1",
+			source: { githubSha: mismatchedSha },
 			target: {
-				ref: missingRef,
 				commit: "97f0ccdd96cc207b6ad3630c56eea4d32dbdcf53",
 				resolvedCommit: null,
-				verification: "explicit-full-ref-resolves-to-exact-commit",
+				resolvedTree: null,
+				verification: "direct-official-fetch+FETCH_HEAD-exact-commit-and-tree",
 			},
 			replay: { patchCount: 0, orderedPatchIds: [] },
 			result: null,
-			failure: { stage: "validate_upstream_ref" },
+			failure: { stage: "validate_candidate_identity", message: "GITHUB_SHA does not match checked-out HEAD" },
 			status: "failed",
 		});
 		expect(report.source.candidate.commit).toMatch(/^[0-9a-f]{40}$/u);
 		expect(report.source.candidate.tree).toMatch(/^[0-9a-f]{40}$/u);
-		expect(report.checks.upstreamRefMatchesTarget).toBe(false);
+		expect(report.checks.githubShaAbsentOrMatchesHead).toBe(false);
+		expect(report.checks.directOfficialFetchMatchesTarget).toBe(false);
 	});
 });
