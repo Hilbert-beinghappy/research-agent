@@ -146,6 +146,41 @@ describe("project transactions", () => {
 		}
 	});
 
+	it("commits and rolls back 129 writes across the concurrency window", async () => {
+		const { root, manifest } = await createProject("concurrency-window");
+		const writes = Array.from({ length: 129 }, (_, index) => ({
+			path: `notes/window-${String(index).padStart(3, "0")}.txt`,
+			content: `old-${index}`,
+		}));
+		await commitProjectTransaction(root, {
+			expectedRevision: 0,
+			writes,
+			manifest: nextManifest(manifest),
+		});
+		const committed = await openProject(root, 1);
+		if (committed.compatibility !== "current") throw new Error("expected current project");
+
+		const replacements = writes.map((write, index) => ({ ...write, content: `new-${index}` }));
+		const transactionId = await prepareProjectTransaction(root, {
+			expectedRevision: 1,
+			writes: replacements,
+			manifest: nextManifest(committed.manifest),
+		});
+		for (const write of replacements) {
+			await atomicWriteFile(join(root, ...write.path.split("/")), write.content);
+		}
+
+		await rollbackPreparedTransaction(root, transactionId);
+		const restored: string[] = [];
+		for (const write of writes) {
+			restored.push(await readFile(join(root, ...write.path.split("/")), "utf8"));
+		}
+		expect(restored).toEqual(writes.map(({ content }) => content));
+		await expect(openProject(root, 1)).resolves.toMatchObject({ compatibility: "current" });
+		expect(await validateProject(root)).toMatchObject({ valid: true, issues: [] });
+		expect(await listPendingProjectTransactions(root)).toEqual([]);
+	}, 120_000);
+
 	it("finalizes a crash after the manifest rename only when every file is new", async () => {
 		const { root, manifest } = await createProject("post-manifest");
 		const recordPath = ".research/records/sources/src_fixture.json";

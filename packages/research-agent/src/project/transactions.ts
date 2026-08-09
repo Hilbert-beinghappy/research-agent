@@ -58,25 +58,52 @@ function traceContextFromInput(input: ProjectTransactionInput): ProjectTransacti
 	};
 }
 
-async function settleBatch<Value>(promises: readonly Promise<Value>[]): Promise<Value[]> {
-	const values: Value[] = [];
-	for (const result of await Promise.allSettled(promises)) {
-		if (result.status === "rejected") throw result.reason;
-		values.push(result.value);
+async function mapWithConcurrency<Input, Value>(
+	values: readonly Input[],
+	transform: (value: Input, index: number) => Promise<Value>,
+): Promise<Value[]> {
+	const transformed = new Array<Value>(values.length);
+	const queue = values.entries();
+	let stopped = false;
+	const failures: { index: number; error: unknown }[] = [];
+	const worker = async (): Promise<void> => {
+		while (!stopped) {
+			const next = queue.next();
+			if (next.done) return;
+			const [index, value] = next.value;
+			try {
+				transformed[index] = await transform(value, index);
+			} catch (error) {
+				failures.push({ index, error });
+				stopped = true;
+				return;
+			}
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(values.length, TRANSACTION_IO_BATCH_SIZE) }, () => worker()));
+	let failure: { index: number; error: unknown } | undefined;
+	for (const candidate of failures) {
+		if (failure === undefined || candidate.index < failure.index) failure = candidate;
 	}
-	return values;
+	if (failure !== undefined) throw failure.error;
+	return transformed;
 }
 
-async function mapInBatches<Input, Value>(
-	values: readonly Input[],
-	transform: (value: Input) => Promise<Value>,
-): Promise<Value[]> {
-	const transformed: Value[] = [];
-	for (let offset = 0; offset < values.length; offset += TRANSACTION_IO_BATCH_SIZE) {
-		const batch = values.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
-		transformed.push(...(await settleBatch(batch.map(transform))));
+async function writeStagedFile(path: string, content: string | Uint8Array): Promise<void> {
+	let created = false;
+	try {
+		const file = await open(path, "wx");
+		created = true;
+		try {
+			await file.writeFile(content);
+			await file.sync();
+		} finally {
+			await file.close();
+		}
+	} catch (error) {
+		if (created) await rm(path, { force: true });
+		throw error;
 	}
-	return transformed;
 }
 
 async function transactionPathResolver(projectRoot: string): Promise<(path: string) => Promise<string>> {
@@ -248,18 +275,14 @@ async function prepareProjectTransactionUnlocked(
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
 	const preflightHashes = new Map<string, HashValue | null>();
 	await traceProjectTransactionPhase("transaction_preflight", traceContext, async () => {
-		for (let offset = 0; offset < input.writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
-			await Promise.all(
-				input.writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE).map(async (write) => {
-					if (write.expectedHash === undefined) return;
-					const oldHash = await existingHash(await resolveTransactionPath(write.path));
-					preflightHashes.set(write.path, oldHash);
-					if (write.expectedHash?.value !== oldHash?.value) {
-						throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
-					}
-				}),
-			);
-		}
+		await mapWithConcurrency(input.writes, async (write) => {
+			if (write.expectedHash === undefined) return;
+			const oldHash = await existingHash(await resolveTransactionPath(write.path));
+			preflightHashes.set(write.path, oldHash);
+			if (write.expectedHash?.value !== oldHash?.value) {
+				throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
+			}
+		});
 	});
 
 	const transactionId = `tx_${randomUUID()}`;
@@ -271,45 +294,40 @@ async function prepareProjectTransactionUnlocked(
 			...input.writes,
 			{ path: PROJECT_MANIFEST_PATH, content: `${canonicalStringify(input.manifest)}\n` },
 		];
-		const entries: TransactionEntry[] = [];
-		for (let offset = 0; offset < writes.length; offset += TRANSACTION_IO_BATCH_SIZE) {
-			const batch = writes.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
-			entries.push(
-				...(await settleBatch(
-					batch.map(async (write, batchIndex): Promise<TransactionEntry> => {
-						const index = offset + batchIndex;
-						const target = await resolveTransactionPath(write.path);
-						const oldHash =
-							write.expectedHash === null && preflightHashes.has(write.path)
-								? (preflightHashes.get(write.path) ?? null)
-								: await existingHash(target);
-						if (write.expectedHash !== undefined && write.expectedHash?.value !== oldHash?.value) {
-							throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
-						}
-						if (oldHash !== null) {
-							const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
-							await copyFile(target, backup);
-							const backupFile = await open(backup, "r+");
-							try {
-								await backupFile.sync();
-							} finally {
-								await backupFile.close();
-							}
-							if ((await hashFile(backup)).value !== oldHash.value) {
-								throw new Error(`Backup hash mismatch: ${write.path}`);
-							}
-						}
-						let newHash: HashValue | null = null;
-						if (write.content !== null) {
-							const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
-							await atomicWriteFile(staged, write.content);
-							newHash = hashBytes(write.content);
-						}
-						return { path: write.path, oldHash, newHash };
-					}),
-				)),
-			);
-		}
+		const entries = await mapWithConcurrency(writes, async (write, index): Promise<TransactionEntry> => {
+			const target = await resolveTransactionPath(write.path);
+			const oldHash =
+				write.expectedHash === null && preflightHashes.has(write.path)
+					? (preflightHashes.get(write.path) ?? null)
+					: await existingHash(target);
+			if (write.expectedHash !== undefined && write.expectedHash?.value !== oldHash?.value) {
+				throw new Error(`DATA_CONFLICT: target changed before transaction prepare: ${write.path}`);
+			}
+			if (oldHash !== null) {
+				const backup = await resolveTransactionPath(`${directory}/backups/${index}.bin`);
+				await copyFile(target, backup);
+				const backupFile = await open(backup, "r+");
+				try {
+					await backupFile.sync();
+				} finally {
+					await backupFile.close();
+				}
+				if ((await hashFile(backup)).value !== oldHash.value) {
+					throw new Error(`Backup hash mismatch: ${write.path}`);
+				}
+			}
+			let newHash: HashValue | null = null;
+			if (write.content !== null) {
+				const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+				await writeStagedFile(staged, write.content);
+				newHash = hashBytes(write.content);
+			}
+			return { path: write.path, oldHash, newHash };
+		});
+		await Promise.all([
+			syncParentDirectory(await resolveTransactionPath(`${directory}/staged/${writes.length - 1}.bin`)),
+			syncParentDirectory(await resolveTransactionPath(`${directory}/backups/${writes.length - 1}.bin`)),
+		]);
 
 		const journal: TransactionJournal = {
 			version: 1,
@@ -336,7 +354,7 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 		writeCount: journal.entries.length - 1,
 	};
 	const states = await traceProjectTransactionPhase("transaction_preflight", traceContext, () =>
-		mapInBatches(journal.entries, async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
+		mapWithConcurrency(journal.entries, async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
 	if (states.at(-1) === "new") {
@@ -356,29 +374,23 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 
 	const manifestIndex = journal.entries.length - 1;
 	await traceProjectTransactionPhase("data_commit", traceContext, async () => {
-		for (let offset = 0; offset < manifestIndex; offset += TRANSACTION_IO_BATCH_SIZE) {
-			const batch = journal.entries.slice(offset, Math.min(offset + TRANSACTION_IO_BATCH_SIZE, manifestIndex));
-			await settleBatch(
-				batch.map(async (entry, batchIndex) => {
-					const index = offset + batchIndex;
-					if (states[index] === "new") return;
-					const target = await resolveTransactionPath(entry.path);
-					if (entry.newHash === null) {
-						await rm(target, { force: true });
-						await syncParentDirectory(target);
-						return;
-					}
-					const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
-					if ((await hashFile(staged)).value !== entry.newHash.value) {
-						throw new Error(`Staged hash mismatch: ${entry.path}`);
-					}
-					if (entry.oldHash === null) {
-						await rename(staged, target);
-						await syncParentDirectory(target);
-					} else await atomicWriteFile(target, await readFile(staged));
-				}),
-			);
-		}
+		await mapWithConcurrency(journal.entries.slice(0, manifestIndex), async (entry, index) => {
+			if (states[index] === "new") return;
+			const target = await resolveTransactionPath(entry.path);
+			if (entry.newHash === null) {
+				await rm(target, { force: true });
+				await syncParentDirectory(target);
+				return;
+			}
+			const staged = await resolveTransactionPath(`${directory}/staged/${index}.bin`);
+			if ((await hashFile(staged)).value !== entry.newHash.value) {
+				throw new Error(`Staged hash mismatch: ${entry.path}`);
+			}
+			if (entry.oldHash === null) {
+				await rename(staged, target);
+				await syncParentDirectory(target);
+			} else await atomicWriteFile(target, await readFile(staged));
+		});
 	});
 	const manifestEntry = journal.entries[manifestIndex];
 	if (manifestEntry === undefined) throw new Error(`Transaction manifest is missing: ${transactionId}`);
@@ -396,7 +408,7 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 		}
 	});
 	await traceProjectTransactionPhase("post_commit_verify", traceContext, async () => {
-		const finalStates = await mapInBatches(journal.entries, async (entry) =>
+		const finalStates = await mapWithConcurrency(journal.entries, async (entry) =>
 			fileState(await resolveTransactionPath(entry.path), entry, true),
 		);
 		if (finalStates.some((state) => state !== "new")) {
@@ -412,7 +424,7 @@ async function rollbackPreparedTransactionUnlocked(projectRoot: string, transact
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
-	const states = await mapInBatches(journal.entries, async (entry) =>
+	const states = await mapWithConcurrency(journal.entries, async (entry) =>
 		fileState(await resolveTransactionPath(entry.path), entry),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
@@ -434,7 +446,7 @@ async function rollbackPreparedTransactionUnlocked(projectRoot: string, transact
 			await atomicWriteFile(target, await readFile(backup));
 		}
 	}
-	const finalStates = await mapInBatches(journal.entries, async (entry) =>
+	const finalStates = await mapWithConcurrency(journal.entries, async (entry) =>
 		fileState(await resolveTransactionPath(entry.path), entry, true),
 	);
 	if (finalStates.some((state) => state !== "old"))
