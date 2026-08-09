@@ -45,7 +45,7 @@ type TransactionFileState = "old" | "new" | "other";
 const PENDING_DIRECTORY = ".research/transactions/pending";
 const COMMITTED_DIRECTORY = ".research/transactions/committed";
 const FAILED_DIRECTORY = ".research/transactions/failed";
-const TRANSACTION_IO_BATCH_SIZE = 512;
+const TRANSACTION_IO_BATCH_SIZE = 64;
 
 function traceContextFromInput(input: ProjectTransactionInput): ProjectTransactionTraceContext {
 	return {
@@ -65,6 +65,18 @@ async function settleBatch<Value>(promises: readonly Promise<Value>[]): Promise<
 		values.push(result.value);
 	}
 	return values;
+}
+
+async function mapInBatches<Input, Value>(
+	values: readonly Input[],
+	transform: (value: Input) => Promise<Value>,
+): Promise<Value[]> {
+	const transformed: Value[] = [];
+	for (let offset = 0; offset < values.length; offset += TRANSACTION_IO_BATCH_SIZE) {
+		const batch = values.slice(offset, offset + TRANSACTION_IO_BATCH_SIZE);
+		transformed.push(...(await settleBatch(batch.map(transform))));
+	}
+	return transformed;
 }
 
 async function transactionPathResolver(projectRoot: string): Promise<(path: string) => Promise<string>> {
@@ -324,7 +336,7 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 		writeCount: journal.entries.length - 1,
 	};
 	const states = await traceProjectTransactionPhase("transaction_preflight", traceContext, () =>
-		Promise.all(journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry))),
+		mapInBatches(journal.entries, async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
 	if (states.at(-1) === "new") {
@@ -384,8 +396,8 @@ async function commitPreparedTransactionUnlocked(projectRoot: string, transactio
 		}
 	});
 	await traceProjectTransactionPhase("post_commit_verify", traceContext, async () => {
-		const finalStates = await Promise.all(
-			journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry, true)),
+		const finalStates = await mapInBatches(journal.entries, async (entry) =>
+			fileState(await resolveTransactionPath(entry.path), entry, true),
 		);
 		if (finalStates.some((state) => state !== "new")) {
 			throw new Error(`Transaction commit verification failed: ${transactionId}`);
@@ -400,8 +412,8 @@ async function rollbackPreparedTransactionUnlocked(projectRoot: string, transact
 	const journal = await readJournal(projectRoot, transactionId);
 	const directory = transactionDirectory(PENDING_DIRECTORY, transactionId);
 	const resolveTransactionPath = await transactionPathResolver(projectRoot);
-	const states = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry)),
+	const states = await mapInBatches(journal.entries, async (entry) =>
+		fileState(await resolveTransactionPath(entry.path), entry),
 	);
 	if (states.includes("other")) throw new Error(`Transaction target hash mismatch: ${transactionId}`);
 	if (states.at(-1) === "new") throw new Error(`Cannot roll back committed transaction: ${transactionId}`);
@@ -422,8 +434,8 @@ async function rollbackPreparedTransactionUnlocked(projectRoot: string, transact
 			await atomicWriteFile(target, await readFile(backup));
 		}
 	}
-	const finalStates = await Promise.all(
-		journal.entries.map(async (entry) => fileState(await resolveTransactionPath(entry.path), entry, true)),
+	const finalStates = await mapInBatches(journal.entries, async (entry) =>
+		fileState(await resolveTransactionPath(entry.path), entry, true),
 	);
 	if (finalStates.some((state) => state !== "old"))
 		throw new Error(`Transaction rollback verification failed: ${transactionId}`);

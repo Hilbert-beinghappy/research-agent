@@ -1700,23 +1700,25 @@ async function runTopic(
 	};
 }
 
+const scenario = await loadFixture<ScenarioFixture>(scenarioPath);
+const gate = await loadFixture<ScenarioGate>(gatePath);
+
 describe("Scenario A release gate", () => {
-	it("runs three frozen management and public-administration topics with all anomaly and recovery gates", async () => {
-		const scenario = await loadFixture<ScenarioFixture>(scenarioPath);
-		const gate = await loadFixture<ScenarioGate>(gatePath);
+	it("matches the frozen management and public-administration gate", () => {
 		expect(scenario.schemaVersion).toBe("0.1.0");
 		expect(scenario.topics).toHaveLength(gate.requiredTopicCount);
 		expect(scenario.scriptedToolSet).toEqual(V0_1_TOOL_NAMES);
 		expect(Object.keys(gate.requiredAnomalies)).toHaveLength(10);
-		for (const topic of scenario.topics) {
+	});
+
+	for (const topic of scenario.topics) {
+		it(`runs frozen topic ${topic.slug} with all anomaly and recovery gates`, async () => {
 			const ladder = await runTopic(topic, scenario.evidenceCases, gate);
 			expect(ladder).toEqual(Object.fromEntries(gate.requiredEvidenceLevels.map((level) => [level, true])));
-		}
-	}, 120_000);
+		}, 120_000);
+	}
 
 	it("extends a Scenario A project into confirmed quantitative and qualitative designs", async () => {
-		const scenario = await loadFixture<ScenarioFixture>(scenarioPath);
-		const gate = await loadFixture<ScenarioGate>(gatePath);
 		const topic = scenario.topics[0];
 		if (topic === undefined) throw new Error("Scenario A has no topic");
 		await runTopic(topic, scenario.evidenceCases, gate, true);

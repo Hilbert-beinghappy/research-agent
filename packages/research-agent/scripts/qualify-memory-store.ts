@@ -91,12 +91,11 @@ async function canonicalRecordPaths(root: string): Promise<string[]> {
 }
 
 async function digestRecords(root: string, paths: readonly string[]): Promise<RecordDigest[]> {
-	return Promise.all(
-		paths.map(async (path) => ({
-			path,
-			hash: hashBytes(await readFile(join(root, ...path.split("/")))).value,
-		})),
-	);
+	const digests: RecordDigest[] = [];
+	for (const path of paths) {
+		digests.push({ path, hash: hashBytes(await readFile(join(root, ...path.split("/")))).value });
+	}
+	return digests;
 }
 
 const transactionCount = integerArgument("--transactions", 10_000, 100_000);

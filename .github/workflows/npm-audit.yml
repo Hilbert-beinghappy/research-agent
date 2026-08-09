@@ -3,7 +3,7 @@ name: npm audit
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ["v*", "pi-research-agent-v*"]
   pull_request:
     branches: [main]
   schedule:
