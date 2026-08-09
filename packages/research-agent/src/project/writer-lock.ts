@@ -125,7 +125,8 @@ export async function withWriterLease<Value>(
 	await mkdir(await resolveProjectPath(root, dirname(writerLock)), { recursive: true });
 	const path = await resolveProjectPath(root, writerLock);
 	const host = hostname();
-	const deadline = Date.now() + ACQUIRE_TIMEOUT_MS;
+	let noProgressDeadline = performance.now() + ACQUIRE_TIMEOUT_MS;
+	let observedLeaseNonce: string | null = null;
 	const waitStarted = performance.now();
 	emitProjectTransactionTrace("writer_lease_wait", "started", traceContext);
 	const parentScope = writerLeaseScope.getStore();
@@ -167,7 +168,14 @@ export async function withWriterLease<Value>(
 					await reclaimLease(path);
 					continue;
 				}
-				if (Date.now() >= deadline) {
+				if (lease !== null) {
+					if (observedLeaseNonce !== null && lease.nonce !== observedLeaseNonce) {
+						// A different valid nonce means lease ownership turned over; treat that as acquisition progress.
+						noProgressDeadline = performance.now() + ACQUIRE_TIMEOUT_MS;
+					}
+					observedLeaseNonce = lease.nonce;
+				}
+				if (performance.now() >= noProgressDeadline) {
 					throw new Error(`${errorNamespace}_WRITER_LOCKED: another process holds the writer lease`);
 				}
 				await delay(25);

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import { access, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,6 +21,7 @@ import {
 import { validateProject } from "../../src/project/validate.ts";
 
 let temporaryDirectory: string;
+const activeWriterChildren = new Map<ChildProcess, Promise<[number | null, NodeJS.Signals | null]>>();
 const writerWorker = join(import.meta.dirname, "..", "fixtures", "project-writer-worker.ts");
 
 beforeEach(async () => {
@@ -28,6 +29,11 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+	for (const child of activeWriterChildren.keys()) {
+		if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+	}
+	await Promise.allSettled(activeWriterChildren.values());
+	activeWriterChildren.clear();
 	await rm(temporaryDirectory, { recursive: true, force: true });
 });
 
@@ -50,12 +56,22 @@ interface WriterResult {
 async function runWriter(root: string, label: string, count = 500, trace = false): Promise<WriterResult> {
 	const child = spawn(
 		process.execPath,
-		["--experimental-strip-types", writerWorker, "batch", root, label, String(count)],
+		[
+			"--disable-warning=ExperimentalWarning",
+			"--experimental-strip-types",
+			writerWorker,
+			"batch",
+			root,
+			label,
+			String(count),
+		],
 		{
 			stdio: ["ignore", "pipe", "pipe"],
 			env: { ...process.env, RESEARCH_TX_TRACE: trace ? "1" : "0" },
 		},
 	);
+	const closed = once(child, "close") as Promise<[number | null, NodeJS.Signals | null]>;
+	activeWriterChildren.set(child, closed);
 	let stdout = "";
 	let stderr = "";
 	child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
@@ -64,7 +80,12 @@ async function runWriter(root: string, label: string, count = 500, trace = false
 	child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
 		stderr += chunk;
 	});
-	const [code] = (await once(child, "exit")) as [number | null];
+	let code: number | null;
+	try {
+		[code] = await closed;
+	} finally {
+		activeWriterChildren.delete(child);
+	}
 	if (code !== 0) throw new Error(`writer ${label} failed (${code}): ${stderr}`);
 	const result = JSON.parse(stdout) as { count: number; conflicts: number };
 	expect(result.count).toBe(count);
@@ -252,7 +273,14 @@ describe("project transactions", () => {
 
 	it("serializes 1,000 writes from two independent processes without lost updates", async () => {
 		const { root } = await createProject("multi-process-writers");
-		const writerResults = await Promise.all([runWriter(root, "left"), runWriter(root, "right")]);
+		const writerOutcomes = await Promise.allSettled([runWriter(root, "left"), runWriter(root, "right")]);
+		const writerResults: WriterResult[] = [];
+		const failures: unknown[] = [];
+		for (const outcome of writerOutcomes) {
+			if (outcome.status === "rejected") failures.push(outcome.reason);
+			else writerResults.push(outcome.value);
+		}
+		if (failures.length > 0) throw new AggregateError(failures, "project writer processes failed");
 		expect(writerResults.map(({ conflicts }) => conflicts)).toEqual([0, 0]);
 		const opened = await openProject(root, 1_000);
 		if (opened.compatibility !== "current") throw new Error("expected current project");
