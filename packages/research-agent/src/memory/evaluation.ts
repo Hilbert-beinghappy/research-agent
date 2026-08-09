@@ -504,28 +504,9 @@ export function evaluateMemoryLongitudinalDataset(input: unknown): MemoryEvaluat
 	const balancedOnOffPerParticipant = participantExposures.every(
 		({ on, off }) => on > 0 && off > 0 && Math.abs(on - off) <= 1,
 	);
-	const betaPilotStarted = !dataset.synthetic && dataset.realTrialStatus !== "not_started" && participantCount >= 10;
-	const thresholdMetrics =
-		metrics.personalizationSuccessRate !== null &&
-		metrics.personalizationSuccessRate >= 0.75 &&
-		metrics.falseMemoryApplicationRate !== null &&
-		metrics.falseMemoryApplicationRate <= 0.01 &&
-		metrics.interruptionRate !== null &&
-		metrics.interruptionRate <= 0.05 &&
-		Object.values(deterministicGates).every(Boolean);
-	const stableV3LongitudinalEligible =
-		!dataset.synthetic &&
-		dataset.realTrialStatus === "complete" &&
-		participantCount >= 30 &&
-		dataset.study.weeksObserved >= 12 &&
-		dataset.study.minimumSessionsPerParticipant >= 24 &&
-		dataset.study.minimumProjectsPerParticipant >= 3 &&
-		dataset.study.minimumRestrictedProjectsPerParticipant >= 1 &&
-		dataset.study.minimumCorrectionTasksPerParticipant >= 2 &&
-		minimumEligibleOpportunitiesPerParticipant >= 40 &&
-		balancedOnOffPerParticipant &&
-		metrics.blindScoringCoverage === 1 &&
-		thresholdMetrics;
+	// Version 1 has only self-reported study minima, so it cannot establish real pilot or longitudinal eligibility.
+	const betaPilotStarted = false;
+	const stableV3LongitudinalEligible = false;
 	const longitudinalStatus = dataset.synthetic
 		? "synthetic_only"
 		: dataset.realTrialStatus === "not_started"

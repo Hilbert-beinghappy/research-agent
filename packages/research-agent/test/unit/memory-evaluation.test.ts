@@ -11,6 +11,10 @@ function cloneGolden(): MemoryLongitudinalDatasetV1 {
 	return structuredClone(golden);
 }
 
+function ref(value: number): string {
+	return `sha256:${value.toString(16).padStart(64, "0")}`;
+}
+
 beforeAll(async () => {
 	golden = JSON.parse(
 		await readFile(new URL("../../evals/v3/memory-longitudinal-golden.json", import.meta.url), "utf8"),
@@ -80,6 +84,44 @@ describe("Personal Memory longitudinal evaluation", () => {
 		expect(() => evaluateMemoryLongitudinalDataset(maliciousFieldName)).toThrowError(
 			/^task 0 contains prohibited fields$/u,
 		);
+	});
+
+	it("keeps forged v1 real-study claims fail closed without verifiable longitudinal evidence", () => {
+		const forged = cloneGolden();
+		const on = forged.tasks.find(({ condition }) => condition === "memory_on");
+		const off = forged.tasks.find(({ condition }) => condition === "memory_off");
+		if (on === undefined || off === undefined) throw new Error("golden on/off tasks missing");
+		forged.synthetic = false;
+		forged.realTrialStatus = "complete";
+		forged.study = {
+			weeksObserved: 12,
+			minimumSessionsPerParticipant: 24,
+			minimumProjectsPerParticipant: 3,
+			minimumRestrictedProjectsPerParticipant: 1,
+			minimumCorrectionTasksPerParticipant: 2,
+		};
+		forged.tasks = Array.from({ length: 30 }, (_, participant) =>
+			Array.from({ length: 40 }, (_, task) => ({
+				...structuredClone(task % 2 === 0 ? on : off),
+				participantRef: ref(participant + 1),
+				taskRef: ref(1_000 + participant * 40 + task),
+			})),
+		).flat();
+		forged.participantControls = [];
+
+		expect(evaluateMemoryLongitudinalDataset(forged)).toMatchObject({
+			status: "infrastructure_passed",
+			dataset: {
+				participantCount: 30,
+				minimumEligibleOpportunitiesPerParticipant: 40,
+				balancedOnOffPerParticipant: true,
+			},
+			longitudinal: {
+				betaPilotStarted: false,
+				stableV3LongitudinalEligible: false,
+				status: "complete_below_threshold",
+			},
+		});
 	});
 
 	it("fails hard gates when an attack class or deterministic correction coverage is missing", () => {
