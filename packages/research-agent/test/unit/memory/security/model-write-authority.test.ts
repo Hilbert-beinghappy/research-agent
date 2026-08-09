@@ -230,15 +230,20 @@ describe("Personal Memory model write authority", () => {
 			),
 		);
 
-		const currentSignals = await capturePromotionSignals("prose");
-		const result = await consolidateCandidate(currentSignals[0], "retention-contradiction");
+		const currentSignal = await captureTestSignal(profileRoot, {
+			sessionId: "current-contradiction",
+			observedAt: "2026-08-03T12:00:00.000Z",
+			key: "representation",
+			value: "prose",
+		});
+		const result = await consolidateCandidate(currentSignal, "retention-contradiction");
 		expect(result).toMatchObject({
 			outcome: "persisted",
 			promotion: {
-				disposition: "quarantined",
-				supportCount: 3,
+				disposition: "candidate",
+				supportCount: 1,
 				contradictionCount: 0,
-				reasonCodes: expect.arrayContaining(["inferred_item_conflict"]),
+				reasonCodes: expect.arrayContaining(["support_threshold_not_met"]),
 			},
 			item: {
 				memoryId: activated.item.memoryId,
@@ -247,13 +252,14 @@ describe("Personal Memory model write authority", () => {
 				value: "table",
 				supportCount: 3,
 				independentSupportCount: 3,
-				contradictionCount: 3,
+				contradictionCount: 1,
 				confidence: 0,
 				allowedEffects: [],
 				sourceSignalRefs: expect.arrayContaining(activated.item.sourceSignalRefs),
 			},
 		});
 		if (result.outcome !== "persisted" || result.item === null) throw new Error("inferred item was not quarantined");
+		expect(result.item.transactionId).toBe(result.transactionId);
 		const opened = await openMemoryProfile(profileRoot);
 		expect(opened).toMatchObject({
 			mode: "read-write",
@@ -261,6 +267,18 @@ describe("Personal Memory model write authority", () => {
 			activeItems: [],
 			profile: { preferenceRefs: {}, lastTransactionId: result.transactionId },
 		});
+		expect(
+			await retrievePersonalMemory(profileRoot, {
+				taskCategories: ["writing"],
+				keywords: ["representation"],
+				effect: "formatting",
+				allowedDataClasses: ["public", "internal"],
+				criticalDecision: false,
+				availableContextTokens: 20_000,
+				requestedMaxTokens: 800,
+				now: "2026-08-04T12:00:00.000Z",
+			}),
+		).toMatchObject({ status: "empty", code: "no_eligible_items", items: [] });
 	});
 
 	it("keeps an eligible same-value candidate subordinate to active explicit memory", async () => {

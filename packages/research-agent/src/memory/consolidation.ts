@@ -567,7 +567,7 @@ async function appendCandidate(
 		if (promotion.disposition === "eligible" && explicit !== undefined && same(explicit.value, candidate.value)) {
 			promotion = finalPromotion(promotion, "candidate", "explicit_item_already_active");
 		}
-		if (promotion.disposition === "quarantined" && inferredActive !== null) {
+		if (inferredActive !== null) {
 			const targetCandidate = same(inferredActive.value, candidate.value)
 				? candidate
 				: { ...candidate, value: inferredActive.value };
@@ -577,17 +577,20 @@ async function appendCandidate(
 				state.activeItems,
 				profile.learningPolicy,
 			);
-			const evidence = supportingSignals(targetCandidate, usableSignals);
-			item = inferredItem(
-				candidate,
-				targetPromotion,
-				[...evidence.support, ...evidence.contradictions],
-				inferredActive,
-				transactionId,
-				updatedAt,
-				"quarantined",
-			);
-		} else if (promotion.disposition === "eligible") {
+			if (targetPromotion.disposition === "quarantined") {
+				const evidence = supportingSignals(targetCandidate, usableSignals);
+				item = inferredItem(
+					candidate,
+					targetPromotion,
+					[...evidence.support, ...evidence.contradictions],
+					inferredActive,
+					transactionId,
+					updatedAt,
+					"quarantined",
+				);
+			}
+		}
+		if (item === null && promotion.disposition === "eligible") {
 			if (explicit === undefined || !same(explicit.value, candidate.value)) {
 				const memoryId = previous?.memoryId ?? inferredMemoryId(candidate);
 				if (
