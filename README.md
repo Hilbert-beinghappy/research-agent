@@ -1,6 +1,6 @@
 # Pi Research Agent
 
-Pi Research Agent 是基于 [Pi Agent Harness](https://github.com/earendil-works/pi) 的本地优先、证据优先科研工作流。当前源码是未发布的 v2.0.1 安全加固候选；Doro 是该 Pi Package/Profile 的品牌，不提供独立 `doro` CLI。项目优先服务管理学与公共管理研究，同时提供社会学、政治学等可替换 Domain Package。
+Pi Research Agent 是基于 [Pi Agent Harness](https://github.com/earendil-works/pi) 的本地优先、证据优先科研工作流。当前源码是未发布的 `v3.0.0-beta.1` 技术候选，不是已发布 beta，也不是稳定 v3；Doro 是该 Pi Package/Profile 的品牌，不提供独立 `doro` CLI。项目优先服务管理学与公共管理研究，同时提供社会学、政治学等可替换 Domain Package。
 
 仓库保留 Pi 底层单仓库代码，科研能力集中在独立 Package 中。使用者从 Pi 对话终端进入科研工作流；开发者也可以通过只读 SDK 和 stdio RPC 检查多个研究项目。
 
@@ -14,10 +14,17 @@ Pi Research Agent 是基于 [Pi Agent Harness](https://github.com/earendil-works
 | [项目格式](packages/research-agent/docs/project-format.md) | 文件化状态、记录模型、恢复与迁移 |
 | [Adapter 开发](packages/research-agent/docs/adapter-development.md) | Source、Analysis Runtime 与 Artifact Adapter v1 |
 | [SDK 与 stdio RPC](packages/research-agent/docs/sdk-rpc.md) | v2.0 多项目只读接口 |
+| [v3.0.0-beta.1 技术候选边界](packages/research-agent/docs/release-v3.0.0-beta.1.md) | Personal Memory 技术范围、版本映射、固定 SHA 证据边界与仍为 NO-GO 的外部资格条件 |
 | [v2.0 全流程示例](packages/research-agent/examples/full-workflow-v2.0/README.md) | 从终端到 SDK/RPC 的公开验收场景 |
 | [v2.0 发布证据](packages/research-agent/docs/release-v2.0.md) | 能力、测试、性能和已知限制 |
-| [v2.0.1 候选边界](packages/research-agent/docs/release-v2.0.1-rc.md) | 当前加固范围、版本关系和外部资格缺口 |
-| [发布清单](packages/research-agent/docs/release-checklist.md) | 固定 SHA 的安全、三平台、安装和上游重放门 |
+| [v2.0.1 候选边界](packages/research-agent/docs/release-v2.0.1-rc.md) | 历史加固范围、版本关系和外部资格缺口 |
+| [v3 技术候选清单](packages/research-agent/docs/release-checklist.md) | 固定 SHA 的安全、三平台、安装、上游重放和外部资格门 |
+
+## 当前候选边界
+
+`v3.0.0-beta.1` 在既有科研工作流上增加可选的 Personal Memory 技术范围。确定性测试、合成纵向评测和固定 SHA CI 即使全部通过，也只支持 technical preflight，不构成真实用户效果或稳定发布证据。真实 10 人 opt-in beta pilot 尚未启动，30 人、12 周纵向研究尚未完成；子 Agent 或合成参与者不能替代这些真实世界证据，因此两项继续保持 NO-GO。
+
+Zotero export/push adapter 和 Obsidian-compatible Markdown export 是受控 adapter/export 边界，不声明与真实桌面宿主的双向集成；真实 Zotero/Obsidian host smoke 仍待外部环境验证。Stata 仅检测用户自有安装，尚未获得真实 licensed-runner 资格。这些外部资格缺口不会因本地测试、模拟或先前 SHA 的绿色结果而关闭。
 
 ## 架构边界
 
