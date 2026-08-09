@@ -19,13 +19,9 @@ interface CaptureContext {
 	domainId?: string;
 	modelEgressAllowed: boolean;
 	allowedModelProviders: readonly string[];
-	allowedDataClassesForModelEgress: readonly DataClass[];
+	allowedDataClassesForModelEgress: readonly string[];
 	projectId?: string;
 	projectRevision?: number;
-}
-
-function isDataClass(value: string): value is DataClass {
-	return value === "public" || value === "internal" || value === "restricted";
 }
 
 export function configuredMemoryHome(): string | null {
@@ -84,8 +80,7 @@ async function captureContext(cwd: string): Promise<CaptureContext | null> {
 				domainId: opened.manifest.domain.id,
 				modelEgressAllowed: opened.manifest.policy.modelEgressAllowed,
 				allowedModelProviders: opened.manifest.policy.allowedModelProviders,
-				allowedDataClassesForModelEgress:
-					opened.manifest.policy.allowedDataClassesForModelEgress.filter(isDataClass),
+				allowedDataClassesForModelEgress: opened.manifest.policy.allowedDataClassesForModelEgress,
 				projectId: opened.manifest.projectId,
 				projectRevision: opened.manifest.revision,
 			};
@@ -138,16 +133,14 @@ async function applyPersonalMemory(event: { prompt: string; systemPrompt: string
 		const localModel = modelUsesLocalEndpoint(ctx.model);
 		if (
 			(!localModel && !externalModelAllowed(ctx, hostContext)) ||
-			(!localModel && opened.profile.sensitivityPolicy.externalProviderMemoryView === "disabled")
+			(!localModel && opened.profile.sensitivityPolicy.externalProviderMemoryView === "disabled") ||
+			(!localModel &&
+				hostContext.allowedDataClassesForModelEgress.length > 0 &&
+				!hostContext.allowedDataClassesForModelEgress.includes("personal_memory_context"))
 		) {
 			return;
 		}
-		const allowedDataClasses = opened.profile.sensitivityPolicy.allowedDataClasses.filter(
-			(dataClass) =>
-				localModel ||
-				hostContext.allowedDataClassesForModelEgress.length === 0 ||
-				hostContext.allowedDataClassesForModelEgress.includes(dataClass),
-		);
+		const allowedDataClasses = opened.profile.sensitivityPolicy.allowedDataClasses;
 		if (allowedDataClasses.length === 0) return;
 		const usage = ctx.getContextUsage();
 		const contextWindow = usage?.contextWindow ?? ctx.model.contextWindow;

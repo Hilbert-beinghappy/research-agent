@@ -72,6 +72,8 @@ Skills orchestrate model judgment. They do not parse PDFs, decide dedup matches,
 
 Tool parameter schemas live in `src/extension/tool-schemas.ts`; Pi registration is split across source, knowledge, methods, writing, and memory handlers under `src/extension/handlers/`. Every model-visible handler enters through the same fail-closed egress wrapper. Project mutations use the shared operation journal; Personal Memory feedback uses its separate profile transaction and immutable feedback record. Tool responses always distinguish `SUCCESS`, `PARTIAL_SUCCESS`, retryable/permanent failure, permission block, and data conflict.
 
+When a Project restricts `allowedDataClassesForModelEgress`, automatic preference injection requires the distinct `personal_memory_context` class. The existing `personal_memory_summary` class authorizes only the value-free inspection and confirmed-feedback tool surfaces; unrelated classes such as `bibliographic_metadata` do not authorize either Memory surface.
+
 ## Minimal interactive flow
 
 ```text

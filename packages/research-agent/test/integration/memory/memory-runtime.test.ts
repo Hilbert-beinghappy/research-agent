@@ -193,4 +193,62 @@ describe("Personal Memory runtime", () => {
 			canonicalStringify(projectBefore.manifest),
 		);
 	});
+
+	it("requires the Personal Memory context data class when a project restricts remote egress", async () => {
+		const captureHarness = runtimeHarness(temporaryDirectory);
+		await captureHarness.emit("input", {
+			type: "input",
+			text: "请记住我的长期偏好：默认用中文",
+			source: "interactive",
+		});
+		const projectRoot = join(temporaryDirectory, "project");
+		const initialized = await initializeProject(projectRoot, { title: "Memory data-class fixture" });
+		if (initialized.compatibility !== "current") throw new Error("expected current project");
+		await commitProjectTransaction(projectRoot, {
+			expectedRevision: initialized.manifest.revision,
+			writes: [],
+			manifest: {
+				...initialized.manifest,
+				policy: {
+					...initialized.manifest.policy,
+					allowedDataClassesForModelEgress: ["bibliographic_metadata"],
+				},
+				revision: initialized.manifest.revision + 1,
+				updatedAt: new Date().toISOString(),
+			},
+		});
+		const harness = runtimeHarness(projectRoot);
+		const event = {
+			type: "before_agent_start",
+			prompt: "continue",
+			systemPrompt: "base",
+			systemPromptOptions: {},
+		};
+		expect(await harness.emit("before_agent_start", event)).toEqual([undefined]);
+		let opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
+		if (opened.mode !== "read-write") throw new Error("expected writable profile");
+		expect(opened.counts.receipts).toBe(0);
+
+		const project = await openProject(projectRoot);
+		if (project.compatibility !== "current") throw new Error("expected current project");
+		await commitProjectTransaction(projectRoot, {
+			expectedRevision: project.manifest.revision,
+			writes: [],
+			manifest: {
+				...project.manifest,
+				policy: {
+					...project.manifest.policy,
+					allowedDataClassesForModelEgress: ["personal_memory_context"],
+				},
+				revision: project.manifest.revision + 1,
+				updatedAt: new Date().toISOString(),
+			},
+		});
+		expect(await harness.emit("before_agent_start", event)).toMatchObject([
+			{ systemPrompt: expect.stringContaining('writing.language="zh-CN"') },
+		]);
+		opened = await openMemoryProfile(profileRoot, { rebuildCache: false });
+		if (opened.mode !== "read-write") throw new Error("expected writable profile");
+		expect(opened.counts.receipts).toBe(1);
+	});
 });
